@@ -1,0 +1,7 @@
+.rec-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.rec-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px}
+.rec-card{display:flex;gap:12px;background:var(--cream,#F5F3EA);border:1px solid var(--line,#e4e0d0);border-radius:14px;padding:12px}
+.rec-card .mini{flex:none}
+.rec-info{display:flex;flex-direction:column;align-items:flex-start;gap:5px;min-width:0}
+.rec-info h3{font-size:15px;line-height:1.25}
+.rec-reason{font-size:11.5px;color:var(--sage,#5f7a66)}
