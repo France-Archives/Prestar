@@ -1,0 +1,44 @@
+/* PRESTAR design tokens. Loaded FIRST. */
+:root{
+  /* Brand colors */
+  --color-cream:#F5F3EA;        /* main page background */
+  --color-soft-cream:#FBFAF5;   /* cards / panels background */
+  --color-forest-deep:#07352C;  /* dark sections, hover of primary */
+  --color-green:#0B3D32;        /* primary buttons, active states, headings */
+  --color-white:#FFFFFF;
+  --color-gold:#B98A4A;         /* small accents only */
+  --color-text:#1F2A27;
+  --color-muted:#6B756F;
+  --color-border:#D9DDD7;
+
+  /* Supporting colors (kept from the existing UI) */
+  --color-sage:#6F9B78;
+  --color-mist:#DCE5D7;
+  --color-error:#8a3b35;
+  --color-error-bg:#f1ddd6;
+  --color-wood:#d9c19a;
+
+  /* Fonts */
+  --font-sans:"Roboto",system-ui,sans-serif;
+  --font-serif:"Playfair Display",Georgia,serif;
+
+  /* Radius */
+  --radius-sm:10px;
+  --radius-md:16px;
+  --radius-lg:22px;
+  --radius-pill:999px;
+
+  /* Shadows */
+  --shadow-card:0 4px 14px rgba(11,61,50,.05);
+  --shadow-raised:18px 18px 44px rgba(178,166,138,.38),-14px -14px 38px rgba(255,255,255,.95);
+  --shadow-inset:inset 3px 3px 7px rgba(178,166,138,.4),inset -3px -3px 7px rgba(255,255,255,.95);
+  --shadow-inset-sm:inset 2px 2px 5px rgba(178,166,138,.3),inset -2px -2px 5px rgba(255,255,255,.9);
+
+  /* Transitions */
+  --ease:cubic-bezier(.22,.8,.3,1);
+  --transition-fast:.2s;
+
+  /* Layout */
+  --content-max:1180px;
+  --gutter:clamp(16px,4vw,48px);
+}

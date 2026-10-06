@@ -1,0 +1,5 @@
+.bars{display:flex;flex-direction:column;gap:8px}
+.bar-row{display:grid;grid-template-columns:120px 1fr 32px;gap:10px;align-items:center;font-size:12px}
+.bar-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-track{background:var(--color-mist);border-radius:var(--radius-pill);height:10px;overflow:hidden}
+.bar-fill{background:var(--color-green);height:100%;border-radius:var(--radius-pill)}

@@ -5,6 +5,7 @@ import { useLibrary } from "../context/LibraryContext";
 import * as api from "../services/api";
 import type { LoginFormData, RegisterFormData, StudentType } from "../types";
 import { EMAIL, NAME, isStrongPassword } from "../utils/validators";
+import "./Auth.css";
 
 type FormErrors = Record<string, string>;
 type TextField = Exclude<keyof RegisterFormData, "noStudentId" | "consent">;
