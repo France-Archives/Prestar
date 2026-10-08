@@ -23,6 +23,14 @@ const ROLE_OPTIONS: UserRole[] = ["Student", "Librarian", "Admin"];
 const REASON_OPTIONS: SuspensionReason[] = ["Violation", "Lost Book", "Damaged Book", "Other"];
 const STANDING_OPTIONS: Standing[] = ["OK", "Suspended", "Penalty", "Overdue", "Not enrolled", "Inactive"];
 
+const CARD = "bg-[#FBFAF5] border border-[#D9DDD7] rounded-[14px] shadow-[0_1px_2px_rgba(11,61,50,0.05)]";
+const LABEL = "text-xs uppercase tracking-[0.08em] text-[#6B756F] font-medium";
+const STAT_VALUE = "font-['Playfair_Display',serif] text-[28px] text-[#0B3D32] mt-1.5 leading-[1.1]";
+const PANEL_HEADER =
+  "flex flex-wrap justify-between items-baseline gap-2 px-5 py-4 border-b border-[#D9DDD7] bg-[#DCE5D7]";
+const PANEL_TITLE = "font-['Playfair_Display',serif] text-xl text-[#07352C] m-0";
+const PANEL_NOTE = "mt-1 mb-0 text-sm text-[#6B756F]";
+
 type Dialog = null | "status" | "role" | "suspend" | { lift: Suspension };
 
 function UserDetails({ userId, onClose }: { userId: number; onClose: () => void }) {
@@ -214,6 +222,17 @@ export default function Users() {
       );
   }, [db, q, role, status, standing, prov]);
 
+  // Summary figures come straight from the existing user records.
+  const totals = useMemo(
+    () => ({
+      all: db.users.length,
+      active: db.users.filter((u) => u.status === "Active").length,
+      inactive: db.users.filter((u) => u.status === "Inactive").length,
+      provisional: db.users.filter((u) => u.role === "Student" && !u.student_id).length,
+    }),
+    [db.users],
+  );
+
   const columns: Column<UserRow>[] = [
     { key: "name", label: "Name" },
     { key: "email", label: "Email" },
@@ -224,11 +243,36 @@ export default function Users() {
     { key: "created_at", label: "Created", render: (u) => fmtDate(u.created_at) },
   ];
 
+  const hasFilters = Boolean(q || role !== "all" || status !== "all" || standing !== "all" || prov);
+
   return (
     <>
       <span className="eyebrow">ADMIN</span>
       <h1 className="page-title">Users</h1>
-      <div className="toolbar">
+      <p className="text-[#6B756F] mt-1 mb-5 max-w-[680px] leading-relaxed">
+        Review student, librarian and administrator accounts, check verification and standing, and open an account to manage it.
+      </p>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+        <div className={`${CARD} px-5 py-[18px] border-l-4 border-l-[#0B3D32]`}>
+          <div className={LABEL}>Total users</div>
+          <div className={STAT_VALUE}>{totals.all}</div>
+        </div>
+        <div className={`${CARD} px-5 py-[18px] border-l-4 border-l-[#6F9B78]`}>
+          <div className={LABEL}>Active</div>
+          <div className={STAT_VALUE}>{totals.active}</div>
+        </div>
+        <div className={`${CARD} px-5 py-[18px] border-l-4 border-l-[#6B756F]`}>
+          <div className={LABEL}>Inactive</div>
+          <div className={STAT_VALUE}>{totals.inactive}</div>
+        </div>
+        <div className={`${CARD} px-5 py-[18px] border-l-4 border-l-[#B98A4A]`}>
+          <div className={LABEL}>Provisional students</div>
+          <div className={STAT_VALUE}>{totals.provisional}</div>
+        </div>
+      </div>
+
+      <div className={`toolbar ${CARD} px-[18px] py-3.5 mb-5 flex flex-wrap items-center gap-3`}>
         <input className="input grow" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, email or student ID…" />
         <select className="input" value={role} onChange={(e) => setRole(e.target.value)}>
           <option value="all">All roles</option>
@@ -245,7 +289,75 @@ export default function Users() {
         </select>
         <label className="check"><input type="checkbox" checked={prov} onChange={(e) => setProv(e.target.checked)} /><span>Provisional only</span></label>
       </div>
-      <DataTable columns={columns} rows={rows} empty="No users match." onRowClick={(u) => setOpen(u.user_id)} />
+
+      <section className={`${CARD} overflow-hidden`}>
+        <header className={PANEL_HEADER}>
+          <div>
+            <h2 className={PANEL_TITLE}>Accounts</h2>
+            <p className={PANEL_NOTE}>Select a row to view details and manage the account.</p>
+          </div>
+          <span className="text-[13px] font-medium text-[#1F2A27]">
+            {rows.length} {rows.length === 1 ? "user" : "users"}
+            {hasFilters ? " (filtered)" : ""}
+          </span>
+        </header>
+
+        {/* Desktop and tablet: management table */}
+        <div className="hidden md:block overflow-x-auto">
+          <DataTable columns={columns} rows={rows} empty="No users match." onRowClick={(u) => setOpen(u.user_id)} />
+        </div>
+
+        {/* Mobile: account cards */}
+        <div className="md:hidden p-3 grid gap-3">
+          {rows.length === 0 && <p className="muted text-center py-6 m-0">No users match.</p>}
+          {rows.map((u) => (
+            <button
+              key={u.user_id}
+              type="button"
+              onClick={() => setOpen(u.user_id)}
+              className={`w-full text-left bg-[#FBFAF5] border border-[#D9DDD7] border-l-4 rounded-[12px] px-4 py-3.5 cursor-pointer transition-colors hover:bg-[#F5F3EA] ${
+                u.status === "Active" ? "border-l-[#6F9B78]" : "border-l-[#6B756F]"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-['Playfair_Display',serif] text-[17px] text-[#0B3D32] leading-snug truncate">{u.name}</div>
+                  <div className="text-[13px] text-[#6B756F] truncate">{u.email}</div>
+                </div>
+                <Badge status={u.status} />
+              </div>
+
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 mt-3 mb-0">
+                <div>
+                  <dt className={LABEL}>Role</dt>
+                  <dd className="m-0 mt-0.5 text-sm text-[#1F2A27]">{u.role}</dd>
+                </div>
+                <div>
+                  <dt className={LABEL}>Student ID</dt>
+                  <dd className="m-0 mt-0.5 text-sm text-[#1F2A27]">
+                    {u.student_id ?? (u.role === "Student" ? "Provisional" : "—")}
+                  </dd>
+                </div>
+                <div>
+                  <dt className={LABEL}>Borrowing standing</dt>
+                  <dd className="m-0 mt-0.5 text-sm text-[#1F2A27]">
+                    {u.standing === "—" ? "—" : <Badge status={u.standing} />}
+                  </dd>
+                </div>
+                <div>
+                  <dt className={LABEL}>Created</dt>
+                  <dd className="m-0 mt-0.5 text-sm text-[#1F2A27]">{fmtDate(u.created_at)}</dd>
+                </div>
+              </dl>
+
+              <div className="mt-3 pt-3 border-t border-[#D9DDD7] text-[13px] font-medium text-[#0B3D32]">
+                View details and manage →
+              </div>
+            </button>
+          ))}
+        </div>
+      </section>
+
       {open !== null && <UserDetails userId={open} onClose={() => setOpen(null)} />}
     </>
   );

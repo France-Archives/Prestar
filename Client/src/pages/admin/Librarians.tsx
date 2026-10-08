@@ -12,6 +12,14 @@ import { EMAIL, isStrongPassword } from "../../utils/validators";
 const EMPTY: LibrarianFormData = { firstName: "", lastName: "", email: "", password: "" };
 type LibrarianRow = User & { id: number };
 
+const CARD = "bg-[#FBFAF5] border border-[#D9DDD7] rounded-[14px] shadow-[0_1px_2px_rgba(11,61,50,0.05)]";
+const LABEL = "text-xs uppercase tracking-[0.08em] text-[#6B756F] font-medium";
+const STAT_VALUE = "font-['Playfair_Display',serif] text-[28px] text-[#0B3D32] mt-1.5 leading-[1.1]";
+const PANEL_HEADER =
+  "flex flex-wrap justify-between items-baseline gap-2 px-5 py-4 border-b border-[#D9DDD7] bg-[#DCE5D7]";
+const PANEL_TITLE = "font-['Playfair_Display',serif] text-xl text-[#07352C] m-0";
+const PANEL_NOTE = "mt-1 mb-0 text-sm text-[#6B756F]";
+
 export default function Librarians() {
   const { db, user, act, notify } = useAuthedLibrary();
   const [creating, setCreating] = useState(false);
@@ -22,6 +30,16 @@ export default function Librarians() {
   const set = (k: keyof LibrarianFormData) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
 
   const rows = useMemo((): LibrarianRow[] => db.users.filter((u) => u.role === "Librarian").map((u) => ({ ...u, id: u.user_id })), [db.users]);
+
+  // Summary figures come straight from the existing librarian records.
+  const totals = useMemo(
+    () => ({
+      all: rows.length,
+      active: rows.filter((u) => u.status === "Active").length,
+      inactive: rows.filter((u) => u.status === "Inactive").length,
+    }),
+    [rows],
+  );
 
   const create = wrap(async () => {
     if (!f.firstName.trim() || !f.lastName.trim()) return setError("Name is required.");
@@ -63,10 +81,83 @@ export default function Librarians() {
     <>
       <span className="eyebrow">ADMIN</span>
       <h1 className="page-title">Librarians</h1>
-      <div className="toolbar">
-        <button className="btn primary sm" onClick={() => { setCreating(true); setError(null); }}>Create librarian</button>
+      <p className="text-[#6B756F] mt-1 mb-5 max-w-[680px] leading-relaxed">
+        Manage librarian accounts: create new librarians, control who can log in, and send password reset links.
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+        <div className={`${CARD} px-5 py-[18px] border-l-4 border-l-[#0B3D32]`}>
+          <div className={LABEL}>Librarian accounts</div>
+          <div className={STAT_VALUE}>{totals.all}</div>
+        </div>
+        <div className={`${CARD} px-5 py-[18px] border-l-4 border-l-[#6F9B78]`}>
+          <div className={LABEL}>Active</div>
+          <div className={STAT_VALUE}>{totals.active}</div>
+        </div>
+        <div className={`${CARD} px-5 py-[18px] border-l-4 border-l-[#6B756F]`}>
+          <div className={LABEL}>Inactive</div>
+          <div className={STAT_VALUE}>{totals.inactive}</div>
+        </div>
       </div>
-      <DataTable columns={columns} rows={rows} empty="No librarians yet." />
+
+      <section className={`${CARD} overflow-hidden`}>
+        <header className={PANEL_HEADER}>
+          <div>
+            <h2 className={PANEL_TITLE}>Librarian accounts</h2>
+            <p className={PANEL_NOTE}>Accounts with the Librarian role.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-[13px] font-medium text-[#1F2A27]">
+              {rows.length} {rows.length === 1 ? "librarian" : "librarians"}
+            </span>
+            <button className="btn primary sm" onClick={() => { setCreating(true); setError(null); }}>Create librarian</button>
+          </div>
+        </header>
+
+        {/* Desktop and tablet: management table */}
+        <div className="hidden md:block overflow-x-auto">
+          <DataTable columns={columns} rows={rows} empty="No librarians yet." />
+        </div>
+
+        {/* Mobile: account cards */}
+        <div className="md:hidden p-3 grid gap-3">
+          {rows.length === 0 && <p className="muted text-center py-6 m-0">No librarians yet.</p>}
+          {rows.map((u) => (
+            <div
+              key={u.user_id}
+              className={`bg-[#FBFAF5] border border-[#D9DDD7] border-l-4 rounded-[12px] px-4 py-3.5 ${
+                u.status === "Active" ? "border-l-[#6F9B78]" : "border-l-[#6B756F]"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-['Playfair_Display',serif] text-[17px] text-[#0B3D32] leading-snug truncate">
+                    {u.first_name} {u.last_name}
+                  </div>
+                  <div className="text-[13px] text-[#6B756F] truncate">{u.email}</div>
+                </div>
+                <Badge status={u.status} />
+              </div>
+
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 mt-3 mb-0">
+                <div>
+                  <dt className={LABEL}>Role</dt>
+                  <dd className="m-0 mt-0.5 text-sm text-[#1F2A27]">{u.role}</dd>
+                </div>
+                <div>
+                  <dt className={LABEL}>Created</dt>
+                  <dd className="m-0 mt-0.5 text-sm text-[#1F2A27]">{fmtDate(u.created_at)}</dd>
+                </div>
+              </dl>
+
+              <div className="row-actions mt-3 pt-3 border-t border-[#D9DDD7] flex flex-wrap gap-2">
+                <button className="btn ghost sm" onClick={() => setTarget(u)}>{u.status === "Active" ? "Set Inactive" : "Reactivate"}</button>
+                <button className="btn ghost sm" onClick={() => notify("MOCK — a password reset link would be emailed.")}>Reset password link</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {creating && (
         <ConfirmDialog title="Create librarian" confirmLabel="Create" busy={busy} onConfirm={create} onClose={() => setCreating(false)}>

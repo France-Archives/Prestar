@@ -1,2 +1,43 @@
-.toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);background:var(--color-green);color:var(--color-white);padding:12px 20px;border-radius:12px;font-size:13px;opacity:0;pointer-events:none;transition:all .35s var(--ease);z-index:100;max-width:90vw;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+/* PRESTAR application-level styles. Tokens: src/styles/variables.css | Shared base: src/styles/global.css */
+
+/* ===== App shell ===== */
+#root{min-height:100vh;display:flex;flex-direction:column;background:var(--color-cream);color:var(--color-text);font-family:var(--font-sans)}
+.app{flex:1;display:flex;flex-direction:column;min-height:100vh;background:var(--color-cream);color:var(--color-text);font-family:var(--font-sans)}
+.app main{flex:1}
+
+/* ===== Editorial headings (Playfair Display) ===== */
+.app h1,.app h2,.app h3,.app h4,
+.book-title,.brand,.logo,.modal h2{font-family:var(--font-serif);color:var(--color-green);font-weight:500}
+
+/* ===== Interface text (Roboto) ===== */
+.app nav,.nav a,.nav button,.meta,.badge,.tag{font-family:var(--font-sans)}
+
+/* ===== Badges / status ===== */
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:var(--radius-pill);font-size:11px;font-weight:700;letter-spacing:.04em;background:var(--color-mist);color:var(--color-green)}
+.badge.gold{background:var(--color-wood);color:var(--color-forest-deep)}
+.badge.danger{background:var(--color-error-bg);color:var(--color-error)}
+.badge.ok{background:var(--color-mist);color:var(--color-green);border:1px solid var(--color-sage)}
+
+/* ===== Divider ===== */
+.divider{height:1px;border:0;background:var(--color-border);margin:20px 0}
+
+/* ===== Empty / loading states ===== */
+.empty{text-align:center;padding:48px 16px;color:var(--color-muted);font-size:14px;background:var(--color-soft-cream);border-radius:var(--radius-md);box-shadow:var(--shadow-card)}
+.empty h3{font-size:20px;margin-bottom:6px}
+.loading{display:grid;place-items:center;padding:60px 16px;color:var(--color-muted);font-size:13px}
+
+/* ===== Toast ===== */
+.toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);background:var(--color-green);color:var(--color-white);padding:12px 20px;border-radius:12px;font-family:var(--font-sans);font-size:13px;opacity:0;pointer-events:none;transition:all .35s var(--ease);z-index:100;max-width:90vw;box-shadow:0 10px 30px rgba(7,53,44,.28)}
 .toast.show{opacity:1;transform:translate(-50%,0)}
+.toast.error{background:var(--color-error)}
+
+/* ===== Modal / overlay ===== */
+.overlay{position:fixed;inset:0;background:rgba(7,53,44,.45);display:grid;place-items:center;padding:var(--gutter);z-index:90;animation:fade .25s var(--ease)}
+.modal{width:100%;max-width:520px;max-height:90vh;overflow:auto;background:var(--color-soft-cream);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow-raised);color:var(--color-text)}
+.modal h2{font-size:22px;margin-bottom:12px}
+
+/* ===== Small screens ===== */
+@media(max-width:480px){
+  .toast{bottom:16px;width:calc(100% - 32px);text-align:center}
+  .modal{padding:18px;border-radius:var(--radius-md)}
+}
