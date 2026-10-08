@@ -1,0 +1,7 @@
+BEGIN;
+
+ALTER TABLE signups
+  ADD COLUMN IF NOT EXISTS proof_image BYTEA,
+  ADD COLUMN IF NOT EXISTS proof_mime_type VARCHAR(50);
+
+COMMIT;

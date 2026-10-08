@@ -70,7 +70,16 @@ export default function defineSignup(sequelize) {
       defaultValue: "Pending",
     },
     proof_file: {
+      // Legacy storage-key field; new proof uploads use proof_image.
       type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    proof_image: {
+      type: DataTypes.BLOB,
+      allowNull: true,
+    },
+    proof_mime_type: {
+      type: DataTypes.STRING(50),
       allowNull: true,
     },
     email_verified_at: {

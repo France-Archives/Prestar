@@ -1,6 +1,7 @@
 // Server/services/signupService.js
 import { randomUUID } from "node:crypto";
 import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 import { Op, UniqueConstraintError } from "sequelize";
 import {
   Course,
@@ -10,9 +11,11 @@ import {
   Student,
   User,
 } from "../models/index.js";
+import { validateProofImage } from "../utils/proofImageValidation.js";
 
 const normalize = (value) => String(value ?? "").trim().toLocaleLowerCase("en-US");
 const PASSWORD_COST = 12;
+const PROOF_UPLOAD_TOKEN_TTL_SECONDS = 30 * 60;
 
 export class SignupError extends Error {
   constructor(status, message) {
@@ -24,6 +27,24 @@ export class SignupError extends Error {
 
 function createReferenceNo() {
   return `LIB-${randomUUID().toUpperCase()}`;
+}
+
+function createProofUploadCapability(referenceNo) {
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret.length < 32) {
+    throw new Error("JWT_SECRET must be set to a random value of at least 32 characters.");
+  }
+
+  const issuedAt = Math.floor(Date.now() / 1000);
+  const expiresAt = issuedAt + PROOF_UPLOAD_TOKEN_TTL_SECONDS;
+  const token = jwt.sign({
+    scope: "signup-proof-upload",
+    reference_no: referenceNo,
+    iat: issuedAt,
+    exp: expiresAt,
+  }, secret, { audience: "signup-proof-upload", issuer: "prestar-api" });
+
+  return { token, expiresAt: new Date(expiresAt * 1000).toISOString() };
 }
 
 function matchesStudent(input, student) {
@@ -88,12 +109,15 @@ export async function createSignup(input) {
         match_status: matched ? "Matched" : "Unmatched",
         verification_type: matched ? "Automatic" : "Manual",
         status: matched ? "Approved" : "Pending",
-        proof_file: input.proof_file ?? null,
+        // Proofs are attached only through the capability-protected upload endpoint.
+        proof_image: null,
+        proof_mime_type: null,
         // This system has no email verification or OTP flow.
         email_verified_at: null,
       }, { transaction });
 
       let user = null;
+      let proofUpload = null;
       if (matched) {
         user = await User.create({
           student_id: student.student_id,
@@ -106,6 +130,8 @@ export async function createSignup(input) {
         }, { transaction });
 
         await signup.update({ created_user_id: user.id }, { transaction });
+      } else {
+        proofUpload = createProofUploadCapability(referenceNo);
       }
 
       await SignupVerification.create({
@@ -120,6 +146,7 @@ export async function createSignup(input) {
       return {
         matched,
         referenceNo,
+        proofUpload,
         user: user ? {
           id: user.id,
           student_id: user.student_id,
@@ -137,4 +164,66 @@ export async function createSignup(input) {
     }
     throw error;
   }
+}
+
+export function verifyProofUploadCapability(token, referenceNo) {
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret.length < 32) {
+    throw new Error("JWT_SECRET must be set to a random value of at least 32 characters.");
+  }
+
+  try {
+    const payload = jwt.verify(token, secret, {
+      audience: "signup-proof-upload",
+      issuer: "prestar-api",
+    });
+    if (payload.scope !== "signup-proof-upload" || payload.reference_no !== referenceNo) {
+      throw new Error("Invalid proof upload capability.");
+    }
+  } catch {
+    throw new SignupError(401, "Invalid or expired proof upload token.");
+  }
+}
+
+export async function attachSignupProof(referenceNo, proofImage, proofMimeType) {
+  validateProofImage({ buffer: proofImage, mimetype: proofMimeType });
+
+  return sequelize.transaction(async (transaction) => {
+    const signup = await Signup.findOne({
+      where: { reference_no: referenceNo },
+      attributes: ["signup_id", "reference_no", "status", "match_status"],
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+
+    if (!signup) {
+      throw new SignupError(404, "Pending signup was not found.");
+    }
+    if (signup.status !== "Pending" || signup.match_status !== "Unmatched") {
+      throw new SignupError(409, "Proof can only be attached to an unmatched pending signup.");
+    }
+    const [updatedCount] = await Signup.update({
+      proof_image: proofImage,
+      proof_mime_type: proofMimeType,
+    }, {
+      where: {
+        signup_id: signup.signup_id,
+        status: "Pending",
+        match_status: "Unmatched",
+        proof_image: null,
+      },
+      transaction,
+    });
+    if (updatedCount === 0) {
+      throw new SignupError(409, "Proof has already been uploaded for this signup.");
+    }
+    await SignupVerification.create({
+      signup_id: signup.signup_id,
+      action: "PROOF_UPLOADED",
+      actor_id: null,
+      remarks: "Proof of enrollment uploaded for manual review.",
+    }, { transaction });
+
+    return { referenceNo: signup.reference_no };
+  });
 }

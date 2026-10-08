@@ -31,14 +31,10 @@ export async function login(req, res) {
     const token = generateToken(user);
     return res
       .cookie(COOKIE_NAME, token, { ...cookieOptions, maxAge: SIX_HOURS_MS })
+      .set("Cache-Control", "no-store")
+      .set("Pragma", "no-cache")
       .status(200)
-      .json({
-        user: {
-          id: user.id,
-          email: user.email,
-          role: user.role,
-        },
-      });
+      .json({ message: "Login successful." });
   } catch (error) {
     console.error("Login failed:", error);
     return res.status(500).json({ error: "Internal server error." });

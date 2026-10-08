@@ -22,3 +22,11 @@ export const signupRateLimiter = rateLimit({
   legacyHeaders: false,
   handler: rateLimitResponse,
 });
+
+export const proofUploadRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  handler: rateLimitResponse,
+});
