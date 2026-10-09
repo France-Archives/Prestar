@@ -1,1 +1,1 @@
-export {};
+// Placeholder for verification service integration.

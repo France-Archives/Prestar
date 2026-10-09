@@ -1,1 +1,1 @@
-export {};
+// Placeholder for the sidebar component.

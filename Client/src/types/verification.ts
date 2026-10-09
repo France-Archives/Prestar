@@ -1,1 +1,1 @@
-export {};
+// Placeholder for verification domain types.

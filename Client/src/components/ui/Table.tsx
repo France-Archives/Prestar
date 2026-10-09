@@ -1,1 +1,1 @@
-export {};
+// Placeholder for the shared table component.

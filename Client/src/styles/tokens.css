@@ -1,0 +1,10 @@
+:root {
+  --forest-green: #1b4332;
+  --green: #2d6a4f;
+  --amber: #e09f3e;
+  --cream: #f2e8cf;
+  --teal: #335c67;
+  --brick-red: #9e2a2b;
+  --font-sans: "Inter", "Segoe UI", sans-serif;
+  --shadow-soft: 0 10px 25px rgba(27, 67, 50, 0.08);
+}

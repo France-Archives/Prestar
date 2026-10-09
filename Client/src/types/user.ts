@@ -1,1 +1,1 @@
-export {};
+// Placeholder for user domain types.

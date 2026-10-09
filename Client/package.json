@@ -1,27 +1,28 @@
 {
   "name": "prestar-client",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "tsc -b && vite build",
-    "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview --host",
+    "lint": "eslint ."
   },
   "dependencies": {
-    "axios": "^1.0.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-router-dom": "^7.0.0"
+    "axios": "^1.7.9",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.1.0"
   },
   "devDependencies": {
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
+    "@tailwindcss/vite": "^4.1.11",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^5.0.0",
-    "oxlint": "^1.0.0",
-    "tsx": "^4.0.0",
-    "typescript": "^5.0.0",
+    "eslint": "^9.17.0",
+    "tailwindcss": "^4.1.11",
+    "typescript": "^5.7.2",
     "vite": "^7.0.0"
   }
 }

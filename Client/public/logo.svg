@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 48" role="img" aria-label="PRESTAR logo">
+  <rect width="160" height="48" rx="12" fill="#1B4332"/>
+  <path d="M18 12h24v8H18zm0 12h24v8H18zm0 12h16v8H18z" fill="#F2E8CF"/>
+  <text x="54" y="31" fill="#F2E8CF" font-family="Inter, Segoe UI, sans-serif" font-size="18" font-weight="700">PRESTAR</text>
+</svg>

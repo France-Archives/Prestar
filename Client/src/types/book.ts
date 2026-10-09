@@ -1,1 +1,1 @@
-export {};
+// Placeholder for book domain types.
