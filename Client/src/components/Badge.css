@@ -1,0 +1,8 @@
+.badge{display:inline-flex;align-items:center;gap:5px;align-self:flex-start;padding:3px 9px;border-radius:var(--radius-pill);font-size:9.5px;font-weight:700;letter-spacing:.06em;border:1px solid transparent}
+.badge i{font-style:normal;font-size:10px}
+.badge.available,.badge.approved{background:#e4ecdf;color:var(--color-green);border-color:#c9d8c4}
+.badge.unavailable,.badge.rejected{background:var(--color-error-bg);color:var(--color-error);border-color:#e6c7bd}
+.badge.pending{background:var(--color-soft-cream);color:var(--color-green);border-color:var(--color-sage)}
+.badge.warn{background:#f6ecd5;color:#7a5a1c;border-color:#e6d3a3}
+.badge.info{background:#dfe9ee;color:#2f566b;border-color:#c3d4dd}
+.badge.neutral{background:#ececE6;color:var(--color-muted);border-color:#dcdacd}

@@ -1,0 +1,4 @@
+.notif-list{display:flex;flex-direction:column;gap:10px}
+.notif{display:flex;flex-direction:column;gap:2px;text-align:left;background:var(--color-soft-cream);border-radius:14px;padding:14px 16px;font-size:13px;box-shadow:0 3px 10px rgba(11,61,50,.05)}
+.notif.unread{border-left:4px solid var(--color-green)}
+.notif.unread b::before{content:"● ";color:var(--color-green)}

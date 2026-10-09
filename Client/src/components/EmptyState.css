@@ -1,0 +1,4 @@
+.empty{text-align:center;padding:48px 20px;background:var(--color-soft-cream);border:1px dashed var(--color-border);border-radius:var(--radius-md);display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:8px}
+.empty-icon{font-size:30px}
+.empty h3{font-size:19px}
+.empty p{font-size:13px;color:var(--color-muted);margin-bottom:8px}

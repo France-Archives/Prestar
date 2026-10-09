@@ -1,0 +1,6 @@
+.tbl-wrap{overflow-x:auto;background:var(--color-soft-cream);border-radius:14px}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;font-size:11px;letter-spacing:.04em;color:var(--color-muted);padding:12px 14px;border-bottom:1px solid var(--color-border);white-space:nowrap}
+.tbl td{padding:11px 14px;border-bottom:1px solid var(--color-border);vertical-align:middle}
+.tbl tr.click{cursor:pointer}
+.tbl tr.click:hover{background:rgba(220,229,215,.4)}

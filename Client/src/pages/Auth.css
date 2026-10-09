@@ -1,0 +1,142 @@
+/* Auth shell. Shared by Auth, Landing, VerifyEmail and Interests. */
+
+/* ===== Page shell ===== */
+.auth-page{min-height:100vh;padding:7px clamp(16px,4vw,40px);display:flex;flex-direction:column;background:var(--color-cream)}
+
+/* Top bar: logo pinned left, Back to Home pinned right, both aligned to the page gutters.
+   Layout is set here (not with Tailwind margin utilities) so it can never collapse to the left. */
+.auth-top{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  width:100%;max-width:1280px;margin-inline:auto;
+  padding:20px clamp(16px,4vw,48px);
+}
+.auth-top .logo{height:56px;flex:none}
+.auth-top .logo img{max-width:240px}
+.auth-top .logo-fallback{width:200px;height:56px}
+/* !important is needed because Logo.tsx sets its height inline. */
+.auth-top img{height:52px !important;width:auto}
+.auth-home{margin-left:auto;white-space:nowrap}
+.muted-link{font-size:12px;color:var(--color-muted);text-decoration:none}
+.muted-link:hover{color:var(--color-green)}
+
+/* ===== Simple centered card (Landing, VerifyEmail, Interests) ===== */
+.plain-card{width:min(480px,100%);margin:auto;background:var(--color-cream);border-radius:var(--radius-lg);padding:36px;display:flex;flex-direction:column;gap:14px;text-align:center;align-items:center;box-shadow:var(--shadow-raised)}
+.plain-card h1{font-family:var(--font-serif);font-size:26px}
+.plain-card .ref{font-size:13px}
+.plain-card .btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.proof{display:flex;flex-direction:column;gap:12px;align-items:center}
+
+/* ===== Login / Sign up card =====
+   Colors and type are Tailwind in Auth.tsx. This file only owns:
+   - the Auth-only surface tokens (the rest of the app is untouched),
+   - the soft decorative circles,
+   - the slide / collapse / cross-fade motion,
+   - the scroll safety rules for the taller Sign Up form. */
+
+/* Auth-only tokens. They exist only inside .auth-shell, so no other page changes. */
+.auth-shell{
+  --auth-bg:#F5F3EA;        /* very light warm off-white page background */
+  --auth-surface:#FBFAF5;   /* form side */
+  --auth-panel:#F7F5EC;     /* editorial side, a hair different from the form side */
+  --auth-shade:rgba(178,166,138,.30);
+  --auth-highlight:rgba(255,255,255,.92);
+  --auth-shadow:0 24px 56px -14px rgba(27,67,50,.16),0 2px 8px rgba(27,67,50,.05);
+}
+
+/* Scroll safety: while the Auth page is mounted, the document grows with its content
+   and scrolls vertically. Nothing here clips or fixes the height. Other pages are unaffected
+   because these rules only match when .auth-shell exists. */
+html:has(.auth-shell){height:auto;overflow-y:auto}
+body:has(.auth-shell){height:auto;min-height:100dvh;overflow:visible}
+#root:has(.auth-shell){height:auto;min-height:100dvh;overflow:visible}
+
+.auth-card{
+  --auth-dur:.85s;--auth-ease:cubic-bezier(.65,0,.25,1);
+  box-shadow:var(--auth-shadow);
+}
+
+.auth-forms,.auth-brand{position:relative;min-width:0}
+.auth-forms{z-index:1}
+.auth-brand{z-index:2;overflow:hidden;box-shadow:inset 0 14px 22px -18px var(--auth-shade)}
+
+/* Soft decorative circles (editorial side only). Low contrast, clipped by the panel. */
+.auth-brand{--c1:clamp(170px,48vw,240px);--c2:clamp(260px,70vw,400px)}
+.auth-brand::before,.auth-brand::after{
+  content:"";position:absolute;z-index:0;border-radius:50%;pointer-events:none;
+  background:var(--auth-panel);
+  box-shadow:inset 9px 9px 18px var(--auth-shade),inset -9px -9px 18px var(--auth-highlight);
+  transition:transform var(--auth-dur) var(--auth-ease);
+}
+.auth-brand::before{width:var(--c1);height:var(--c1);top:calc(var(--c1) * -.5);right:12%}
+.auth-brand::after{width:var(--c2);height:var(--c2);bottom:calc(var(--c2) * -.64);left:2%}
+.auth-card.is-signup .auth-brand::before{transform:translateX(-28px)}
+.auth-card.is-signup .auth-brand::after{transform:translateX(28px)}
+
+/* Both forms are stacked rows. The inactive row collapses to zero height,
+   so the card grows or shrinks smoothly between the short login and the taller sign up. */
+.auth-pane{
+  display:grid;grid-template-rows:1fr;opacity:1;visibility:visible;
+  transition:grid-template-rows var(--auth-dur) var(--auth-ease),opacity .4s ease .35s,visibility 0s;
+}
+.auth-pane-inner{min-height:0;overflow:hidden}
+
+/* Collapsed state: sign up by default, login once the card is in sign up mode. */
+.auth-pane-signup,
+.auth-card.is-signup .auth-pane-login{
+  grid-template-rows:0fr;opacity:0;visibility:hidden;
+  transition:grid-template-rows var(--auth-dur) var(--auth-ease),opacity .25s ease,visibility 0s linear var(--auth-dur);
+}
+.auth-card.is-signup .auth-pane-signup{
+  grid-template-rows:1fr;opacity:1;visibility:visible;
+  transition:grid-template-rows var(--auth-dur) var(--auth-ease),opacity .4s ease .35s,visibility 0s;
+}
+
+/* Editorial copy: both versions share one grid cell and cross-fade. */
+.auth-copy{
+  grid-area:1/1;opacity:1;visibility:visible;transform:none;
+  transition:opacity .4s ease .4s,transform .6s var(--auth-ease) .3s,visibility 0s;
+}
+.auth-copy-signup{
+  opacity:0;visibility:hidden;transform:translateY(10px);pointer-events:none;
+  transition:opacity .25s ease,transform .4s ease,visibility 0s linear .25s;
+}
+.auth-card.is-signup .auth-copy-login{
+  opacity:0;visibility:hidden;transform:translateY(-10px);pointer-events:none;
+  transition:opacity .25s ease,transform .4s ease,visibility 0s linear .25s;
+}
+.auth-card.is-signup .auth-copy-signup{
+  opacity:1;visibility:visible;transform:none;pointer-events:auto;
+  transition:opacity .4s ease .4s,transform .6s var(--auth-ease) .3s,visibility 0s;
+}
+
+/* Desktop: the form column and the editorial panel slide past each other and swap sides.
+   Below 1024px the card is one stacked column, so there is no horizontal slide. */
+@media(min-width:1024px){
+  .auth-forms,.auth-brand{transition:transform var(--auth-dur) var(--auth-ease);will-change:transform}
+  .auth-card.is-signup .auth-forms{transform:translateX(100%)}
+  .auth-card.is-signup .auth-brand{transform:translateX(-100%)}
+
+  /* Soft edge between the two light halves, always on the side facing the form. */
+  .auth-brand{box-shadow:inset 14px 0 22px -18px var(--auth-shade)}
+  .auth-card.is-signup .auth-brand{box-shadow:inset -14px 0 22px -18px var(--auth-shade)}
+  .auth-brand{--c1:clamp(180px,20vw,250px);--c2:clamp(280px,32vw,420px)}
+}
+
+/* ===== Auth form extras ===== */
+.link-right{align-self:flex-end;font-size:11px;color:var(--color-muted)}
+.link-right:hover{color:var(--color-green)}
+.link-center{font-size:11px;color:var(--color-gold);align-self:center}
+.divider{height:1px;background:linear-gradient(90deg,transparent,var(--color-border),transparent);margin:4px 0}
+
+/* ===== Responsive ===== */
+@media(max-width:820px){
+  .auth-page{padding:16px}
+  .auth-top{padding:14px 16px}
+  .auth-top .logo{height:44px}
+  .auth-top img{height:40px !important}
+}
+
+/* ===== Motion preferences ===== */
+@media (prefers-reduced-motion:reduce){
+  .auth-pane,.auth-copy,.auth-forms,.auth-brand,.auth-brand::before,.auth-brand::after{transition-delay:0s !important}
+}
