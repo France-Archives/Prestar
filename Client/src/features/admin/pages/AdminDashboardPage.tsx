@@ -61,6 +61,7 @@ export default function AdminDashboardPage() {
                   {q.label}
                 </Link>
               ))}
+              <p>trash</p>
             </div>
           </Card>
         </div>
