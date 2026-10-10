@@ -31,11 +31,6 @@ export default function defineUser(sequelize) {
         allowNull: false,
         defaultValue: "Active",
       },
-      student_id: {
-        type: DataTypes.STRING,
-        allowNull: true,
-        unique: true,
-      },
       first_name: {
         type: DataTypes.STRING(100),
         allowNull: false,
@@ -43,10 +38,6 @@ export default function defineUser(sequelize) {
       last_name: {
         type: DataTypes.STRING(100),
         allowNull: false,
-      },
-      manual_verified_until: {
-        type: DataTypes.DATEONLY,
-        allowNull: true,
       },
     },
     {

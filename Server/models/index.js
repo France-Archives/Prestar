@@ -3,10 +3,25 @@ import { Sequelize } from "sequelize";
 import config from "../config/config.js";
 import defineUser from "./User.js";
 import defineStudent from "./Student.js";
-import defineCourse from "./Course.js";
-import defineCollege from "./College.js";
-import defineSignup from "./Signup.js";
-import defineSignupVerification from "./SignupVerification.js";
+import defineLibrarian from "./Librarian.js";
+import defineAdmin from "./Admin.js";
+import defineEmailOtp from "./EmailOtp.js";
+import defineAuthor from "./Author.js";
+import defineCategory from "./Category.js";
+import defineBook from "./Book.js";
+import defineBookCopy from "./BookCopy.js";
+import defineBorrowRequest from "./BorrowRequest.js";
+import defineBorrowedBook from "./BorrowedBook.js";
+import definePenalty from "./Penalty.js";
+import definePayment from "./Payment.js";
+import defineRenewal from "./Renewal.js";
+import defineReturnedBook from "./ReturnedBook.js";
+import defineReservation from "./Reservation.js";
+import defineSuspension from "./Suspension.js";
+import defineAcademicTerm from "./AcademicTerm.js";
+import defineStudentVerification from "./StudentVerification.js";
+import defineAuditLog from "./AuditLog.js";
+import defineUserCategoryPreference from "./UserCategoryPreference.js";
 
 export const sequelize = new Sequelize(
   config.database,
@@ -15,27 +30,91 @@ export const sequelize = new Sequelize(
   config,
 );
 
+// Instantiate models
 export const User = defineUser(sequelize);
 export const Student = defineStudent(sequelize);
-export const Course = defineCourse(sequelize);
-export const College = defineCollege(sequelize);
-export const Signup = defineSignup(sequelize);
-export const SignupVerification = defineSignupVerification(sequelize);
+export const Librarian = defineLibrarian(sequelize);
+export const Admin = defineAdmin(sequelize);
+export const EmailOtp = defineEmailOtp(sequelize);
+export const Author = defineAuthor(sequelize);
+export const Category = defineCategory(sequelize);
+export const Book = defineBook(sequelize);
+export const BookCopy = defineBookCopy(sequelize);
+export const BorrowRequest = defineBorrowRequest(sequelize);
+export const BorrowedBook = defineBorrowedBook(sequelize);
+export const Penalty = definePenalty(sequelize);
+export const Payment = definePayment(sequelize);
+export const Renewal = defineRenewal(sequelize);
+export const ReturnedBook = defineReturnedBook(sequelize);
+export const Reservation = defineReservation(sequelize);
+export const Suspension = defineSuspension(sequelize);
+export const AcademicTerm = defineAcademicTerm(sequelize);
+export const StudentVerification = defineStudentVerification(sequelize);
+export const AuditLog = defineAuditLog(sequelize);
+export const UserCategoryPreference = defineUserCategoryPreference(sequelize);
 
-Course.belongsTo(College, { foreignKey: "college_id", as: "college" });
-College.hasMany(Course, { foreignKey: "college_id", as: "courses" });
-Student.belongsTo(Course, { foreignKey: "course_id", as: "course" });
-Course.hasMany(Student, { foreignKey: "course_id", as: "students" });
+// User 1-to-1 extensions
+User.hasOne(Student, { foreignKey: "user_id", as: "student" });
+Student.belongsTo(User, { foreignKey: "user_id", as: "user" });
 
-// These associations reflect logical links. The live schema currently has no
-// foreign-key constraints on students.student_id or signups.student_id.
-User.belongsTo(Student, { foreignKey: "student_id", targetKey: "student_id", as: "student", constraints: false });
-Student.hasOne(User, { foreignKey: "student_id", sourceKey: "student_id", as: "user", constraints: false });
-Signup.belongsTo(Student, { foreignKey: "student_id", targetKey: "student_id", as: "matchedStudent", constraints: false });
-Signup.belongsTo(User, { foreignKey: "created_user_id", as: "createdUser" });
-Signup.belongsTo(User, { foreignKey: "reviewed_by", as: "reviewer" });
-Signup.hasMany(SignupVerification, { foreignKey: "signup_id", as: "verifications" });
-SignupVerification.belongsTo(Signup, { foreignKey: "signup_id", as: "signup" });
-SignupVerification.belongsTo(User, { foreignKey: "actor_id", as: "actor" });
+User.hasOne(Librarian, { foreignKey: "user_id", as: "librarian" });
+Librarian.belongsTo(User, { foreignKey: "user_id", as: "user" });
+
+User.hasOne(Admin, { foreignKey: "user_id", as: "admin" });
+Admin.belongsTo(User, { foreignKey: "user_id", as: "user" });
+
+// Student Verifications
+User.hasMany(StudentVerification, { foreignKey: "user_id", as: "verifications" });
+StudentVerification.belongsTo(User, { foreignKey: "user_id", as: "student" });
+AcademicTerm.hasMany(StudentVerification, { foreignKey: "term_id", as: "verifications" });
+StudentVerification.belongsTo(AcademicTerm, { foreignKey: "term_id", as: "term" });
+
+// Book Catalog
+Book.belongsTo(Author, { foreignKey: "author_id", as: "author" });
+Author.hasMany(Book, { foreignKey: "author_id", as: "books" });
+
+Book.belongsTo(Category, { foreignKey: "category_id", as: "category" });
+Category.hasMany(Book, { foreignKey: "category_id", as: "books" });
+
+Book.hasMany(BookCopy, { foreignKey: "book_id", as: "copies" });
+BookCopy.belongsTo(Book, { foreignKey: "book_id", as: "book" });
+
+// Borrow Requests
+BorrowRequest.belongsTo(User, { foreignKey: "user_id", as: "student" });
+User.hasMany(BorrowRequest, { foreignKey: "user_id", as: "borrowRequests" });
+BorrowRequest.belongsTo(Book, { foreignKey: "book_id", as: "book" });
+BorrowRequest.belongsTo(User, { foreignKey: "reviewed_by", as: "reviewer" });
+
+// Borrowed Books
+BorrowedBook.belongsTo(BorrowRequest, { foreignKey: "request_id", as: "request" });
+BorrowRequest.hasMany(BorrowedBook, { foreignKey: "request_id", as: "borrows" });
+BorrowedBook.belongsTo(Book, { foreignKey: "book_id", as: "book" });
+BorrowedBook.belongsTo(BookCopy, { foreignKey: "copy_id", as: "copy" });
+BorrowedBook.belongsTo(User, { foreignKey: "issued_by", as: "issuer" });
+
+// Renewals
+Renewal.belongsTo(BorrowedBook, { foreignKey: "borrow_id", as: "borrow" });
+BorrowedBook.hasMany(Renewal, { foreignKey: "borrow_id", as: "renewals" });
+
+// Returned Books
+ReturnedBook.belongsTo(BorrowedBook, { foreignKey: "borrow_id", as: "borrow" });
+BorrowedBook.hasOne(ReturnedBook, { foreignKey: "borrow_id", as: "returnRecord" });
+
+// Reservations
+Reservation.belongsTo(User, { foreignKey: "user_id", as: "student" });
+Reservation.belongsTo(Book, { foreignKey: "book_id", as: "book" });
+
+// Penalties & Payments
+Penalty.belongsTo(BorrowedBook, { foreignKey: "borrow_id", as: "borrow" });
+BorrowedBook.hasMany(Penalty, { foreignKey: "borrow_id", as: "penalties" });
+Penalty.hasMany(Payment, { foreignKey: "penalty_id", as: "payments" });
+Payment.belongsTo(Penalty, { foreignKey: "penalty_id", as: "penalty" });
+
+// Suspensions
+Suspension.belongsTo(User, { foreignKey: "user_id", as: "student" });
+
+// User Category Preferences
+UserCategoryPreference.belongsTo(User, { foreignKey: "user_id", as: "user" });
+UserCategoryPreference.belongsTo(Category, { foreignKey: "category_id", as: "category" });
 
 export default sequelize;

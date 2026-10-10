@@ -2,6 +2,7 @@
 import bcrypt from "bcrypt";
 import { User } from "../models/index.js";
 import generateToken from "../utils/generateToken.js";
+import { getDashboardRoute } from "../utils/roleRoutes.js";
 
 const COOKIE_NAME = "auth_token";
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
@@ -55,7 +56,10 @@ export async function logout(_req, res) {
 
 export async function getCurrentUser(req, res) {
   try {
-    return res.status(200).json({ user: req.user });
+    return res.status(200).json({
+      user: req.user,
+      dashboard_url: getDashboardRoute(req.user?.role),
+    });
   } catch (error) {
     console.error("Session check failed:", error);
     return res.status(500).json({ error: "Internal server error." });

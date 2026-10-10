@@ -5,6 +5,8 @@ import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import authRoutes from "./routes/authRoutes.js";
+import bookRoutes from "./routes/bookRoutes.js";
+import borrowRequestRoutes from "./routes/borrowRequestRoutes.js";
 
 const app = express();
 const allowedOrigins = new Set(
@@ -29,6 +31,8 @@ app.use(cors({
 }));
 
 app.use("/api/auth", authRoutes);
+app.use("/api/books", bookRoutes);
+app.use("/api/borrow-requests", borrowRequestRoutes);
 
 app.use((req, res) => {
 	res.status(404).json({ error: "Route not found." });

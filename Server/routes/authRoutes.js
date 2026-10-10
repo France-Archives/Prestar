@@ -6,26 +6,29 @@ import {
   logout,
 } from "../controllers/authController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
-import { validateLogin, validateSignup } from "../validators/authValidator.js";
 import {
-  authorizeSignupProofUpload,
+  validateLogin,
+  validateResendOtp,
+  validateSignup,
+  validateVerifyOtp,
+} from "../validators/authValidator.js";
+import {
+  resendSignupOtp,
   signup,
-  uploadSignupProof,
+  verifySignupOtp,
 } from "../controllers/signupController.js";
-import { receiveSignupProof } from "../middleware/proofUploadMiddleware.js";
-import { loginRateLimiter, proofUploadRateLimiter, signupRateLimiter } from "../middleware/rateLimiters.js";
+import {
+  loginRateLimiter,
+  otpRateLimiter,
+  signupRateLimiter,
+} from "../middleware/rateLimiters.js";
 
 const router = Router();
 
 router.post("/login", loginRateLimiter, validateLogin, login);
 router.post("/signup", signupRateLimiter, validateSignup, signup);
-router.post(
-  "/signup/:referenceNo/proof",
-  proofUploadRateLimiter,
-  authorizeSignupProofUpload,
-  receiveSignupProof,
-  uploadSignupProof,
-);
+router.post("/signup/verify-otp", validateVerifyOtp, verifySignupOtp);
+router.post("/signup/resend-otp", otpRateLimiter, validateResendOtp, resendSignupOtp);
 router.post("/logout", logout);
 router.get("/me", authMiddleware, getCurrentUser);
 

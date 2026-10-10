@@ -23,10 +23,17 @@ export const signupRateLimiter = rateLimit({
   handler: rateLimitResponse,
 });
 
-export const proofUploadRateLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  limit: 10,
+/**
+ * Rate limiter for OTP operations: 3 requests max per 2 minutes window.
+ */
+export const otpRateLimiter = rateLimit({
+  windowMs: 2 * 60 * 1000, // 2 minutes
+  limit: 3, // max 3 OTP requests
   standardHeaders: "draft-8",
   legacyHeaders: false,
-  handler: rateLimitResponse,
+  handler: (_req, res) => {
+    res.status(429).json({
+      error: "Too many OTP requests. Maximum of 3 allowed. Please wait 2 minutes.",
+    });
+  },
 });

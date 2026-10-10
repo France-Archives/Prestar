@@ -1,21 +1,14 @@
 // Server/services/signupService.js
-import { randomUUID } from "node:crypto";
+import crypto from "node:crypto";
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
-import { Op, UniqueConstraintError } from "sequelize";
-import {
-  Course,
-  sequelize,
-  Signup,
-  SignupVerification,
-  Student,
-  User,
-} from "../models/index.js";
-import { validateProofImage } from "../utils/proofImageValidation.js";
+import { EmailOtp, sequelize, Student, User } from "../models/index.js";
+import { sendOtpEmail } from "./gmailService.js";
 
-const normalize = (value) => String(value ?? "").trim().toLocaleLowerCase("en-US");
 const PASSWORD_COST = 12;
-const PROOF_UPLOAD_TOKEN_TTL_SECONDS = 30 * 60;
+const OTP_HASH_COST = 10;
+const OTP_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
+const COOLDOWN_MS = 2 * 60 * 1000; // 2 minutes (120 seconds)
+const MAX_OTP_COUNT = 3;
 
 export class SignupError extends Error {
   constructor(status, message) {
@@ -25,205 +18,259 @@ export class SignupError extends Error {
   }
 }
 
-function createReferenceNo() {
-  return `LIB-${randomUUID().toUpperCase()}`;
-}
-
-function createProofUploadCapability(referenceNo) {
-  const secret = process.env.JWT_SECRET;
-  if (!secret || secret.length < 32) {
-    throw new Error("JWT_SECRET must be set to a random value of at least 32 characters.");
-  }
-
-  const issuedAt = Math.floor(Date.now() / 1000);
-  const expiresAt = issuedAt + PROOF_UPLOAD_TOKEN_TTL_SECONDS;
-  const token = jwt.sign({
-    scope: "signup-proof-upload",
-    reference_no: referenceNo,
-    iat: issuedAt,
-    exp: expiresAt,
-  }, secret, { audience: "signup-proof-upload", issuer: "prestar-api" });
-
-  return { token, expiresAt: new Date(expiresAt * 1000).toISOString() };
-}
-
-function matchesStudent(input, student) {
-  const identityMatches = normalize(input.first_name) === normalize(student.first_name)
-    && normalize(input.last_name) === normalize(student.last_name)
-    && normalize(input.email) === normalize(student.email);
-
-  const courseMatches = !input.submitted_course
-    || [student.course?.course_code, student.course?.course_name]
-      .some((value) => normalize(value) === normalize(input.submitted_course));
-
-  const yearMatches = input.submitted_year_level === undefined
-    || Number(student.year_level) === Number(input.submitted_year_level);
-
-  return identityMatches && courseMatches && yearMatches;
-}
-
+/**
+ * Initiates user signup: validates uniqueness, applies cooldown & 3-OTP limit,
+ * generates a 6-digit OTP, and sends it via Gmail API.
+ */
 export async function createSignup(input) {
-  const studentId = input.student_id.trim();
-  const email = input.email.trim().toLowerCase();
+  const email = String(input.email ?? "").trim().toLowerCase();
+  const studentNumber = String(input.student_number ?? input.student_id ?? "").trim();
+  const firstName = String(input.first_name ?? "").trim();
+  const lastName = String(input.last_name ?? "").trim();
 
-  try {
-    return await sequelize.transaction(async (transaction) => {
-      const existingUser = await User.findOne({
-        where: {
-          [Op.or]: [
-            { student_id: studentId },
-            { email },
-          ],
-        },
-        attributes: ["id"],
-        transaction,
-      });
+  // 1. Check if user already exists
+  const existingUser = await User.findOne({
+    where: { email },
+    attributes: ["id"],
+  });
+  if (existingUser) {
+    throw new SignupError(409, "An account with that email already exists.");
+  }
 
-      const student = await Student.findByPk(studentId, {
-        include: [{ model: Course, as: "course", attributes: ["course_code", "course_name"] }],
-        transaction,
-      });
+  const existingStudent = await Student.findOne({
+    where: { student_number: studentNumber },
+    attributes: ["user_id"],
+  });
+  if (existingStudent) {
+    throw new SignupError(409, "An account with that student number already exists.");
+  }
 
-      if (existingUser) {
-        throw new SignupError(409, "Unable to create an account with those details. Contact the library if you need assistance.");
-      }
-      if (student && student.enrollment_status !== "Enrolled") {
-        throw new SignupError(403, "Only currently enrolled students can create an account. Please contact the library for assistance.");
-      }
+  // 2. Check existing OTP record for rate limiting & cooldown
+  const existingOtp = await EmailOtp.findOne({ where: { email } });
+  let nextResendCount = 1;
 
-      const matched = Boolean(student && matchesStudent(input, student));
-      const referenceNo = createReferenceNo();
-      const passwordHash = await bcrypt.hash(input.password, PASSWORD_COST);
-      const signup = await Signup.create({
-        reference_no: referenceNo,
-        submitted_student_no: studentId,
-        student_id: matched ? student.student_id : null,
-        first_name: input.first_name.trim(),
-        last_name: input.last_name.trim(),
-        email: matched ? normalize(student.email) : email,
-        password_hash: passwordHash,
-        student_type: input.student_type ?? "Regular",
-        submitted_course: input.submitted_course?.trim() || null,
-        submitted_year_level: input.submitted_year_level ?? null,
-        previous_school: input.previous_school?.trim() || null,
-        match_status: matched ? "Matched" : "Unmatched",
-        verification_type: matched ? "Automatic" : "Manual",
-        status: matched ? "Approved" : "Pending",
-        // Proofs are attached only through the capability-protected upload endpoint.
-        proof_image: null,
-        proof_mime_type: null,
-        // This system has no email verification or OTP flow.
-        email_verified_at: null,
-      }, { transaction });
+  if (existingOtp) {
+    const elapsed = Date.now() - new Date(existingOtp.last_sent_at).getTime();
 
-      let user = null;
-      let proofUpload = null;
-      if (matched) {
-        user = await User.create({
-          student_id: student.student_id,
-          first_name: student.first_name.trim(),
-          last_name: student.last_name.trim(),
-          email: normalize(student.email),
-          password_hash: passwordHash,
-          role: "Student",
-          status: "Active",
-        }, { transaction });
+    // 2-minute cooldown between OTP sends
+    if (elapsed < COOLDOWN_MS) {
+      const remainingSeconds = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
+      throw new SignupError(
+        429,
+        `Please wait ${remainingSeconds} seconds before requesting another OTP.`,
+      );
+    }
 
-        await signup.update({ created_user_id: user.id }, { transaction });
+    // Limit to only 3 OTPs
+    if (existingOtp.resend_count >= MAX_OTP_COUNT) {
+      // If 2 minutes have passed after the 3rd attempt, reset counter
+      if (elapsed >= COOLDOWN_MS) {
+        nextResendCount = 1;
       } else {
-        proofUpload = createProofUploadCapability(referenceNo);
+        throw new SignupError(
+          429,
+          `Maximum of ${MAX_OTP_COUNT} OTP requests reached. Please wait 2 minutes before trying again.`,
+        );
       }
-
-      await SignupVerification.create({
-        signup_id: signup.signup_id,
-        action: matched ? "AUTO_MATCH" : "AUTO_UNMATCHED",
-        actor_id: null,
-        remarks: matched
-          ? "Student record matched; account created and approved automatically."
-          : "Automatic student-record check did not match; request queued for manual review.",
-      }, { transaction });
-
-      return {
-        matched,
-        referenceNo,
-        proofUpload,
-        user: user ? {
-          id: user.id,
-          student_id: user.student_id,
-          first_name: user.first_name,
-          last_name: user.last_name,
-          email: user.email,
-          role: user.role,
-          status: user.status,
-        } : null,
-      };
-    });
-  } catch (error) {
-    if (error instanceof UniqueConstraintError) {
-      throw new SignupError(409, "Unable to create an account with those details. Contact the library if you need assistance.");
+    } else {
+      nextResendCount = existingOtp.resend_count + 1;
     }
-    throw error;
   }
+
+  // 3. Generate 6-digit OTP
+  const rawOtp = String(crypto.randomInt(100000, 1000000));
+  const otpHashed = await bcrypt.hash(rawOtp, OTP_HASH_COST);
+  const passwordHashed = await bcrypt.hash(input.password, PASSWORD_COST);
+
+  const signupPayload = {
+    first_name: firstName,
+    last_name: lastName,
+    email,
+    password_hash: passwordHashed,
+    student_number: studentNumber,
+    college: input.college ? String(input.college).trim() : null,
+    course: input.course || input.submitted_course ? String(input.course || input.submitted_course).trim() : null,
+    year_level: input.year_level || input.submitted_year_level ? Number(input.year_level || input.submitted_year_level) : null,
+    student_type: input.student_type ? String(input.student_type).trim() : "Regular",
+  };
+
+  const expiresAt = new Date(Date.now() + OTP_EXPIRY_MS);
+  const now = new Date();
+
+  if (existingOtp) {
+    await existingOtp.update({
+      otp_hash: otpHashed,
+      signup_payload: signupPayload,
+      expires_at: expiresAt,
+      attempts: 0,
+      resend_count: nextResendCount,
+      last_sent_at: now,
+    });
+  } else {
+    await EmailOtp.create({
+      email,
+      otp_hash: otpHashed,
+      signup_payload: signupPayload,
+      expires_at: expiresAt,
+      attempts: 0,
+      resend_count: 1,
+      last_sent_at: now,
+    });
+  }
+
+  // 4. Send email via Gmail API
+  await sendOtpEmail(email, rawOtp, firstName);
+
+  return {
+    message: "OTP sent to your email. Please verify to complete your registration.",
+    email,
+    cooldown_seconds: 120,
+    remaining_otps: Math.max(0, MAX_OTP_COUNT - nextResendCount),
+  };
 }
 
-export function verifyProofUploadCapability(token, referenceNo) {
-  const secret = process.env.JWT_SECRET;
-  if (!secret || secret.length < 32) {
-    throw new Error("JWT_SECRET must be set to a random value of at least 32 characters.");
+/**
+ * Resends OTP with 2-minute cooldown and max 3 attempts constraint.
+ */
+export async function resendOtp(emailInput) {
+  const email = String(emailInput ?? "").trim().toLowerCase();
+  const existingOtp = await EmailOtp.findOne({ where: { email } });
+
+  if (!existingOtp) {
+    throw new SignupError(404, "No pending registration found for this email. Please register first.");
   }
 
-  try {
-    const payload = jwt.verify(token, secret, {
-      audience: "signup-proof-upload",
-      issuer: "prestar-api",
-    });
-    if (payload.scope !== "signup-proof-upload" || payload.reference_no !== referenceNo) {
-      throw new Error("Invalid proof upload capability.");
-    }
-  } catch {
-    throw new SignupError(401, "Invalid or expired proof upload token.");
+  const elapsed = Date.now() - new Date(existingOtp.last_sent_at).getTime();
+
+  // 2-minute cooldown check
+  if (elapsed < COOLDOWN_MS) {
+    const remainingSeconds = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
+    throw new SignupError(
+      429,
+      `Please wait ${remainingSeconds} seconds before requesting another OTP.`,
+    );
   }
+
+  let nextResendCount = existingOtp.resend_count + 1;
+  if (existingOtp.resend_count >= MAX_OTP_COUNT) {
+    if (elapsed >= COOLDOWN_MS) {
+      nextResendCount = 1;
+    } else {
+      throw new SignupError(
+        429,
+        `Maximum of ${MAX_OTP_COUNT} OTP requests reached. Please wait 2 minutes before requesting again.`,
+      );
+    }
+  }
+
+  const rawOtp = String(crypto.randomInt(100000, 1000000));
+  const otpHashed = await bcrypt.hash(rawOtp, OTP_HASH_COST);
+
+  console.log(`🔄 [RESEND OTP] New code for ${email}: ${rawOtp}`);
+
+  const [rowsUpdated] = await EmailOtp.update(
+    {
+      otp_hash: otpHashed,
+      expires_at: new Date(Date.now() + OTP_EXPIRY_MS),
+      attempts: 0,
+      resend_count: nextResendCount,
+      last_sent_at: new Date(),
+    },
+    { where: { email } },
+  );
+
+  console.log(`✅ [RESEND OTP] Rows updated in DB: ${rowsUpdated}`);
+
+  await sendOtpEmail(email, rawOtp, existingOtp.signup_payload?.first_name ?? "");
+
+  return {
+    message: "A new OTP has been sent to your email.",
+    email,
+    cooldown_seconds: 120,
+    remaining_otps: Math.max(0, MAX_OTP_COUNT - nextResendCount),
+  };
 }
 
-export async function attachSignupProof(referenceNo, proofImage, proofMimeType) {
-  validateProofImage({ buffer: proofImage, mimetype: proofMimeType });
+/**
+ * Verifies OTP code and creates the active User and Student records.
+ */
+export async function verifyOtp(emailInput, otpInput) {
+  const email = String(emailInput ?? "").trim().toLowerCase();
+  const otpCode = String(otpInput ?? "").trim();
+
+  const otpRecord = await EmailOtp.findOne({ where: { email } });
+  if (!otpRecord) {
+    throw new SignupError(404, "No pending registration found for this email.");
+  }
+
+  // Expiry check
+  if (new Date() > new Date(otpRecord.expires_at)) {
+    throw new SignupError(400, "The OTP has expired. Please request a new one.");
+  }
+
+  // Brute-force protection: max 5 failed attempts per OTP code
+  if (otpRecord.attempts >= 5) {
+    throw new SignupError(400, "Too many failed attempts. Please request a new OTP.");
+  }
+
+  const isValid = await bcrypt.compare(otpCode, otpRecord.otp_hash);
+  if (!isValid) {
+    await otpRecord.increment("attempts");
+    throw new SignupError(400, "Invalid OTP code.");
+  }
+
+  const payload = otpRecord.signup_payload;
 
   return sequelize.transaction(async (transaction) => {
-    const signup = await Signup.findOne({
-      where: { reference_no: referenceNo },
-      attributes: ["signup_id", "reference_no", "status", "match_status"],
+    // Final check for existing user
+    const existing = await User.findOne({
+      where: { email: payload.email },
       transaction,
       lock: transaction.LOCK.UPDATE,
     });
+    if (existing) {
+      throw new SignupError(409, "An account with this email has already been registered.");
+    }
 
-    if (!signup) {
-      throw new SignupError(404, "Pending signup was not found.");
-    }
-    if (signup.status !== "Pending" || signup.match_status !== "Unmatched") {
-      throw new SignupError(409, "Proof can only be attached to an unmatched pending signup.");
-    }
-    const [updatedCount] = await Signup.update({
-      proof_image: proofImage,
-      proof_mime_type: proofMimeType,
-    }, {
-      where: {
-        signup_id: signup.signup_id,
-        status: "Pending",
-        match_status: "Unmatched",
-        proof_image: null,
+    // Create User record
+    const user = await User.create(
+      {
+        first_name: payload.first_name,
+        last_name: payload.last_name,
+        email: payload.email,
+        password_hash: payload.password_hash,
+        role: "Student",
+        status: "Active",
       },
-      transaction,
-    });
-    if (updatedCount === 0) {
-      throw new SignupError(409, "Proof has already been uploaded for this signup.");
-    }
-    await SignupVerification.create({
-      signup_id: signup.signup_id,
-      action: "PROOF_UPLOADED",
-      actor_id: null,
-      remarks: "Proof of enrollment uploaded for manual review.",
-    }, { transaction });
+      { transaction },
+    );
 
-    return { referenceNo: signup.reference_no };
+    // Create Student record linked to user_id
+    const student = await Student.create(
+      {
+        user_id: user.id,
+        student_number: payload.student_number,
+        college: payload.college,
+        course: payload.course,
+        year_level: payload.year_level,
+        student_type: payload.student_type || "Regular",
+      },
+      { transaction },
+    );
+
+    // Remove OTP record
+    await otpRecord.destroy({ transaction });
+
+    return {
+      message: "Registration successful. You may now log in.",
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        student_number: student.student_number,
+        first_name: user.first_name,
+        last_name: user.last_name,
+      },
+    };
   });
 }
