@@ -5,12 +5,12 @@ import "../styles/landing.css";
 export default function HeroSection() {
   return (
     <section className="hero">
-      <div className="mx-auto max-w-[1200px] px-4 py-16 sm:px-8 sm:py-24">
+      <div className="mx-auto max-w-[1320px] px-4 py-10 sm:px-8 sm:py-14">
         <span className="eyebrow" style={{ color: "var(--color-amber)" }}>
           University library
         </span>
         <h1 style={{ maxWidth: 720 }}>Find it. Request it. Pick it up.</h1>
-        <p style={{ maxWidth: 560, margin: "14px 0 26px", fontSize: "1.0625rem", opacity: 0.9 }}>
+        <p style={{ maxWidth: 560, margin: "12px 0 22px", fontSize: "1.0625rem", opacity: 0.9 }}>
           PRESTAR is the online library borrowing system. Browse the catalog, request books, reserve what is out, and collect them at the library.
         </p>
         <div className="row-actions">

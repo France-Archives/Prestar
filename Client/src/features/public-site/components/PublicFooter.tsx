@@ -9,7 +9,7 @@ export default function PublicFooter() {
         <div>
           {/* Cream chip so the logo stays readable on the dark green footer. */}
           <Link to={ROUTES.home} className="inline-flex rounded-lg bg-cream px-3 py-1.5" aria-label="PRESTAR home" style={{ textDecoration: "none" }}>
-            <Logo size="sm" />
+            <Logo height={28} />
           </Link>
           <p className="mt-2 text-sm opacity-80">Online library borrowing system.</p>
         </div>

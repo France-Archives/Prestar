@@ -1,25 +1,22 @@
-.hero {
-  background: linear-gradient(135deg, var(--color-forest) 0%, var(--color-green) 100%);
-  color: var(--color-cream);
-}
 .hero h1 {
   color: #fff;
   font-size: clamp(2rem, 5vw, 3.25rem);
 }
 .step-card {
   position: relative;
-  padding-top: 34px;
+  padding-top: 30px;
 }
 .step-card .num {
   position: absolute;
-  top: -14px;
-  left: 16px;
+  top: -13px;
+  left: 14px;
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
   background: var(--color-amber);
   color: var(--color-forest-deep);
+  font-family: var(--font-serif);
   font-weight: 700;
 }

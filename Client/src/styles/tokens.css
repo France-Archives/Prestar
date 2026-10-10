@@ -4,37 +4,44 @@
   --color-forest: #1b4332;
   --color-green: #2d6a4f;
   --color-amber: #e09f3e;
-  --color-cream: #f2e8cf;
+  --color-cream: #f2e8cf; /* accent only, no longer a page background */
   --color-teal: #335c67;
   --color-brick: #9e2a2b;
 
-  /* Derived neutrals and tints */
-  --color-paper: #fffdf8; /* card / form / drawer surface: near-white, so cream stays the page background */
+  /* Surfaces and neutrals */
+  --color-canvas: #f4f4f0; /* page background */
+  --color-paper: #fdfdfb; /* cards, forms, drawers */
   --color-ink: #1f2a25;
   --color-muted: #66736c;
-  --color-line: #e0d9c3;
-  --color-mist: #dfe9df;
-  --color-cream-deep: #e8dcb8; /* hover / pressed on cream */
+  --color-line: #dcdcd2;
+  --color-mist: #e3ebe2;
+  --color-cream-deep: #e8dcb8;
   --color-amber-soft: #faedd2;
   --color-brick-soft: #f6dede;
   --color-teal-soft: #dde8ea;
   --color-forest-deep: #12301f;
 
+  /* Bookshelf wood */
+  --color-wood-light: #d8b988;
+  --color-wood: #b48a4f;
+  --color-wood-dark: #7a5629;
+
   /* Typography */
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-serif: "Playfair Display", Georgia, "Times New Roman", serif;
 
   /* Radius */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 18px;
+  --radius-sm: 7px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
 
   /* Shadows */
-  --shadow-card: 0 1px 2px rgba(27, 67, 50, 0.06), 0 4px 14px rgba(27, 67, 50, 0.06);
+  --shadow-card: 0 1px 0 rgba(27, 67, 50, 0.04), 0 2px 10px rgba(27, 67, 50, 0.05);
   --shadow-raised: 0 12px 32px rgba(27, 67, 50, 0.18);
 }
 
 :root {
-  --gutter: clamp(12px, 2.5vw, 28px); /* was clamp(16px, 4vw, 40px): less side padding */
-  --content-max: 1440px; /* was 1200px: uses wider screens */
+  --gutter: clamp(12px, 2.5vw, 28px);
+  --content-max: 1440px;
   --ease: cubic-bezier(0.22, 0.8, 0.3, 1);
 }

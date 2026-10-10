@@ -1,25 +1,12 @@
-import logo from "@/assets/images/prestar-logo.png"; // <-- your logo file
-
-// Fixed height + auto width keeps the aspect ratio. Never set both width and height here.
-const SIZES = {
-  sm: "h-7",
-  md: "h-8 md:h-9",
-  lg: "h-12 md:h-14",
-} as const;
+import logoSrc from "@/assets/images/prestar-logo.png";
 
 interface LogoProps {
-  size?: keyof typeof SIZES;
+  /** Rendered height in px. Width follows the image's aspect ratio. */
+  height?: number;
   className?: string;
 }
 
-/** The one PRESTAR logo. Used by every navbar, drawer, auth page and footer. */
-export default function Logo({ size = "md", className = "" }: LogoProps) {
-  return (
-    <img
-      src={logo}
-      alt="PRESTAR"
-      decoding="async"
-      className={`block w-auto max-w-[170px] object-contain ${SIZES[size]} ${className}`}
-    />
-  );
+// One shared brand mark. Place the image at src/assets/images/prestar-logo.png.
+export default function Logo({ height = 44, className = "" }: LogoProps) {
+  return <img src={logoSrc} alt="PRESTAR" className={`brand-logo ${className}`} style={{ height }} />;
 }

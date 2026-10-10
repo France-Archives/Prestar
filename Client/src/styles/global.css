@@ -14,7 +14,7 @@
   }
   body {
     font-family: var(--font-sans);
-    background: var(--color-cream);
+    background: var(--color-canvas);
     color: var(--color-ink);
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
@@ -54,15 +54,23 @@
   h3,
   h4 {
     color: var(--color-forest);
-    font-weight: 700;
     letter-spacing: -0.01em;
     line-height: 1.2;
   }
+  h1,
+  h2 {
+    font-family: var(--font-serif);
+    font-weight: 600;
+  }
+  h3,
+  h4 {
+    font-weight: 700;
+  }
   h1 {
-    font-size: clamp(1.6rem, 3vw, 2.2rem);
+    font-size: clamp(1.6rem, 3vw, 2.25rem);
   }
   h2 {
-    font-size: 1.25rem;
+    font-size: 1.3rem;
   }
   h3 {
     font-size: 1.05rem;
