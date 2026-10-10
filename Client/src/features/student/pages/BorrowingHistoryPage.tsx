@@ -1,11 +1,13 @@
 import DataTable, { type Column } from "@/components/data-display/DataTable";
+import StatusBadge from "@/components/data-display/StatusBadge";
 import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
-import StatusBadge from "@/components/data-display/StatusBadge";
 import PageHeader from "@/components/layout/PageHeader";
 import { useAsync } from "@/hooks/useAsync";
+import { matchesSearch, useSearchTerm } from "@/hooks/useSearchTerm";
 import * as borrowingService from "@/services/borrowingService";
 import type { Loan } from "@/types";
+import { statusLabel } from "@/utils/constants";
 import { formatDate } from "@/utils/formatDate";
 
 const COLUMNS: Column<Loan>[] = [
@@ -20,6 +22,11 @@ const COLUMNS: Column<Loan>[] = [
 
 export default function BorrowingHistoryPage() {
   const list = useAsync(() => borrowingService.getMyHistory(), []);
+  const [q] = useSearchTerm(); // from the navbar search box (?q=)
+
+  // Search runs on the loaded history (book, copy barcode, status).
+  const rows = (list.data ?? []).filter((l) => matchesSearch(q, l.bookTitle, l.copyBarcode, statusLabel(l.status)));
+
   return (
     <div className="page">
       <PageHeader eyebrow="Student" title="Borrowing history" description="Returned and lost loans. History stays available even when your COR has expired or your account is suspended." />
@@ -29,7 +36,7 @@ export default function BorrowingHistoryPage() {
         <ErrorState message={list.error} onRetry={() => void list.reload()} />
       ) : (
         <div className="card">
-          <DataTable columns={COLUMNS} rows={list.data ?? []} rowKey={(l) => l.id} empty="No past loans yet." />
+          <DataTable columns={COLUMNS} rows={rows} rowKey={(l) => l.id} empty={q.trim() ? "No past loans match your search." : "No past loans yet."} />
         </div>
       )}
     </div>

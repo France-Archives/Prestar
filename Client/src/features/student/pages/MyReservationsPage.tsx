@@ -8,9 +8,11 @@ import Tabs from "@/components/ui/Tabs";
 import PageHeader from "@/components/layout/PageHeader";
 import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
+import { matchesSearch, useSearchTerm } from "@/hooks/useSearchTerm";
 import { useToast } from "@/hooks/useToast";
 import * as reservationsService from "@/services/reservationsService";
 import type { Reservation } from "@/types";
+import { statusLabel } from "@/utils/constants";
 import ReservationStatus from "../components/ReservationStatus";
 
 type Tab = "active" | "closed";
@@ -18,13 +20,16 @@ type Tab = "active" | "closed";
 export default function MyReservationsPage() {
   const toast = useToast();
   const list = useAsync(() => reservationsService.listMyReservations(), []);
+  const [q] = useSearchTerm(); // from the navbar search box (?q=)
   const [tab, setTab] = useState<Tab>("active");
   const [target, setTarget] = useState<Reservation | null>(null);
 
-  const rows = list.data ?? [];
+  // Search runs on the loaded reservations; the tab counts follow the search.
+  const rows = (list.data ?? []).filter((r) => matchesSearch(q, r.bookTitle, statusLabel(r.status)));
   const active = rows.filter((r) => r.status === "WAITING" || r.status === "OFFERED");
   const closed = rows.filter((r) => r.status !== "WAITING" && r.status !== "OFFERED");
   const shown = tab === "active" ? active : closed;
+  const searching = Boolean(q.trim());
 
   const cancel = async () => {
     if (!target) return;
@@ -42,7 +47,11 @@ export default function MyReservationsPage() {
       ) : list.error ? (
         <ErrorState message={list.error} onRetry={() => void list.reload()} />
       ) : shown.length === 0 ? (
-        <EmptyState title="No reservations here" text="Reserve a book when every copy is out." action={<Link to={ROUTES.student.books} className="btn btn-primary" style={{ textDecoration: "none", color: "#fff" }}>Browse books</Link>} />
+        <EmptyState
+          title={searching ? "No reservations match your search" : "No reservations here"}
+          text={searching ? "Clear the search box or check the other tab." : "Reserve a book when every copy is out."}
+          action={<Link to={ROUTES.student.books} className="btn btn-primary" style={{ textDecoration: "none", color: "#fff" }}>Browse books</Link>}
+        />
       ) : (
         <div className="stack">{shown.map((r) => <ReservationStatus key={r.id} reservation={r} onCancel={setTarget} />)}</div>
       )}

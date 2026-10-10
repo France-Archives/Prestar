@@ -2,15 +2,14 @@
 
 .app-shell {
   --shell-serif: "Playfair Display", Georgia, "Times New Roman", serif;
-  --shell-accent: #b98a4a; /* warm ochre used for eyebrows */
-  background: var(--color-cream, #f5f3ea);
+  background: var(--color-cream);
 }
 
 /* ---------- navbar ---------- */
 .app-header {
-  background: color-mix(in srgb, var(--color-cream, #f5f3ea) 92%, transparent);
+  background: color-mix(in srgb, var(--color-cream) 94%, transparent);
   backdrop-filter: blur(8px);
-  border-bottom: 1px solid color-mix(in srgb, var(--color-line, #d9ded6) 60%, transparent);
+  border-bottom: 1px solid var(--color-line);
 }
 
 .app-iconbtn {
@@ -19,11 +18,11 @@
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  color: var(--color-forest, #0b3d32);
+  color: var(--color-forest);
   transition: background-color 0.15s;
 }
-.app-iconbtn:hover { background: var(--color-mist, #e6ebe3); }
-.app-iconbtn:focus-visible { outline: 2px solid var(--color-green, #2d6a4f); outline-offset: 2px; }
+.app-iconbtn:hover { background: var(--color-cream-deep); }
+.app-iconbtn:focus-visible { outline: 2px solid var(--color-green); outline-offset: 2px; }
 
 /* centered search pill */
 .app-search { position: relative; width: 100%; }
@@ -32,65 +31,60 @@
   left: 12px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--color-muted, #68746e);
+  color: var(--color-muted);
   pointer-events: none;
 }
 .app-search input {
   width: 100%;
-  height: 40px;
+  height: 38px;
   padding: 0 14px 0 38px;
   font-size: 0.875rem;
-  color: var(--color-forest, #0b3d32);
-  background: var(--color-paper, #fbfaf5);
-  border: 1px solid var(--color-line, #d9ded6);
+  color: var(--color-forest);
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgb(11 61 50 / 0.08);
+  box-shadow: 0 2px 8px rgb(27 67 50 / 0.08);
 }
-.app-search input::placeholder { color: var(--color-muted, #68746e); }
-.app-search input:focus { outline: 2px solid var(--color-green, #2d6a4f); outline-offset: 2px; }
+.app-search input::placeholder { color: var(--color-muted); }
+.app-search input:focus { outline: 2px solid var(--color-green); outline-offset: 2px; }
 
 /* right-side quick links */
 .app-navlink {
   padding: 8px 10px;
   font-size: 0.8125rem;
   font-weight: 600;
-  color: var(--color-forest, #0b3d32);
+  color: var(--color-forest);
   text-decoration: none;
   border-radius: 8px;
 }
 .app-navlink:hover,
-.app-navlink.is-active { background: var(--color-mist, #e6ebe3); }
+.app-navlink.is-active { background: var(--color-cream-deep); }
 
 /* ---------- page area (scoped to .app-main so public/auth pages are untouched) ---------- */
-.app-main { background: var(--color-cream, #f5f3ea); }
+/* Page width and padding now come from .page in utilities.css (single source of truth). */
+.app-main { background: var(--color-cream); }
 
-.app-main .page {
-  width: 100%;
-  max-width: 1200px;
-  margin-inline: auto;
-  padding: 32px clamp(16px, 5vw, 64px) 64px;
-}
-
-/* small uppercase ochre label above titles ("STUDENT LIBRARY", "WITH YOU NOW") */
+/* small uppercase label above titles ("STUDENT LIBRARY", "WITH YOU NOW"): green, not amber */
 .app-main .eyebrow {
   font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--shell-accent);
+  color: var(--color-green);
 }
 
-/* editorial serif headings */
+/* editorial serif headings, sized down to keep the dashboard compact */
 .app-main .page h1 {
   font-family: var(--shell-serif);
   font-weight: 600;
-  font-size: clamp(1.9rem, 4.5vw, 2.75rem);
+  font-size: clamp(1.5rem, 3.2vw, 2.1rem);
   line-height: 1.1;
   letter-spacing: -0.01em;
-  color: var(--color-forest-deep, var(--color-forest, #0b3d32));
+  color: var(--color-forest);
 }
 .app-main .page h2 {
   font-family: var(--shell-serif);
   font-weight: 600;
-  color: var(--color-forest-deep, var(--color-forest, #0b3d32));
+  font-size: 1.15rem;
+  color: var(--color-forest);
 }

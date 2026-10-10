@@ -8,9 +8,11 @@ import Tabs from "@/components/ui/Tabs";
 import PageHeader from "@/components/layout/PageHeader";
 import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
+import { matchesSearch, useSearchTerm } from "@/hooks/useSearchTerm";
 import { useToast } from "@/hooks/useToast";
 import * as borrowingService from "@/services/borrowingService";
 import type { BorrowingRequest } from "@/types";
+import { statusLabel } from "@/utils/constants";
 import RequestStatusCard from "../components/RequestStatusCard";
 
 type Tab = "open" | "closed";
@@ -19,13 +21,16 @@ const OPEN = ["PENDING", "APPROVED", "ON_HOLD"];
 export default function MyRequestsPage() {
   const toast = useToast();
   const list = useAsync(() => borrowingService.listMyBorrowingRequests(), []);
+  const [q] = useSearchTerm(); // from the navbar search box (?q=)
   const [tab, setTab] = useState<Tab>("open");
   const [target, setTarget] = useState<BorrowingRequest | null>(null);
 
-  const rows = list.data ?? [];
+  // Search runs on the loaded requests; the tab counts follow the search.
+  const rows = (list.data ?? []).filter((r) => matchesSearch(q, r.bookTitle, statusLabel(r.status), r.decisionReason));
   const open = rows.filter((r) => OPEN.includes(r.status));
   const closed = rows.filter((r) => !OPEN.includes(r.status));
   const shown = tab === "open" ? open : closed;
+  const searching = Boolean(q.trim());
 
   const cancel = async () => {
     if (!target) return;
@@ -43,7 +48,11 @@ export default function MyRequestsPage() {
       ) : list.error ? (
         <ErrorState message={list.error} onRetry={() => void list.reload()} />
       ) : shown.length === 0 ? (
-        <EmptyState title="No requests here" action={<Link to={ROUTES.student.books} className="btn btn-primary" style={{ textDecoration: "none", color: "#fff" }}>Browse books</Link>} />
+        <EmptyState
+          title={searching ? "No requests match your search" : "No requests here"}
+          text={searching ? "Clear the search box or check the other tab." : undefined}
+          action={<Link to={ROUTES.student.books} className="btn btn-primary" style={{ textDecoration: "none", color: "#fff" }}>Browse books</Link>}
+        />
       ) : (
         <div className="stack">{shown.map((r) => <RequestStatusCard key={r.id} request={r} onCancel={setTarget} />)}</div>
       )}

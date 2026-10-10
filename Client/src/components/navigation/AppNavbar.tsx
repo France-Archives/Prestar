@@ -1,8 +1,10 @@
 import { useState, type FormEvent } from "react";
-import { Link, NavLink, useNavigate } from "react-router-dom";
-import logo from "@/assets/images/prestar-logo.png"; // <-- your logo file
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import Logo from "@/components/common/Logo";
+import SearchInput from "@/components/forms/SearchInput";
 import { ROUTES, homePathFor } from "@/app/routeConfig";
 import { useAuth } from "@/hooks/useAuth";
+import { useSearchTerm } from "@/hooks/useSearchTerm";
 import type { UserRole } from "@/types";
 import NotificationBell from "./NotificationBell";
 import UserMenu from "./UserMenu";
@@ -14,7 +16,6 @@ interface AppNavbarProps {
 }
 
 // Quick links shown on the right (md and up). They only point at EXISTING routes.
-// Everything else stays reachable from the sidebar drawer.
 const QUICK_LINKS: Record<UserRole, { label: string; to: string }[]> = {
   STUDENT: [
     { label: "Books", to: ROUTES.student.books },
@@ -30,25 +31,69 @@ const QUICK_LINKS: Record<UserRole, { label: string; to: string }[]> = {
   ],
 };
 
-export default function AppNavbar({ areaLabel, menuOpen, onToggleMenu }: AppNavbarProps) {
-  const { user } = useAuth();
+// Student pages whose own data the navbar search filters (live, via ?q=).
+// Each of these pages reads the same ?q= with useSearchTerm().
+const LIVE_SEARCH: Record<string, string> = {
+  [ROUTES.student.books]: "Search books by title, author or ISBN…",
+  [ROUTES.student.borrowings]: "Search my loans…",
+  [ROUTES.student.requests]: "Search my requests…",
+  [ROUTES.student.reservations]: "Search my reservations…",
+  [ROUTES.student.renewals]: "Search my renewals…",
+  [ROUTES.student.history]: "Search my borrowing history…",
+};
+
+function SearchIcon() {
+  return (
+    <svg className="app-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </svg>
+  );
+}
+
+/** Filters the CURRENT page. The page itself reads ?q= and applies it to its own data. */
+function LiveSearch({ placeholder }: { placeholder: string }) {
+  const [term, setTerm] = useSearchTerm();
+  return (
+    <div className="app-search" role="search">
+      <SearchIcon />
+      <SearchInput value={term} onChange={setTerm} placeholder={placeholder} label={placeholder} />
+    </div>
+  );
+}
+
+/** Dashboard / book details: there is no list to filter here, so search the catalog. */
+function CatalogSearch() {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    const q = query.trim();
+    navigate(q ? `${ROUTES.student.books}?q=${encodeURIComponent(q)}` : ROUTES.student.books);
+  };
+  return (
+    <form className="app-search" role="search" onSubmit={submit}>
+      <SearchIcon />
+      <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search books…" aria-label="Search books" />
+    </form>
+  );
+}
+
+export default function AppNavbar({ areaLabel, menuOpen, onToggleMenu }: AppNavbarProps) {
+  const { user } = useAuth();
+  const { pathname } = useLocation();
 
   if (!user) return null;
   const isStudent = user.role === "STUDENT";
 
-  // Search is a student feature: it opens the catalog with ?search=.
-  // NOTE: BookCatalogPage keeps its own filter state, so it does not read ?search= yet (see notes below).
-  const submitSearch = (e: FormEvent) => {
-    e.preventDefault();
-    const q = query.trim();
-    navigate(q ? `${ROUTES.student.books}?search=${encodeURIComponent(q)}` : ROUTES.student.books);
-  };
+  // Ignore a trailing slash so "/app/books/" still matches "/app/books".
+  const path = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  const livePlaceholder = isStudent ? LIVE_SEARCH[path] : undefined;
+  const catalogSearch = isStudent && !livePlaceholder && (path === ROUTES.student.dashboard || path.startsWith(`${ROUTES.student.books}/`));
 
   return (
     <header className="app-header sticky top-0 z-30 h-16">
-      {/* 3 columns: [menu + logo] [search, truly centered on md+] [links + bell + user] */}
+      {/* 3 columns: [menu + logo] [search, truly centered on md+] [links + bell + profile] */}
       <div className="grid h-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 sm:px-6 md:grid-cols-[1fr_minmax(0,36rem)_1fr]">
         <div className="flex items-center gap-2 sm:gap-3">
           <button
@@ -64,25 +109,21 @@ export default function AppNavbar({ areaLabel, menuOpen, onToggleMenu }: AppNavb
             </svg>
           </button>
 
-          {/* Logo: fixed height, auto width, never stretched; vertically centered by the flex row. */}
           <Link to={homePathFor(user)} className="flex shrink-0 items-center" aria-label="PRESTAR home">
-            <img src={logo} alt="PRESTAR" className="block h-8 w-auto max-w-[150px] object-contain md:h-9" decoding="async" />
+            <Logo />
           </Link>
 
           {/* Staff/Admin area badge (students see none, like the mockup) */}
           {!isStudent && <span className="badge badge-neutral hidden lg:inline-flex">{areaLabel}</span>}
         </div>
 
-        {isStudent ? (
-          <form className="app-search" role="search" onSubmit={submitSearch}>
-            <svg className="app-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-              <circle cx="11" cy="11" r="7" />
-              <path d="m20 20-3.5-3.5" />
-            </svg>
-            <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search books..." aria-label="Search books" />
-          </form>
+        {/* key={path}: a fresh search box on every page, so text never leaks from one page to another. */}
+        {livePlaceholder ? (
+          <LiveSearch key={path} placeholder={livePlaceholder} />
+        ) : catalogSearch ? (
+          <CatalogSearch key={path} />
         ) : (
-          <div /> /* keeps the grid columns aligned when there is no search */
+          <div /> /* no search on this page; keeps the grid columns aligned. Staff/Admin pages have their own in-page search. */
         )}
 
         <div className="flex items-center justify-end gap-1 sm:gap-2">

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
+import Logo from "@/components/common/Logo";
 import { ROUTES, homePathFor } from "@/app/routeConfig";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -11,10 +12,9 @@ export default function PublicNavbar() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-paper/95 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-[1200px] items-center justify-between gap-4 px-4 sm:px-8">
-        <Link to={ROUTES.home} className="flex items-center gap-2 text-xl font-bold text-forest" style={{ textDecoration: "none" }}>
-          <img src="/logo.svg" alt="" width={32} height={32} />
-          PRESTAR
+      <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between gap-4 px-4 sm:px-8">
+        <Link to={ROUTES.home} className="flex items-center" aria-label="PRESTAR home" style={{ textDecoration: "none" }}>
+          <Logo />
         </Link>
         <button type="button" className="lg:hidden btn btn-ghost btn-sm" aria-expanded={open} aria-controls="public-nav" onClick={() => setOpen(!open)}>
           {open ? "Close" : "Menu"}

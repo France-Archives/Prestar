@@ -6,9 +6,11 @@ interface ModalProps {
   children: ReactNode;
   footer?: ReactNode;
   wide?: boolean;
+  /** Dim + blur backdrop with a pop-in animation (used by the book details popup). */
+  cinema?: boolean;
 }
 
-export default function Modal({ title, onClose, children, footer, wide = false }: ModalProps) {
+export default function Modal({ title, onClose, children, footer, wide = false, cinema = false }: ModalProps) {
   const titleId = useId();
 
   useEffect(() => {
@@ -25,8 +27,13 @@ export default function Modal({ title, onClose, children, footer, wide = false }
   }, [onClose]);
 
   return (
-    <div className="dialog-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className={`dialog ${wide ? "dialog-wide" : ""}`} role="dialog" aria-modal="true" aria-labelledby={titleId}>
+    <div className={`dialog-overlay${cinema ? " dialog-overlay-cinema" : ""}`} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div
+        className={`dialog ${wide ? "dialog-wide" : ""} ${cinema ? "dialog-cinema" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+      >
         <div className="dialog-head">
           <h2 id={titleId}>{title}</h2>
           <button type="button" className="link-btn" onClick={onClose} aria-label="Close dialog">
