@@ -1,1 +1,29 @@
-/* Placeholder auth styles. */
+/* Optional auth-only styles. */
+.demo-panel {
+  margin-top: 18px;
+  padding: 12px 14px;
+  border: 1px dashed var(--color-amber);
+  border-radius: var(--radius-md);
+  background: var(--color-amber-soft);
+  font-size: 0.8125rem;
+}
+.demo-panel button {
+  display: block;
+  width: 100%;
+  padding: 6px 4px;
+  text-align: left;
+  border-radius: 6px;
+}
+.demo-panel button:hover {
+  background: rgba(224, 159, 62, 0.2);
+}
+.strength-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-mist);
+  overflow: hidden;
+}
+.strength-bar > div {
+  height: 100%;
+  transition: width 0.25s var(--ease), background 0.25s;
+}

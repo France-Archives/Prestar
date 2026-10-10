@@ -1,0 +1,96 @@
+/* Shell + navbar + page typography for the signed-in app. Imported by AppShell.tsx. */
+
+.app-shell {
+  --shell-serif: "Playfair Display", Georgia, "Times New Roman", serif;
+  --shell-accent: #b98a4a; /* warm ochre used for eyebrows */
+  background: var(--color-cream, #f5f3ea);
+}
+
+/* ---------- navbar ---------- */
+.app-header {
+  background: color-mix(in srgb, var(--color-cream, #f5f3ea) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line, #d9ded6) 60%, transparent);
+}
+
+.app-iconbtn {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  color: var(--color-forest, #0b3d32);
+  transition: background-color 0.15s;
+}
+.app-iconbtn:hover { background: var(--color-mist, #e6ebe3); }
+.app-iconbtn:focus-visible { outline: 2px solid var(--color-green, #2d6a4f); outline-offset: 2px; }
+
+/* centered search pill */
+.app-search { position: relative; width: 100%; }
+.app-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-muted, #68746e);
+  pointer-events: none;
+}
+.app-search input {
+  width: 100%;
+  height: 40px;
+  padding: 0 14px 0 38px;
+  font-size: 0.875rem;
+  color: var(--color-forest, #0b3d32);
+  background: var(--color-paper, #fbfaf5);
+  border: 1px solid var(--color-line, #d9ded6);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgb(11 61 50 / 0.08);
+}
+.app-search input::placeholder { color: var(--color-muted, #68746e); }
+.app-search input:focus { outline: 2px solid var(--color-green, #2d6a4f); outline-offset: 2px; }
+
+/* right-side quick links */
+.app-navlink {
+  padding: 8px 10px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-forest, #0b3d32);
+  text-decoration: none;
+  border-radius: 8px;
+}
+.app-navlink:hover,
+.app-navlink.is-active { background: var(--color-mist, #e6ebe3); }
+
+/* ---------- page area (scoped to .app-main so public/auth pages are untouched) ---------- */
+.app-main { background: var(--color-cream, #f5f3ea); }
+
+.app-main .page {
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding: 32px clamp(16px, 5vw, 64px) 64px;
+}
+
+/* small uppercase ochre label above titles ("STUDENT LIBRARY", "WITH YOU NOW") */
+.app-main .eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--shell-accent);
+}
+
+/* editorial serif headings */
+.app-main .page h1 {
+  font-family: var(--shell-serif);
+  font-weight: 600;
+  font-size: clamp(1.9rem, 4.5vw, 2.75rem);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: var(--color-forest-deep, var(--color-forest, #0b3d32));
+}
+.app-main .page h2 {
+  font-family: var(--shell-serif);
+  font-weight: 600;
+  color: var(--color-forest-deep, var(--color-forest, #0b3d32));
+}
