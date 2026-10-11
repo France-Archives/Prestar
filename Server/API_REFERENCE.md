@@ -12,7 +12,7 @@
 1. [Auth](#1-auth)
 2. [Books](#2-books)
 3. [Borrow Requests](#3-borrow-requests)
-4. [Notifications](#4-notifications)
+4. [Borrowed Books](#4-borrowed-books)
 5. [Common Error Responses](#5-common-error-responses)
 
 ---
@@ -290,15 +290,18 @@ All routes require authentication (cookie).
 
 | Rule | Detail |
 |---|---|
-| **Borrow limit** | Max **10** concurrent active loans + open requests. Enforced under row-level lock on the student record to prevent race conditions. |
-| **Suspension check** | Blocked when the student has an `Active` suspension where `start_date <= TODAY` and (`end_date IS NULL` OR `end_date >= TODAY`). |
-| **Same-book limit** | Max **2** active or open loans/requests per `book_id` per student. |
-| **Availability rule** | A copy is borrowable only when `status = 'Available'` AND `condition = 'Good'`. Used consistently for listing, eligibility checks, and approval. |
+| **Borrow limit** | Max **10** concurrent active loans (`'Borrowed'`) + open requests (`'Pending'`, `'Approved'`) per student (`MAX_ACTIVE_BORROWS = 10`). Enforced on request submission and review approval. |
+| **Same-book limit** | Max **2** concurrent active loans + open requests per `book_id` per student (`MAX_COPIES_PER_BOOK = 2`). |
+| **Loan Timeline Selection** | The student selects the desired borrowing timeline in the frontend from a dropdown (e.g. 1 to 14 days, with standard options like 3, 5, 7, 14 days). Sent as `requested_days: <integer>` in the JSON body and stored as a standard scalar `smallint` in `borrow_requests.requested_days` (1..`MAX_REQUEST_DAYS = 14`, DB hard limit 60). |
+| **Eligibility check** | Evaluated via `borrowEligibilityService`: user status must be `Active`, role `Student`, active academic term must exist, student verification for active term must be `Approved` and in-date, and student must have **no active/unpaid penalties** (`v_user_active_penalties`). |
+| **Availability rule** | A copy is borrowable only when `status = 'Available'` AND `condition_status = 'Good'`. |
+| **Duplicate prevention** | A student cannot submit a new request for a book if they already have an active request in status `Pending` or `Approved` for that book (guarded by partial unique index). |
+| **Audit logging** | All write transactions set the transaction-local session setting `app.user_id` so database audit triggers record the actor. |
 
 ---
 
 ### 3.1 `POST /api/borrow-requests`
-Create a new borrow request for a book.
+Submit a new borrow request for an active book.
 
 | Property | Value |
 |---|---|
@@ -307,18 +310,28 @@ Create a new borrow request for a book.
 
 **Request body**
 ```json
-{ "book_id": 5 }
+{
+  "book_id": 5,
+  "requested_days": 7
+}
 ```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `book_id` | integer | Yes | Positive integer ID of an Active book. |
+| `requested_days` | integer | Yes | Duration in days (1 to `MAX_REQUEST_DAYS`, default max 14). Selected via frontend dropdown. |
 
 **Success `201`**
 ```json
 {
+  "message": "Borrow request created successfully.",
   "request": {
-    "id": 99,
-    "user_id": 1,
+    "request_id": 101,
+    "user_id": 9001,
     "book_id": 5,
+    "requested_days": 7,
     "status": "Pending",
-    "created_at": "2026-10-08T12:00:00.000Z"
+    "request_date": "2026-10-11T09:00:00.000Z"
   }
 }
 ```
@@ -326,15 +339,16 @@ Create a new borrow request for a book.
 **Errors**
 | Code | Meaning |
 |---|---|
-| `400` | `book_id` is not a positive integer |
-| `401` | Not authenticated |
-| `403` | Role is not Student, or account is suspended |
-| `409` | No borrowable copy available, borrow limit reached, or same-book limit (2) reached |
+| `400` | Malformed input, or `requested_days` not in range 1..14 |
+| `401` | Authentication required or expired session |
+| `403` | Student ineligible (account inactive, term missing, unapproved verification, or active penalties) |
+| `404` | Active book not found |
+| `409` | `DUPLICATE_REQUEST` (already have pending/approved request), `NO_COPY_AVAILABLE` (no good available copy), `MAX_COPIES_PER_BOOK_EXCEEDED` (max 2 per title reached), or `MAX_ACTIVE_BORROWS_EXCEEDED` (max 10 active borrows reached) |
 
 ---
 
 ### 3.2 `GET /api/borrow-requests/mine`
-List the authenticated student's own borrow requests.
+List the authenticated student's own borrow requests (newest first, paginated).
 
 | Property | Value |
 |---|---|
@@ -343,124 +357,33 @@ List the authenticated student's own borrow requests.
 
 **Query parameters**
 
-| Param | Type | Default | Allowed values |
+| Param | Type | Default | Constraints |
 |---|---|---|---|
-| `status` | string | — (all) | `Pending`, `Approved`, `Issued`, `Rejected`, `Cancelled`, `Expired` |
+| `page` | integer | `1` | Positive integer |
+| `limit` | integer | `10` | Positive integer up to 50 |
+| `status` | string | — (all) | `Pending`, `Approved`, `Rejected`, `Cancelled`, `Fulfilled`, `Expired` |
 
 **Success `200`**
 ```json
 {
-  "requests": [ { "id": 99, "book_id": 5, "status": "Pending" } ]
-}
-```
-
-**Errors**
-| Code | Meaning |
-|---|---|
-| `400` | Invalid `status` value |
-| `401` | Not authenticated |
-| `403` | Role is not Student |
-
----
-
-### 3.3 `GET /api/borrow-requests`
-List all borrow requests — staff view.
-
-| Property | Value |
-|---|---|
-| **Auth required** | Yes |
-| **Role** | Admin or Librarian |
-
-**Query parameters** — same `status` filter as 3.2.
-
-**Success `200`**
-```json
-{
-  "requests": [ { "id": 99, "user_id": 1, "book_id": 5, "status": "Pending" } ]
-}
-```
-
-**Errors**
-| Code | Meaning |
-|---|---|
-| `400` | Invalid `status` value |
-| `401` | Not authenticated |
-| `403` | Role is not Admin or Librarian |
-
----
-
-### 3.4 `POST /api/borrow-requests/:id/review`
-Approve or reject a **Pending** borrow request.
-
-| Property | Value |
-|---|---|
-| **Auth required** | Yes |
-| **Role** | Admin or Librarian |
-
-**Path parameter**: `id` — positive integer request ID.
-
-**Request body**
-```json
-{
-  "decision": "approve",
-  "remarks": "Optional notes (required when rejecting)"
-}
-```
-
-| Field | Type | Required | Constraints |
-|---|---|---|---|
-| `decision` | string | Yes | `"approve"` or `"reject"` |
-| `remarks` | string | Only when rejecting | Max 2000 chars |
-
-**Approval side-effects (atomic)**:
-- Selects a borrowable copy (`status = 'Available'`, `condition = 'Good'`).
-- Marks copy status → `Reserved`.
-- Sets request status → `Approved`.
-
-**Success `200`**
-```json
-{
-  "request": { "id": 99, "status": "Approved", "copy_id": 12 }
-}
-```
-
-**Errors**
-| Code | Meaning |
-|---|---|
-| `400` | Validation failure |
-| `401` | Not authenticated |
-| `403` | Role not allowed |
-| `404` | Request not found |
-| `409` | Request is not Pending, or no borrowable copy available |
-
----
-
-### 3.5 `POST /api/borrow-requests/:id/confirm-pickup`
-Confirm physical pickup of an **Approved** request, creating an active loan.
-
-| Property | Value |
-|---|---|
-| **Auth required** | Yes |
-| **Role** | Admin or Librarian |
-
-**Path parameter**: `id` — positive integer request ID.
-
-**Side-effects (atomic, with lock on student user row)**:
-- Request status → `Issued`.
-- Copy status → `Borrowed`.
-- Creates a `borrowed_books` record; `due_date` computed from library rules.
-- Re-verifies student borrow limit under lock to prevent concurrent-request races.
-
-**Success `200`**
-```json
-{
-  "borrow": {
-    "id": 55,
-    "request_id": 99,
-    "copy_id": 12,
-    "user_id": 1,
-    "borrowed_at": "2026-10-08T12:00:00.000Z",
-    "due_date": "2026-10-22T12:00:00.000Z"
+  "requests": [
+    {
+      "request_id": 101,
+      "book_id": 5,
+      "book_title": "Design Patterns",
+      "author": "Erich Gamma, Richard Helm",
+      "requested_days": 7,
+      "request_date": "2026-10-11T09:00:00.000Z",
+      "status": "Pending",
+      "remarks": null,
+      "pickup_deadline": null
+    }
+  ],
+  "pagination": {
+    "total": 1,
+    "page": 1,
+    "limit": 10,
+    "totalPages": 1
   }
 }
 ```
@@ -468,66 +391,99 @@ Confirm physical pickup of an **Approved** request, creating an active loan.
 **Errors**
 | Code | Meaning |
 |---|---|
-| `401` | Not authenticated |
-| `403` | Role not allowed, or student borrow limit exceeded at pickup time |
-| `404` | Request not found |
-| `409` | Request is not in Approved status |
+| `400` | Invalid query parameter |
+| `401` | Authentication required |
+| `403` | Role is not Student |
 
 ---
 
-### 3.6 `POST /api/borrow-requests/:id/cancel`
-Cancel a **Pending** borrow request (student self-cancellation only).
+### 3.3 `GET /api/borrow-requests`
+Review queue for staff — lists pending requests (or filtered by status), oldest first. Includes book details, student profile, and a live eligibility assessment.
 
 | Property | Value |
 |---|---|
 | **Auth required** | Yes |
-| **Role** | Student |
+| **Role** | Librarian or Admin |
 
-**Path parameter**: `id` — positive integer request ID.
+**Query parameters**
 
-**Side-effects**:
-- Request status → `Cancelled`.
-- If a copy was already reserved, its status reverts → `Available`.
+| Param | Type | Default | Constraints |
+|---|---|---|---|
+| `status` | string | `Pending` | Request status filter |
+| `page` | integer | `1` | Positive integer |
+| `limit` | integer | `10` | Positive integer up to 50 |
 
 **Success `200`**
 ```json
 {
-  "request": { "id": 99, "status": "Cancelled" }
+  "requests": [
+    {
+      "request_id": 101,
+      "user_id": 9001,
+      "book_id": 5,
+      "requested_days": 7,
+      "request_date": "2026-10-11T09:00:00.000Z",
+      "status": "Pending",
+      "reviewed_by": null,
+      "reviewed_at": null,
+      "pickup_deadline": null,
+      "remarks": null,
+      "book": {
+        "book_id": 5,
+        "title": "Design Patterns",
+        "isbn": "978-0201633610"
+      },
+      "student": {
+        "user_id": 9001,
+        "name": "Jane Doe",
+        "student_number": "SN-2024-001",
+        "college": "CCS",
+        "course": "BSIT",
+        "year_level": 3
+      },
+      "eligibility": {
+        "eligible": true,
+        "reason_codes": [],
+        "reasons": []
+      }
+    }
+  ],
+  "pagination": {
+    "total": 1,
+    "page": 1,
+    "limit": 10,
+    "totalPages": 1
+  }
 }
 ```
 
 **Errors**
 | Code | Meaning |
 |---|---|
-| `401` | Not authenticated |
-| `403` | Not the owner, or not a Student |
-| `404` | Request not found |
-| `409` | Request is not in a cancellable state (must be Pending) |
+| `400` | Invalid query parameter |
+| `401` | Authentication required |
+| `403` | Role is not Librarian or Admin |
 
 ---
 
-## 4. Notifications
-
-**Prefix**: `/api/notifications`  
-All routes require authentication (cookie).
-
-### 4.1 `GET /api/notifications`
-Retrieve all notifications for the authenticated user.
+### 3.4 `GET /api/borrow-requests/:id/available-copies`
+List available copies in 'Good' condition for the book associated with this request, so the librarian can select a specific physical copy for assignment.
 
 | Property | Value |
 |---|---|
 | **Auth required** | Yes |
-| **Role** | Any authenticated user |
+| **Role** | Librarian or Admin |
+
+**Path parameter**: `id` — positive integer borrow request ID.
 
 **Success `200`**
 ```json
 {
-  "notifications": [
+  "copies": [
     {
-      "id": 7,
-      "message": "Your borrow request for 'Clean Code' has been approved.",
-      "is_read": false,
-      "created_at": "2026-10-08T12:00:00.000Z"
+      "copy_id": 12,
+      "accession_no": "ACC-00012",
+      "shelf_location": "Shelf B-3"
     }
   ]
 }
@@ -536,54 +492,280 @@ Retrieve all notifications for the authenticated user.
 **Errors**
 | Code | Meaning |
 |---|---|
-| `401` | Not authenticated |
+| `400` | Invalid request ID |
+| `401` | Authentication required |
+| `403` | Role not allowed |
+| `404` | Request not found |
 
 ---
 
-### 4.2 `PATCH /api/notifications/:id/read`
-Mark a specific notification as read.
+### 3.5 `POST /api/borrow-requests/:id/review`
+Approve or reject a **Pending** borrow request. Atomic transaction with row-level lock.
 
 | Property | Value |
 |---|---|
 | **Auth required** | Yes |
-| **Role** | Any authenticated user (must own the notification) |
+| **Role** | Librarian or Admin |
 
-**Path parameter**: `id` — positive integer notification ID.
+**Path parameter**: `id` — positive integer borrow request ID.
 
-**Success `200`**
+**Request body**
 ```json
 {
-  "notification": { "id": 7, "is_read": true }
+  "decision": "approve",
+  "copy_id": 12,
+  "remarks": "Optional approval note"
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `decision` | string | Yes | `"approve"` or `"reject"` |
+| `remarks` | string | Required if rejecting | Notes up to 2000 characters |
+| `copy_id` | integer | Optional | Specific copy ID to assign. If omitted on approval, system auto-selects an available good copy using `FOR UPDATE SKIP LOCKED`. |
+
+**Approval Side-effects (atomic)**:
+- Re-verifies student eligibility, 10-loan max limit, and 2-copy-per-title limit.
+- Locks selected/auto-picked copy and sets `book_copies.status` → `'Reserved'`.
+- Inserts `borrowed_books` record with `status: 'Reserved'`, `assigned_by`, `assigned_at`, `due_date: NULL`, `issued_by: NULL`.
+- Sets `borrow_requests` status → `'Approved'`, `reviewed_by`, `reviewed_at`, and `pickup_deadline` (`now + PICKUP_WINDOW_DAYS = 3 days`).
+
+**Success `200` (Approval)**
+```json
+{
+  "message": "Request approved and copy reserved.",
+  "request_id": 101,
+  "borrow_id": 55,
+  "copy_id": 12,
+  "pickup_deadline": "2026-10-14T09:00:00.000Z"
+}
+```
+
+**Success `200` (Rejection)**
+```json
+{
+  "message": "Request rejected successfully.",
+  "request_id": 101,
+  "status": "Rejected",
+  "remarks": "Reason for rejection"
 }
 ```
 
 **Errors**
 | Code | Meaning |
 |---|---|
-| `401` | Not authenticated |
-| `403` | Notification does not belong to the current user |
-| `404` | Notification not found |
+| `400` | Validation error (invalid decision, missing remarks on rejection, etc.) |
+| `401` | Authentication required |
+| `403` | Role not allowed |
+| `404` | Request not found |
+| `409` | Request not in Pending status, student ineligible (`STUDENT_INELIGIBLE`), limits exceeded (`MAX_COPIES_PER_BOOK_EXCEEDED`, `MAX_ACTIVE_BORROWS_EXCEEDED`), or copy not available (`NO_COPY_AVAILABLE`) |
+
+---
+
+## 4. Borrowed Books
+
+**Prefix**: `/api/borrowed-books`  
+All routes require authentication (cookie).
+
+### 4.1 `GET /api/borrowed-books/mine`
+List the authenticated student's own loans (Reserved for pickup or on loan). Students can never access other students' loans.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Student |
+
+**Query parameters**
+
+| Param | Type | Allowed values |
+|---|---|---|
+| `status` | string | `Reserved`, `Borrowed`, `Returned`, `Lost`, `Cancelled` |
+
+**Success `200`**
+```json
+{
+  "loans": [
+    {
+      "borrow_id": 55,
+      "book": {
+        "title": "Design Patterns",
+        "cover_image": "https://example.com/cover.jpg",
+        "author": "Erich Gamma, Richard Helm"
+      },
+      "accession_no": "ACC-00012",
+      "shelf_location": "Shelf B-3",
+      "status": "Reserved",
+      "pickup_deadline": "2026-10-14T09:00:00.000Z",
+      "borrow_date": null,
+      "due_date": null,
+      "days_remaining": null,
+      "is_overdue": false
+    }
+  ]
+}
+```
+
+---
+
+### 4.2 `GET /api/borrowed-books`
+Staff list of borrowed books (Reserved or Borrowed). Searchable by `student_number`, student name, `accession_no`, and book `title`.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Librarian or Admin |
+
+**Query parameters**
+
+| Param | Type | Default | Constraints |
+|---|---|---|---|
+| `status` | string | — (all) | `Reserved`, `Borrowed`, etc. (comma-separated supported) |
+| `search` | string | — | Filter across student number, name, accession number, or title |
+| `page` | integer | `1` | Positive integer |
+| `limit` | integer | `10` | Positive integer up to 50 |
+
+**Success `200`**
+```json
+{
+  "loans": [
+    {
+      "borrow_id": 55,
+      "request_id": 101,
+      "status": "Reserved",
+      "borrow_date": null,
+      "due_date": null,
+      "pickup_deadline": "2026-10-14T09:00:00.000Z",
+      "book": {
+        "book_id": 5,
+        "title": "Design Patterns",
+        "isbn": "978-0201633610"
+      },
+      "copy": {
+        "copy_id": 12,
+        "accession_no": "ACC-00012",
+        "shelf_location": "Shelf B-3"
+      },
+      "student": {
+        "user_id": 9001,
+        "student_number": "SN-2024-001",
+        "name": "Jane Doe",
+        "email": "jane@university.edu"
+      }
+    }
+  ],
+  "pagination": {
+    "total": 1,
+    "page": 1,
+    "limit": 10,
+    "totalPages": 1
+  }
+}
+```
+
+---
+
+### 4.3 `GET /api/borrowed-books/:id/pickup-check`
+Read-only pre-pickup verification check. Lazily expires stale pickups, re-checks student borrow eligibility, inspects active penalties and verification, and returns whether the book can be released.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Librarian or Admin |
+
+**Path parameter**: `id` — positive integer borrow ID (`borrow_id`).
+
+**Success `200`**
+```json
+{
+  "can_release": true,
+  "reasons": [],
+  "penalties": {
+    "list": [],
+    "total_balance": 0
+  },
+  "verification": {
+    "term_name": "A.Y. 2026-2027 1st Semester",
+    "status": "Approved",
+    "valid_from": "2026-09-01",
+    "valid_until": "2027-01-31"
+  },
+  "pickup_deadline": "2026-10-14T09:00:00.000Z"
+}
+```
+
+---
+
+### 4.4 `POST /api/borrowed-books/:id/pickup`
+Mark an approved and reserved book as picked up and borrowed. Executed in a single atomic transaction through `withActor` with row-level locks on `borrowed_books`, `borrow_requests`, and `book_copies`.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Librarian or Admin |
+
+**Path parameter**: `id` — positive integer borrow ID (`borrow_id`).
+
+**Verification steps**:
+1. Checks that loan is in `'Reserved'` and request is in `'Approved'`.
+2. Validates that current time `<= pickup_deadline`. If expired, transitions request to `'Expired'`, loan to `'Cancelled'`, and copy to `'Available'`, returning `409 PICKUP_EXPIRED`.
+3. Re-verifies student borrow eligibility (active account, valid term verification, no active unpaid penalties). If ineligible, rejects release with `409 STUDENT_INELIGIBLE`.
+4. Re-verifies max active borrow limit (`MAX_ACTIVE_BORROWS = 10`).
+
+**Release Side-effects (atomic)**:
+- Sets `borrowed_books.status` → `'Borrowed'`, `borrow_date = now`, `due_date = CURRENT_DATE + requested_days`, `issued_by = req.user.id`, `picked_up_at = now`.
+- Sets `book_copies.status` → `'Borrowed'`.
+- Sets `borrow_requests.status` → `'Fulfilled'`.
+
+**Success `200`**
+```json
+{
+  "message": "Book pickup confirmed successfully.",
+  "borrow_id": 55,
+  "borrow_date": "2026-10-11T10:00:00.000Z",
+  "due_date": "2026-10-18",
+  "status": "Borrowed"
+}
+```
+
+**Errors**
+| Code | Meaning |
+|---|---|
+| `400` | Invalid borrow ID |
+| `401` | Authentication required |
+| `403` | Role not allowed |
+| `404` | Loan or request not found |
+| `409` | Loan not in Reserved status (`INVALID_STATUS`), pickup deadline expired (`PICKUP_EXPIRED`), student ineligible (`STUDENT_INELIGIBLE`), or max active borrows exceeded |
 
 ---
 
 ## 5. Common Error Responses
 
-All error responses share this shape:
+Error responses return JSON with standardized message and error code structures:
+
 ```json
-{ "error": "Human-readable description." }
+{
+  "code": "ERROR_CODE",
+  "message": "Detailed description of the issue.",
+  "error": "Detailed description of the issue.",
+  "reasons": [
+    {
+      "code": "ACTIVE_PENALTY",
+      "message": "Student has 1 active penalty/penalties with total balance of 50.00."
+    }
+  ]
+}
 ```
 
-| HTTP Code | Meaning |
-|---|---|
-| `400 Bad Request` | Malformed input, missing required fields, or invalid parameter values |
-| `401 Unauthorized` | Missing, expired, or invalid `auth_token` cookie |
-| `403 Forbidden` | Authenticated but insufficient role, suspended account, or ownership mismatch |
-| `404 Not Found` | Resource does not exist or route is not defined |
-| `409 Conflict` | Business rule violation (limit exceeded, wrong state, no copy available, duplicate) |
-| `410 Gone` | Proof-upload token expired |
-| `429 Too Many Requests` | Rate limit exceeded |
-| `500 Internal Server Error` | Unexpected server-side failure |
+| HTTP Status | Primary Meaning | Common Business Codes |
+|---|---|---|
+| `400 Bad Request` | Missing or malformed parameters / body payload | `INVALID_REQUESTED_DAYS`, `REMARKS_REQUIRED` |
+| `401 Unauthorized` | Missing, expired, or invalid session cookie | `UNAUTHORIZED` |
+| `403 Forbidden` | Insufficient role or student ineligible to borrow | `BORROW_INELIGIBLE` (`USER_NOT_ACTIVE`, `NO_ACTIVE_TERM`, `VERIFICATION_REQUIRED`, `VERIFICATION_PENDING`, `VERIFICATION_REJECTED`, `VERIFICATION_EXPIRED`, `ACTIVE_PENALTY`) |
+| `404 Not Found` | Requested book, request, or loan does not exist | `BOOK_NOT_FOUND`, `REQUEST_NOT_FOUND`, `LOAN_NOT_FOUND` |
+| `409 Conflict` | Business constraint violation | `DUPLICATE_REQUEST`, `NO_COPY_AVAILABLE`, `MAX_COPIES_PER_BOOK_EXCEEDED`, `MAX_ACTIVE_BORROWS_EXCEEDED`, `STUDENT_INELIGIBLE`, `PICKUP_EXPIRED`, `INVALID_STATUS` |
+| `500 Internal Server Error` | Unexpected server exception (logged internally, not leaked) | `INTERNAL_SERVER_ERROR` |
 
 ---
 
-*Generated: 2026-10-08 — Prestar Library Management System Backend v1*
+*Generated: 2026-10-11 — Prestar Library Management System Backend v3*
+

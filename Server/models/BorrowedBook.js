@@ -24,21 +24,33 @@ export default function defineBorrowedBook(sequelize) {
       },
       borrow_date: {
         type: DataTypes.DATE,
-        allowNull: false,
+        allowNull: true,
         defaultValue: DataTypes.NOW,
       },
       due_date: {
         type: DataTypes.DATEONLY,
-        allowNull: false,
+        allowNull: true,
       },
       status: {
         type: DataTypes.STRING(20),
         allowNull: false,
-        defaultValue: "Borrowed",
+        defaultValue: "Reserved",
       },
       issued_by: {
         type: DataTypes.BIGINT,
-        allowNull: false,
+        allowNull: true,
+      },
+      assigned_by: {
+        type: DataTypes.BIGINT,
+        allowNull: true,
+      },
+      assigned_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+      picked_up_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
       },
     },
     {

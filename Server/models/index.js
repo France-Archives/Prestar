@@ -65,9 +65,12 @@ Admin.belongsTo(User, { foreignKey: "user_id", as: "user" });
 
 // Student Verifications
 User.hasMany(StudentVerification, { foreignKey: "user_id", as: "verifications" });
-StudentVerification.belongsTo(User, { foreignKey: "user_id", as: "student" });
+StudentVerification.belongsTo(User, { foreignKey: "user_id", as: "user" });
+Student.hasMany(StudentVerification, { foreignKey: "user_id", as: "verifications" });
+StudentVerification.belongsTo(Student, { foreignKey: "user_id", as: "student" });
 AcademicTerm.hasMany(StudentVerification, { foreignKey: "term_id", as: "verifications" });
 StudentVerification.belongsTo(AcademicTerm, { foreignKey: "term_id", as: "term" });
+StudentVerification.belongsTo(User, { foreignKey: "reviewed_by", as: "reviewer" });
 
 // Book Catalog
 Book.belongsTo(Author, { foreignKey: "author_id", as: "author" });
@@ -80,17 +83,18 @@ Book.hasMany(BookCopy, { foreignKey: "book_id", as: "copies" });
 BookCopy.belongsTo(Book, { foreignKey: "book_id", as: "book" });
 
 // Borrow Requests
-BorrowRequest.belongsTo(User, { foreignKey: "user_id", as: "student" });
-User.hasMany(BorrowRequest, { foreignKey: "user_id", as: "borrowRequests" });
+Student.hasMany(BorrowRequest, { foreignKey: "user_id", as: "borrowRequests" });
+BorrowRequest.belongsTo(Student, { foreignKey: "user_id", as: "student" });
 BorrowRequest.belongsTo(Book, { foreignKey: "book_id", as: "book" });
 BorrowRequest.belongsTo(User, { foreignKey: "reviewed_by", as: "reviewer" });
+BorrowRequest.hasOne(BorrowedBook, { foreignKey: "request_id", as: "borrowedBook" });
 
 // Borrowed Books
 BorrowedBook.belongsTo(BorrowRequest, { foreignKey: "request_id", as: "request" });
-BorrowRequest.hasMany(BorrowedBook, { foreignKey: "request_id", as: "borrows" });
 BorrowedBook.belongsTo(Book, { foreignKey: "book_id", as: "book" });
 BorrowedBook.belongsTo(BookCopy, { foreignKey: "copy_id", as: "copy" });
 BorrowedBook.belongsTo(User, { foreignKey: "issued_by", as: "issuer" });
+BorrowedBook.belongsTo(User, { foreignKey: "assigned_by", as: "assigner" });
 
 // Renewals
 Renewal.belongsTo(BorrowedBook, { foreignKey: "borrow_id", as: "borrow" });
@@ -98,7 +102,7 @@ BorrowedBook.hasMany(Renewal, { foreignKey: "borrow_id", as: "renewals" });
 
 // Returned Books
 ReturnedBook.belongsTo(BorrowedBook, { foreignKey: "borrow_id", as: "borrow" });
-BorrowedBook.hasOne(ReturnedBook, { foreignKey: "borrow_id", as: "returnRecord" });
+BorrowedBook.hasOne(ReturnedBook, { foreignKey: "returnRecord" });
 
 // Reservations
 Reservation.belongsTo(User, { foreignKey: "user_id", as: "student" });

@@ -20,7 +20,8 @@ export default function defineEmailOtp(sequelize) {
       },
       signup_payload: {
         type: DataTypes.JSONB,
-        allowNull: false,
+        allowNull: true,
+        defaultValue: {},
       },
       expires_at: {
         type: DataTypes.DATE,

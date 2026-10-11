@@ -1,72 +1,109 @@
 // Server/controllers/borrowRequestController.js
 import {
-  cancelBorrowRequest,
-  confirmBorrowPickup,
+  BorrowFlowError,
   createBorrowRequest,
-  listBorrowRequests,
+  getAvailableCopiesForRequest,
+  listBorrowRequestsQueue,
+  listMyBorrowRequests,
   reviewBorrowRequest,
-  BorrowRequestError,
-} from "../services/borrowRequestService.js";
+} from "../services/borrowFlowService.js";
 
-export async function createRequest(req, res, next) {
+export async function createRequest(req, res) {
   try {
-    const request = await createBorrowRequest(req.user.id, req.validatedBookId);
-    return res.status(201).json({ request });
+    const request = await createBorrowRequest({
+      userId: req.user.id,
+      bookId: req.validatedInput.book_id,
+      requestedDays: req.validatedInput.requested_days,
+    });
+    return res.status(201).json({
+      message: "Borrow request created successfully.",
+      request,
+    });
   } catch (error) {
-    if (error instanceof BorrowRequestError) return res.status(error.status).json({ error: error.message });
-    return next(error);
+    if (error instanceof BorrowFlowError) {
+      return res.status(error.status).json({
+        code: error.code,
+        message: error.message,
+        error: error.message,
+        ...(error.reasons?.length ? { reasons: error.reasons } : {}),
+      });
+    }
+    console.error("Create borrow request error:", error);
+    return res.status(500).json({ error: "Internal server error." });
   }
 }
 
-export async function listRequests(req, res, next) {
+export async function listMyRequests(req, res) {
   try {
-    const requests = await listBorrowRequests({ status: req.requestStatus });
-    return res.status(200).json({ requests });
+    const result = await listMyBorrowRequests(req.user.id, req.pagination);
+    return res.status(200).json(result);
   } catch (error) {
-    return next(error);
+    if (error instanceof BorrowFlowError) {
+      return res.status(error.status).json({
+        code: error.code,
+        message: error.message,
+        error: error.message,
+      });
+    }
+    console.error("List my requests error:", error);
+    return res.status(500).json({ error: "Internal server error." });
   }
 }
 
-export async function listMyRequests(req, res, next) {
+export async function listRequestsQueue(req, res) {
   try {
-    const requests = await listBorrowRequests({ status: req.requestStatus, userId: req.user.id });
-    return res.status(200).json({ requests });
+    const result = await listBorrowRequestsQueue(req.pagination);
+    return res.status(200).json(result);
   } catch (error) {
-    return next(error);
+    if (error instanceof BorrowFlowError) {
+      return res.status(error.status).json({
+        code: error.code,
+        message: error.message,
+        error: error.message,
+      });
+    }
+    console.error("List requests queue error:", error);
+    return res.status(500).json({ error: "Internal server error." });
   }
 }
 
-export async function reviewRequest(req, res, next) {
+export async function getAvailableCopies(req, res) {
   try {
-    const request = await reviewBorrowRequest(
-      req.resourceId,
-      req.user.id,
-      req.reviewInput.decision,
-      req.reviewInput.remarks,
-    );
-    return res.status(200).json({ request });
+    const copies = await getAvailableCopiesForRequest(req.resourceId);
+    return res.status(200).json({ copies });
   } catch (error) {
-    if (error instanceof BorrowRequestError) return res.status(error.status).json({ error: error.message });
-    return next(error);
+    if (error instanceof BorrowFlowError) {
+      return res.status(error.status).json({
+        code: error.code,
+        message: error.message,
+        error: error.message,
+      });
+    }
+    console.error("Get available copies error:", error);
+    return res.status(500).json({ error: "Internal server error." });
   }
 }
 
-export async function confirmPickup(req, res, next) {
+export async function reviewRequest(req, res) {
   try {
-    const borrow = await confirmBorrowPickup(req.resourceId, req.user.id);
-    return res.status(200).json({ borrow });
+    const result = await reviewBorrowRequest({
+      requestId: req.resourceId,
+      reviewerId: req.user.id,
+      decision: req.reviewInput.decision,
+      remarks: req.reviewInput.remarks,
+      copyId: req.reviewInput.copy_id,
+    });
+    return res.status(200).json(result);
   } catch (error) {
-    if (error instanceof BorrowRequestError) return res.status(error.status).json({ error: error.message });
-    return next(error);
-  }
-}
-
-export async function cancelRequest(req, res, next) {
-  try {
-    const request = await cancelBorrowRequest(req.resourceId, req.user.id);
-    return res.status(200).json({ request });
-  } catch (error) {
-    if (error instanceof BorrowRequestError) return res.status(error.status).json({ error: error.message });
-    return next(error);
+    if (error instanceof BorrowFlowError) {
+      return res.status(error.status).json({
+        code: error.code,
+        message: error.message,
+        error: error.message,
+        ...(error.reasons?.length ? { reasons: error.reasons } : {}),
+      });
+    }
+    console.error("Review borrow request error:", error);
+    return res.status(500).json({ error: "Internal server error." });
   }
 }

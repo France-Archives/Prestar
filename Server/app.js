@@ -7,8 +7,11 @@ import cors from "cors";
 import authRoutes from "./routes/authRoutes.js";
 import bookRoutes from "./routes/bookRoutes.js";
 import borrowRequestRoutes from "./routes/borrowRequestRoutes.js";
+import borrowedBookRoutes from "./routes/borrowedBookRoutes.js";
+import otpRoutes from "./routes/otpRoutes.js";
 
 const app = express();
+app.set("trust proxy", 1);
 const allowedOrigins = new Set(
 	(process.env.FRONTEND_ORIGINS || "http://localhost:5173,http://127.0.0.1:5173")
 		.split(",")
@@ -33,6 +36,8 @@ app.use(cors({
 app.use("/api/auth", authRoutes);
 app.use("/api/books", bookRoutes);
 app.use("/api/borrow-requests", borrowRequestRoutes);
+app.use("/api/borrowed-books", borrowedBookRoutes);
+app.use("/api/otp", otpRoutes);
 
 app.use((req, res) => {
 	res.status(404).json({ error: "Route not found." });
