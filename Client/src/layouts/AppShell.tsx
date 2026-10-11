@@ -9,7 +9,7 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 const COLLAPSED_KEY = "prestar:sidebar-rail";
 
-/** Shared signed-in shell: sidebar + header + routed content in one grid. Student, Staff and Admin layouts use it. */
+/** Shared signed-in shell: header on top, sidebar and content below in one grid. Student, Staff and Admin layouts use it. */
 export default function AppShell({ areaLabel }: { areaLabel: string }) {
   const { user } = useAuth();
   const { pathname } = useLocation();
@@ -60,26 +60,24 @@ export default function AppShell({ areaLabel }: { areaLabel: string }) {
 
   return (
     <div className="app-shell" data-collapsed={collapsed} data-drawer={drawerOpen ? "open" : "closed"}>
+      <AppNavbar
+        areaLabel={areaLabel}
+        collapsed={collapsed}
+        drawerOpen={drawerOpen}
+        isDesktop={isDesktop}
+        onToggleMenu={() => (isDesktop ? setCollapsed((c) => !c) : setDrawerOpen((o) => !o))}
+      />
       <Sidebar collapsed={collapsed} drawerOpen={drawerOpen} isDesktop={isDesktop} onCloseDrawer={() => setDrawerOpen(false)} />
       {drawerOpen && <div className="app-scrim" onClick={() => setDrawerOpen(false)} aria-hidden="true" />}
 
-      <div className="app-body">
-        <AppNavbar
-          areaLabel={areaLabel}
-          collapsed={collapsed}
-          drawerOpen={drawerOpen}
-          isDesktop={isDesktop}
-          onToggleMenu={() => (isDesktop ? setCollapsed((c) => !c) : setDrawerOpen((o) => !o))}
-        />
-        <main className="app-main">
-          {pathname !== home && (
-            <div className="backbar">
-              <BackButton fallback={home} />
-            </div>
-          )}
-          <Outlet />
-        </main>
-      </div>
+      <main className="app-main">
+        {pathname !== home && (
+          <div className="backbar">
+            <BackButton fallback={home} />
+          </div>
+        )}
+        <Outlet />
+      </main>
     </div>
   );
 }

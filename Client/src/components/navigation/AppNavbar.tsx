@@ -1,6 +1,6 @@
 import { useState, type CSSProperties, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, PanelLeftClose, PanelLeftOpen, Search } from "lucide-react";
+import { Menu, Search } from "lucide-react";
 import logoSrc from "@/assets/images/prestar-logo.png";
 import SearchInput from "@/components/forms/SearchInput";
 import { ROUTES, homePathFor } from "@/app/routeConfig";
@@ -66,7 +66,6 @@ export default function AppNavbar({ areaLabel, collapsed, drawerOpen, isDesktop,
   const livePlaceholder = isStudent ? LIVE_SEARCH[path] : undefined;
   const catalogSearch = isStudent && !livePlaceholder && (path === ROUTES.student.dashboard || path.startsWith(`${ROUTES.student.books}/`));
 
-  const MenuIcon = !isDesktop ? Menu : collapsed ? PanelLeftOpen : PanelLeftClose;
   const menuLabel = !isDesktop ? (drawerOpen ? "Close menu" : "Open menu") : collapsed ? "Expand sidebar" : "Collapse sidebar";
 
   return (
@@ -81,16 +80,14 @@ export default function AppNavbar({ areaLabel, collapsed, drawerOpen, isDesktop,
             aria-controls="app-sidebar"
             onClick={onToggleMenu}
           >
-            <MenuIcon size={20} strokeWidth={1.9} aria-hidden="true" />
+            <Menu size={22} strokeWidth={1.9} aria-hidden="true" />
           </button>
-          {!isDesktop && (
-            <Link to={homePathFor(user)} className="app-header__brand" aria-label="PRESTAR home">
-              <span className="app-brand-art" style={{ "--h": "2.75rem" } as CSSProperties}>
-                <img src={logoSrc} alt="" />
-              </span>
-            </Link>
-          )}
-          {!isStudent && <span className="badge badge-neutral hidden lg:inline-flex">{areaLabel}</span>}
+          <Link to={homePathFor(user)} className="app-header__brand" aria-label="PRESTAR home">
+            <span className="app-brand-art" style={{ "--h": "3.25rem" } as CSSProperties}>
+              <img src={logoSrc} alt="" />
+            </span>
+          </Link>
+          {!isStudent && <span className="badge badge-neutral hidden xl:inline-flex">{areaLabel}</span>}
         </div>
 
         {/* key={path}: a fresh search box on every page, so text never leaks from one page to another. */}

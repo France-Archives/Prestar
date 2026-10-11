@@ -1,11 +1,12 @@
-/* App shell: sidebar and content share one grid, so the content is never covered.
-   Desktop: the first grid column is the sidebar (full width or icon rail).
-   Mobile (<768px): the sidebar is an off-canvas drawer with a backdrop. */
+/* App shell: header on top (burger + logo + search + profile), sidebar and content below in one grid.
+   Desktop: the sidebar is a full column or an icon rail, and the content resizes with it.
+   Mobile (<768px): the sidebar is an off-canvas drawer under the header, with a backdrop. */
 
 .app-shell {
   --sb: var(--sidebar-w);
   display: grid;
   grid-template-columns: var(--sb) minmax(0, 1fr);
+  grid-template-rows: var(--header-h) minmax(0, 1fr);
   min-height: 100vh;
   background: var(--color-canvas);
   transition: grid-template-columns var(--dur-slow) var(--ease-out-expo);
@@ -21,16 +22,159 @@
   }
 }
 
-/* ---------- sidebar ---------- */
-.app-sidebar {
+/* ---------- top bar ---------- */
+.app-header {
+  grid-column: 1 / -1;
+  grid-row: 1;
   position: sticky;
   top: 0;
+  z-index: 45;
+  height: var(--header-h);
+  background: color-mix(in srgb, var(--color-canvas) 92%, transparent);
+  -webkit-backdrop-filter: saturate(1.3) blur(14px);
+  backdrop-filter: saturate(1.3) blur(14px);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+}
+.app-header__inner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  height: 100%;
+  padding: 0 var(--gutter);
+}
+@media (min-width: 1100px) {
+  .app-header__inner {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 34rem) minmax(0, 1fr);
+  }
+}
+.app-header__lead {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.app-header__brand {
+  display: block;
+  flex: none;
+  text-decoration: none;
+}
+.app-header__brand:hover {
+  text-decoration: none;
+}
+@media (max-width: 479px) {
+  .app-header__brand {
+    display: none;
+  }
+}
+.app-header__end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+}
+
+/* The PNG has empty margins, so a window crops it to the artwork. Everything scales from --h. */
+.app-brand-art {
+  position: relative;
+  display: block;
+  flex: none;
+  height: var(--h, 3.25rem);
+  width: calc(var(--h, 3.25rem) * 2.6);
+  overflow: hidden;
+}
+.app-brand-art img {
+  position: absolute;
+  left: calc(var(--h, 3.25rem) * -0.234);
+  top: calc(var(--h, 3.25rem) * -0.172);
+  height: calc(var(--h, 3.25rem) * 1.1875);
+  width: auto;
+  max-width: none;
+}
+
+.app-search {
+  position: relative;
+  width: 100%;
+  max-width: 34rem;
+  justify-self: center;
+}
+.app-search-icon {
+  position: absolute;
+  left: 0.9rem;
+  top: 50%;
+  width: 1rem;
+  height: 1rem;
+  transform: translateY(-50%);
+  color: var(--color-muted);
+  pointer-events: none;
+  transition: color var(--dur-fast);
+}
+.app-search:focus-within .app-search-icon {
+  color: var(--color-green);
+}
+.app-search input {
+  width: 100%;
+  height: var(--control-h);
+  padding: 0 1rem 0 2.5rem;
+  font-size: 0.875rem;
+  color: var(--color-ink);
+  background: var(--color-paper);
+  border: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+  border-radius: 12px;
+  box-shadow: 0 4px 14px -10px rgba(7, 53, 44, 0.25);
+  transition:
+    border-color var(--dur-fast),
+    box-shadow var(--dur) var(--ease),
+    background var(--dur-fast);
+}
+.app-search input::placeholder {
+  color: var(--color-muted);
+}
+.app-search input:hover {
+  border-color: var(--color-sage);
+}
+.app-search input:focus {
+  outline: none;
+  border-color: var(--color-green);
+  background: #fff;
+  box-shadow: var(--ring);
+}
+
+.app-iconbtn {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-control);
+  color: var(--color-forest);
+  transition:
+    background var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
+}
+.app-iconbtn:hover {
+  background: color-mix(in srgb, var(--color-mist) 70%, transparent);
+}
+.app-iconbtn:active {
+  transform: scale(0.94);
+}
+.app-iconbtn:focus-visible {
+  outline: 2px solid var(--color-green);
+  outline-offset: 2px;
+}
+
+/* ---------- sidebar ---------- */
+.app-sidebar {
+  grid-column: 1;
+  grid-row: 2;
+  position: sticky;
+  top: var(--header-h);
   align-self: start;
   z-index: 35;
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  height: 100dvh;
+  height: calc(100vh - var(--header-h));
+  height: calc(100dvh - var(--header-h));
   min-width: 0;
   overflow: hidden;
   background: var(--color-paper);
@@ -39,9 +183,12 @@
 @media (max-width: 767.98px) {
   .app-sidebar {
     position: fixed;
-    inset: 0 auto 0 0;
+    top: var(--header-h);
+    bottom: 0;
+    left: 0;
     z-index: 50;
     width: min(var(--sidebar-w), 86vw);
+    height: auto;
     transform: translateX(-104%);
     visibility: hidden;
     transition:
@@ -58,44 +205,6 @@
   }
 }
 
-/* brand row: same height as the top bar */
-.app-sidebar__brand {
-  --h: var(--header-h);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-shrink: 0;
-  height: var(--header-h);
-  padding: 0 0.75rem 0 1.125rem;
-  border-bottom: 1px solid var(--color-line-soft);
-}
-.app-brand-link {
-  display: block;
-  text-decoration: none;
-}
-.app-brand-link:hover {
-  text-decoration: none;
-}
-/* The PNG has empty margins, so a window crops it to the artwork. Everything scales from --h. */
-.app-brand-art {
-  position: relative;
-  display: block;
-  flex: none;
-  height: var(--h, 4rem);
-  width: calc(var(--h, 4rem) * 2.6);
-  overflow: hidden;
-  transition: width var(--dur-slow) var(--ease-out-expo);
-}
-.app-brand-art img {
-  position: absolute;
-  left: calc(var(--h, 4rem) * -0.234);
-  top: calc(var(--h, 4rem) * -0.172);
-  height: calc(var(--h, 4rem) * 1.1875);
-  width: auto;
-  max-width: none;
-}
-
-/* navigation */
 .app-sidebar__nav {
   flex: 1;
   overflow-x: hidden;
@@ -202,15 +311,8 @@
   color: var(--color-brick);
 }
 
-/* collapsed rail (desktop only): icons stay, labels are visually hidden but still read by screen readers */
+/* collapsed rail (desktop only): icons stay, labels are hidden visually but still read by screen readers */
 @media (min-width: 768px) {
-  .app-shell[data-collapsed="true"] .app-sidebar__brand {
-    justify-content: center;
-    padding: 0;
-  }
-  .app-shell[data-collapsed="true"] .app-brand-art {
-    width: calc(var(--h, 4rem) * 0.66);
-  }
   .app-shell[data-collapsed="true"] .app-sidebar__nav,
   .app-shell[data-collapsed="true"] .app-sidebar__foot {
     padding-inline: 0.5rem;
@@ -253,9 +355,10 @@
   animation: fade-only var(--dur-fast) var(--ease) both;
 }
 
+/* mobile backdrop: starts under the header, so the burger can still close the drawer */
 .app-scrim {
   position: fixed;
-  inset: 0;
+  inset: var(--header-h) 0 0 0;
   z-index: 40;
   background: rgba(7, 53, 44, 0.5);
   -webkit-backdrop-filter: blur(2px);
@@ -268,142 +371,22 @@
   }
 }
 
-/* ---------- body ---------- */
-.app-body {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 100vh;
-}
+/* ---------- content ---------- */
 .app-main {
-  flex: 1;
+  grid-column: 2;
+  grid-row: 2;
   min-width: 0;
   background: var(--color-canvas);
 }
-
-/* ---------- top bar ---------- */
-/* Keep position: fixed children (drawers) in a portal: backdrop-filter traps fixed descendants. */
-.app-header {
-  position: sticky;
-  top: 0;
-  z-index: 30;
-  height: var(--header-h);
-  background: color-mix(in srgb, var(--color-canvas) 90%, transparent);
-  -webkit-backdrop-filter: saturate(1.3) blur(14px);
-  backdrop-filter: saturate(1.3) blur(14px);
-  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 55%, transparent);
-}
-.app-header__inner {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.75rem;
-  height: 100%;
-  padding: 0 var(--gutter);
-}
-@media (min-width: 1100px) {
-  .app-header__inner {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 34rem) minmax(0, 1fr);
+@media (max-width: 767.98px) {
+  .app-main {
+    grid-column: 1;
   }
-}
-.app-header__lead {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
-}
-.app-header__brand {
-  --h: 2.75rem;
-  display: block;
-  text-decoration: none;
-}
-@media (max-width: 639px) {
-  .app-header__brand {
-    display: none;
-  }
-}
-.app-header__end {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.25rem;
-}
-
-.app-search {
-  position: relative;
-  width: 100%;
-  max-width: 34rem;
-  justify-self: center;
-}
-.app-search-icon {
-  position: absolute;
-  left: 0.9rem;
-  top: 50%;
-  width: 1rem;
-  height: 1rem;
-  transform: translateY(-50%);
-  color: var(--color-muted);
-  pointer-events: none;
-  transition: color var(--dur-fast);
-}
-.app-search:focus-within .app-search-icon {
-  color: var(--color-green);
-}
-.app-search input {
-  width: 100%;
-  height: var(--control-h);
-  padding: 0 1rem 0 2.5rem;
-  font-size: 0.875rem;
-  color: var(--color-ink);
-  background: var(--color-paper);
-  border: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
-  border-radius: 12px;
-  box-shadow: 0 4px 14px -10px rgba(7, 53, 44, 0.25);
-  transition:
-    border-color var(--dur-fast),
-    box-shadow var(--dur) var(--ease),
-    background var(--dur-fast);
-}
-.app-search input::placeholder {
-  color: var(--color-muted);
-}
-.app-search input:hover {
-  border-color: var(--color-sage);
-}
-.app-search input:focus {
-  outline: none;
-  border-color: var(--color-green);
-  background: #fff;
-  box-shadow: var(--ring);
-}
-
-.app-iconbtn {
-  display: inline-grid;
-  place-items: center;
-  flex: none;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: var(--radius-control);
-  color: var(--color-forest);
-  transition:
-    background var(--dur-fast) var(--ease),
-    transform var(--dur-fast) var(--ease);
-}
-.app-iconbtn:hover {
-  background: color-mix(in srgb, var(--color-mist) 70%, transparent);
-}
-.app-iconbtn:active {
-  transform: scale(0.94);
-}
-.app-iconbtn:focus-visible {
-  outline: 2px solid var(--color-green);
-  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .app-shell,
   .app-sidebar,
-  .app-brand-art,
   .app-nav-item,
   .app-iconbtn {
     transition-duration: 0.01ms !important;
