@@ -31,7 +31,7 @@ export async function createSignup(input) {
   // 1. Check if user already exists
   const existingUser = await User.findOne({
     where: { email },
-    attributes: ["id"],
+    attributes: ["user_id"],
   });
   if (existingUser) {
     throw new SignupError(409, "An account with that email already exists.");
