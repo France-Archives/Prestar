@@ -1,0 +1,365 @@
+/* Shell: sidebar rail + header + main. Imported through index.css.
+   Removed: cream backgrounds, .app-navlink (quick links are gone) and the old .app-brand clip. */
+
+/* data-collapsed="true" = icon rail (desktop only). data-drawer="open" = mobile drawer. */
+.app-shell {
+  --sidebar-current: var(--sidebar-w);
+  --shell-serif: var(--font-serif);
+  min-height: 100vh;
+  background: var(--color-canvas);
+}
+@media (min-width: 768px) {
+  .app-shell[data-collapsed="true"] {
+    --sidebar-current: var(--sidebar-w-collapsed);
+  }
+}
+
+/* ---------- sidebar ---------- */
+.app-sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  width: var(--sidebar-current);
+  background: var(--color-sidebar);
+  border-right: 1px solid var(--color-sidebar-line);
+  transition: width var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+/* Below 768px the sidebar is an off-canvas drawer. It always shows labels and ignores the collapsed state. */
+@media (max-width: 767.98px) {
+  .app-sidebar {
+    width: var(--sidebar-w);
+    transform: translateX(-100%);
+  }
+  .app-shell[data-drawer="open"] .app-sidebar {
+    transform: none;
+    box-shadow: var(--shadow-raised);
+  }
+}
+
+/* ---------- brand (logo) ---------- */
+.app-sidebar__brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  height: var(--header-h);
+  padding: 0 1rem;
+  border-bottom: 1px solid var(--color-sidebar-line);
+  overflow: hidden;
+}
+.app-brand-link {
+  display: block;
+  min-width: 0;
+  text-decoration: none;
+}
+/* Expanded: the full logo. The PNG is 587x236 with empty margins, so a 76px-high image is shifted
+   (-15px, -11px) to put the visible artwork flush-left and vertically centered in the 64px bar. */
+.app-brand-full {
+  position: relative;
+  display: block;
+  width: 168px;
+  height: var(--header-h);
+  overflow: hidden;
+}
+.app-brand-full .brand-logo {
+  position: absolute;
+  left: -15px;
+  top: -11px;
+  max-width: none;
+}
+/* Collapsed: only the emblem (x 48-189 of the PNG), cropped into a 40px square. */
+.app-brand-mark {
+  position: relative;
+  display: none;
+  width: 2.5rem;
+  height: 2.5rem;
+  overflow: hidden;
+}
+.app-brand-mark img {
+  position: absolute;
+  left: -12px;
+  top: -16px;
+  height: 64px;
+  width: auto;
+  max-width: none;
+}
+@media (min-width: 768px) {
+  .app-shell[data-collapsed="true"] .app-sidebar__brand {
+    justify-content: center;
+  }
+  .app-shell[data-collapsed="true"] .app-brand-full {
+    display: none;
+  }
+  .app-shell[data-collapsed="true"] .app-brand-mark {
+    display: block;
+  }
+}
+
+/* ---------- navigation ---------- */
+.app-sidebar__nav {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0.875rem 0.75rem;
+  scrollbar-width: thin;
+}
+.app-nav-group + .app-nav-group {
+  margin-top: 1.25rem;
+}
+.app-nav-title {
+  margin: 0 0 0.375rem;
+  padding: 0 0.75rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--color-sidebar-muted);
+}
+.app-nav-list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  height: 2.5rem;
+  padding: 0 0.75rem;
+  border-radius: var(--radius-sm);
+  color: var(--color-sidebar-ink);
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.app-nav-item:hover {
+  background: var(--color-sidebar-hover);
+  color: var(--color-forest);
+  text-decoration: none;
+}
+.app-nav-item:focus-visible {
+  outline: 2px solid var(--color-forest);
+  outline-offset: 2px;
+}
+/* Active page: deep forest green. Same color on hover, so it never looks clickable-again. */
+.app-nav-item.is-active,
+.app-nav-item.is-active:hover {
+  background: var(--color-forest);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: var(--shadow-card);
+}
+.app-nav-icon {
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+.app-nav-label {
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: max-width var(--dur) var(--ease), opacity var(--dur-fast);
+}
+
+/* Collapsed rail: icons only and centered. Labels fade out but stay in the DOM for screen readers. */
+@media (min-width: 768px) {
+  .app-shell[data-collapsed="true"] .app-nav-item {
+    justify-content: center;
+    gap: 0;
+    padding: 0;
+  }
+  .app-shell[data-collapsed="true"] .app-nav-label {
+    max-width: 0;
+    opacity: 0;
+  }
+  .app-shell[data-collapsed="true"] .app-nav-title {
+    display: none; /* group titles become a thin divider */
+  }
+  .app-shell[data-collapsed="true"] .app-nav-group + .app-nav-group {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--color-sidebar-line);
+  }
+}
+
+.app-sidebar__foot {
+  flex-shrink: 0;
+  padding: 0.625rem 0.75rem;
+  border-top: 1px solid var(--color-sidebar-line);
+}
+/* Sign out reuses .app-nav-item, with a brick color */
+.app-nav-item--danger {
+  width: 100%;
+  color: var(--color-brick);
+}
+.app-nav-item--danger:hover {
+  background: var(--color-brick-soft);
+  color: var(--color-brick);
+}
+
+/* Tooltip for the collapsed rail. position: fixed on purpose: the nav scrolls (overflow), so a
+   CSS-only tooltip would be clipped. Sidebar.tsx sets top/left from the hovered icon's rect. */
+.app-tooltip {
+  position: fixed;
+  z-index: 80;
+  padding: 0.375rem 0.625rem;
+  border-radius: 6px;
+  background: var(--color-forest-deep);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: var(--shadow-raised);
+  animation: fade-only 120ms var(--ease) both;
+}
+
+/* Mobile drawer backdrop */
+.app-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  background: rgba(18, 48, 31, 0.45);
+  animation: fade-only var(--dur) var(--ease) both;
+}
+@media (min-width: 768px) {
+  .app-scrim {
+    display: none;
+  }
+}
+
+/* ---------- body (header + main), pushed by the sidebar width ---------- */
+.app-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 100vh;
+  margin-left: var(--sidebar-current);
+  transition: margin-left var(--dur) var(--ease); /* content resizes smoothly with the sidebar */
+}
+@media (max-width: 767.98px) {
+  .app-body {
+    margin-left: 0;
+  }
+}
+.app-main {
+  flex: 1;
+  min-width: 0;
+  background: var(--color-canvas);
+}
+
+/* ---------- header ---------- */
+/* Keep any position: fixed child (drawers) in a portal: backdrop-filter traps fixed descendants. */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  height: var(--header-h);
+  background: color-mix(in srgb, var(--color-canvas) 88%, transparent);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--color-line);
+}
+.app-header__inner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  height: 100%;
+  padding: 0 var(--gutter);
+}
+/* wide screens: equal side columns, so the search is truly centered. */
+@media (min-width: 900px) {
+  .app-header__inner {
+    grid-template-columns: 1fr minmax(0, 36rem) 1fr;
+  }
+}
+
+.app-iconbtn {
+  display: inline-grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-md);
+  color: var(--color-forest);
+  transition: background var(--dur-fast);
+}
+.app-iconbtn:hover {
+  background: var(--color-mist);
+}
+.app-iconbtn:focus-visible {
+  outline: 2px solid var(--color-green);
+  outline-offset: 2px;
+}
+
+/* centered search */
+.app-search {
+  position: relative;
+  width: 100%;
+}
+.app-search-icon {
+  position: absolute;
+  left: 0.8rem;
+  top: 50%;
+  width: 1rem;
+  height: 1rem;
+  transform: translateY(-50%);
+  color: var(--color-muted);
+  pointer-events: none;
+}
+.app-search input {
+  width: 100%;
+  height: 2.5rem;
+  padding: 0 0.875rem 0 2.5rem;
+  font-size: 0.875rem;
+  color: var(--color-ink);
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
+}
+.app-search input::placeholder {
+  color: var(--color-muted);
+}
+.app-search input:hover {
+  border-color: var(--color-green);
+}
+.app-search input:focus {
+  outline: none;
+  border-color: var(--color-green);
+  box-shadow: var(--ring);
+}
+
+/* ---------- page area (scoped to .app-main so public/auth pages are untouched) ---------- */
+/* Page width and padding come from .page in utilities.css. */
+.app-main .eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-green);
+}
+.app-main .page h1 {
+  font-family: var(--shell-serif);
+  font-weight: 600;
+  font-size: clamp(1.5rem, 3.2vw, 2.1rem);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: var(--color-heading);
+}
+.app-main .page h2 {
+  font-family: var(--shell-serif);
+  font-weight: 600;
+  font-size: 1.15rem;
+  color: var(--color-heading);
+}
