@@ -2,7 +2,7 @@ import "../styles/landing.css";
 
 const STEPS = [
   { title: "Sign up and verify", text: "Create a student account and verify your email." },
-  { title: "Submit your COR", text: "Upload your Certificate of Registration each term. Staff review it." },
+  { title: "Submit your COR", text: "Take a real-time photo of your Certificate of Registration each term. Staff review it." },
   { title: "Request or reserve", text: "Eligible requests are approved automatically when a copy is available. Otherwise join the queue." },
   { title: "Pick up at the library", text: "Staff check eligibility and hand the book over. That is when the loan starts." },
   { title: "Return and renew", text: "Renew when nobody is waiting. Staff confirm returns, and fines are paid in person." },

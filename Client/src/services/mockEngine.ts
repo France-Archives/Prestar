@@ -90,7 +90,13 @@ const usable = (c: BookCopy) => c.status === "AVAILABLE" || c.status === "RESERV
 export function availabilityOf(bookId: UUID): BookAvailability {
   const copies = db.copies.filter((c) => c.bookId === bookId);
   return {
+    totalCopies: copies.length,
     availableCopies: copies.filter((c) => c.status === "AVAILABLE").length,
+    reservedCopies: copies.filter((c) => c.status === "RESERVED").length,
+    onLoanCopies: copies.filter((c) => c.status === "ON_LOAN").length,
+    maintenanceCopies: copies.filter((c) => c.status === "MAINTENANCE").length,
+    lostCopies: copies.filter((c) => c.status === "LOST").length,
+    withdrawnCopies: copies.filter((c) => c.status === "WITHDRAWN").length,
     totalUsableCopies: copies.filter(usable).length,
   };
 }

@@ -12,7 +12,13 @@ export interface AuthorSummary {
 }
 
 export interface BookAvailability {
+  totalCopies: number;
   availableCopies: number;
+  reservedCopies: number;
+  onLoanCopies: number;
+  maintenanceCopies: number;
+  lostCopies: number;
+  withdrawnCopies: number;
   totalUsableCopies: number;
 }
 

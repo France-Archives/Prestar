@@ -61,9 +61,9 @@ export const MOCK_COR_RECORDS: MockCorRecord[] = [
   // Carla and Felix: approved for the current term
   cor(6, STUDENT_ID.carla, current, "APPROVED", -64, "carla-cor.pdf", -63, USER_ID.leo),
   cor(7, STUDENT_ID.felix, current, "APPROVED", -62, "felix-cor.pdf", -61, USER_ID.leo),
-  // Gina: first rejected, then resubmitted (history is kept; the new upload is waiting)
+  // Gina: rejected submission remains visible in history and can be resubmitted.
   cor(8, STUDENT_ID.gina, current, "REJECTED", -5, "gina-cor-v1.jpg", -4, USER_ID.leo, "The image is blurry and the course codes are unreadable."),
-  cor(9, STUDENT_ID.gina, current, "PENDING", -1, "gina-cor-v2.pdf"),
+  cor(9, STUDENT_ID.noah, current, "PENDING", -1, "noah-cor-pending.jpg"),
   // Dan has no COR at all, so his effective COR status is MISSING. Ella is not verified yet.
 ];
 

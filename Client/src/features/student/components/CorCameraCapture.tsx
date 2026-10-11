@@ -14,27 +14,26 @@ interface CorCameraCaptureProps {
 const MAX_SIDE = 1600; // longest edge of the saved photo: small file, text still readable
 const QUALITY_STEPS = [0.9, 0.8, 0.7, 0.6, 0.5]; // retry lower quality if the photo is over the upload size limit
 
-/** Turns a getUserMedia failure into a clear message. Every message points to the upload fallback. */
+/** Turns a getUserMedia failure into a clear message without offering a file-picker alternative. */
 function describeCameraError(err: unknown): string {
   const name = err instanceof DOMException ? err.name : "";
   switch (name) {
     case "NotAllowedError":
     case "SecurityError":
-      return "Camera permission was blocked. Allow camera access in your browser's site settings and try again, or upload a file instead.";
+      return "Camera permission was blocked. Allow camera access in your browser's site settings, then try again.";
     case "NotFoundError":
     case "OverconstrainedError":
-      return "No camera was found on this device. Upload a file instead.";
+      return "No camera was found on this device. A camera is required to submit a COR.";
     case "NotReadableError":
     case "AbortError":
-      return "The camera is being used by another app or tab. Close it and try again, or upload a file instead.";
+      return "The camera is being used by another app or tab. Close it and try again.";
     default:
-      return "The camera could not be started. Try again, or upload a file instead.";
+      return "The camera could not be started. Check your browser permissions and try again.";
   }
 }
 
 /**
- * Live camera preview + capture. The photo becomes a normal File (JPEG), so the existing COR validation and
- * submission run unchanged. Taking a photo does NOT verify or approve anything: staff still review the COR.
+ * Live camera preview + capture. The resulting JPEG is validated and submitted; staff still review the COR.
  */
 export default function CorCameraCapture({ onCapture, disabled = false }: CorCameraCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -107,27 +106,30 @@ export default function CorCameraCapture({ onCapture, disabled = false }: CorCam
     canvas.height = Math.round(video.videoHeight * scale);
     const ctx = canvas.getContext("2d");
     if (!ctx) {
-      setError("Could not take the photo. Try again, or upload a file instead.");
+      setError("Could not take the photo. Check camera access and try again.");
       return;
     }
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Lower the JPEG quality step by step until the photo fits the upload limit.
-    let blob: Blob | null = null;
-    for (const quality of QUALITY_STEPS) {
-      blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
-      if (blob && blob.size <= COR_UPLOAD.MAX_BYTES) break;
-    }
-    if (!blob) {
-      setError("Could not take the photo. Try again, or upload a file instead.");
-      return;
-    }
+    try {
+      let blob: Blob | null = null;
+      for (const quality of QUALITY_STEPS) {
+        blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+        if (blob && blob.size <= COR_UPLOAD.MAX_BYTES) break;
+      }
+      if (!blob || blob.size > COR_UPLOAD.MAX_BYTES) {
+        setError("The captured photo is too large to submit. Retake it in better lighting or move the camera closer to the document.");
+        return;
+      }
 
-    const file = new File([blob], `cor-photo-${Date.now()}.jpg`, { type: "image/jpeg" });
-    stopCamera(); // photo taken: release the camera right away
-    setPhoto({ url: URL.createObjectURL(file), name: file.name, sizeKb: Math.round(file.size / 1024) });
-    setPhase("captured");
-    onCapture(file);
+      const file = new File([blob], `cor-photo-${Date.now()}.jpg`, { type: "image/jpeg" });
+      stopCamera();
+      setPhoto({ url: URL.createObjectURL(file), name: file.name, sizeKb: Math.round(file.size / 1024) });
+      setPhase("captured");
+      onCapture(file);
+    } catch {
+      setError("The camera photo could not be processed. Try again.");
+    }
   };
 
   const retake = () => {
@@ -137,7 +139,7 @@ export default function CorCameraCapture({ onCapture, disabled = false }: CorCam
   };
 
   if (!supported) {
-    return <Alert kind="warn">This browser or connection cannot open the camera (it needs HTTPS or localhost). Use the "Upload a file" tab instead.</Alert>;
+    return <Alert kind="warn">This browser or connection cannot open the camera. Camera access requires HTTPS or localhost, and a camera is required to submit a COR.</Alert>;
   }
 
   const showVideo = phase === "live" || phase === "starting";

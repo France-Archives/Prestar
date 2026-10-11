@@ -8,6 +8,7 @@ export const TERM_ID = {
   past: uid(NS.term, 1),
   current: uid(NS.term, 2),
   next: uid(NS.term, 3),
+  summer: uid(NS.term, 4),
 } as const;
 
 export const MOCK_ACADEMIC_TERMS: AcademicTerm[] = [
@@ -17,6 +18,14 @@ export const MOCK_ACADEMIC_TERMS: AcademicTerm[] = [
     startDate: "2026-01-12",
     endDate: "2026-05-22",
     corDeadline: "2026-02-06",
+    status: "COMPLETED",
+  },
+  {
+    id: TERM_ID.summer,
+    name: "AY 2025-2026 · Summer Term",
+    startDate: "2026-06-08",
+    endDate: "2026-07-24",
+    corDeadline: "2026-06-19",
     status: "COMPLETED",
   },
   {

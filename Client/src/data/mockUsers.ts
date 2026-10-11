@@ -29,6 +29,7 @@ export const USER_ID = {
   ella: uid(NS.user, 9),
   felix: uid(NS.user, 10),
   gina: uid(NS.user, 11),
+  noah: uid(NS.user, 12),
 } as const;
 
 export const STUDENT_ID = {
@@ -39,6 +40,7 @@ export const STUDENT_ID = {
   ella: uid(NS.student, 5),
   felix: uid(NS.student, 6),
   gina: uid(NS.student, 7),
+  noah: uid(NS.student, 8),
 } as const;
 
 type StudentKey = keyof typeof STUDENT_ID;
@@ -64,6 +66,7 @@ const STUDENT_SEEDS: StudentSeed[] = [
   { key: "ella", first: "Ella", last: "Santos", number: "2026-00015", program: "BS Nursing", year: 1, status: "PENDING_VERIFICATION", verified: false, createdDays: -1 },
   { key: "felix", first: "Felix", last: "Ramos", number: "2022-00444", program: "BS Civil Engineering", year: 4, status: "SUSPENDED", verified: true, createdDays: -700 },
   { key: "gina", first: "Gina", last: "Cruz", number: "2025-00318", program: "BS Biology", year: 2, status: "ACTIVE", verified: true, createdDays: -90 },
+  { key: "noah", first: "Noah", last: "Garcia", number: "2025-00321", program: "BS Information Technology", year: 2, status: "ACTIVE", verified: true, createdDays: -85 },
 ];
 
 const studentAccounts: MockAccount[] = STUDENT_SEEDS.map((s, i): MockAccount => {
@@ -148,6 +151,8 @@ export const DEMO_CREDENTIALS: { role: string; email: string; note: string }[] =
   { role: "Student (has loans)", email: "ana.reyes@university.edu", note: "Active loans, offered reservation" },
   { role: "Student (restricted)", email: "carla.diaz@university.edu", note: "Overdue loan and unpaid fine" },
   { role: "Student (no COR)", email: "dan.uy@university.edu", note: "Cannot borrow until a COR is approved" },
+  { role: "Student (COR pending)", email: "noah.garcia@university.edu", note: "Verified email; current-term COR pending review" },
+  { role: "Student (COR rejected)", email: "gina.cruz@university.edu", note: "Verified email; rejected COR and resubmission history" },
   { role: "Student (unverified email)", email: "ella.santos@university.edu", note: "Pending email verification" },
   { role: "Student (suspended)", email: "felix.ramos@university.edu", note: "Can browse; cannot borrow" },
 ];

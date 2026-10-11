@@ -104,6 +104,25 @@ export function BookDetailsContent({ book, reload, onNavigate, large = false }: 
           ))}
         </dl>
 
+        {user && can(user, "CATALOG_MANAGE") && (
+          <dl className="kv card card-pad" aria-label="Copy inventory by status">
+            {[
+              ["Total copies", book.availability.totalCopies],
+              ["Available", book.availability.availableCopies],
+              ["Reserved", book.availability.reservedCopies],
+              ["On loan", book.availability.onLoanCopies],
+              ["Maintenance", book.availability.maintenanceCopies],
+              ["Lost", book.availability.lostCopies],
+              ["Withdrawn", book.availability.withdrawnCopies],
+            ].map(([label, count]) => (
+              <div key={label}>
+                <dt>{label}</dt>
+                <dd>{count}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+
         {isStudent && (
           <Card title={mode === "reserve" ? "Reserve this book" : "Borrow this book"} note="Eligibility is checked by the library system when you submit.">
             <div className="stack">
