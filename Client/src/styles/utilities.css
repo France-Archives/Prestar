@@ -874,3 +874,35 @@ a.stat:hover {
     flex: 1;
   }
 }
+/* ---------- Motion (short, subtle; adapted from Animista's fade/slide-in) ---------- */
+@keyframes fade-only {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+.anim-fade { animation: fade-only 0.3s var(--ease) both; }
+.anim-rise { animation: rise-in 0.4s var(--ease) both; }
+.anim-scale { animation: scale-in 0.25s var(--ease) both; }
+
+/* Put on a grid/list: children rise in one after another (book cards, activity rows). Capped at 400ms. */
+.anim-stagger > * { animation: rise-in 0.4s var(--ease) both; }
+.anim-stagger > :nth-child(2) { animation-delay: 50ms; }
+.anim-stagger > :nth-child(3) { animation-delay: 100ms; }
+.anim-stagger > :nth-child(4) { animation-delay: 150ms; }
+.anim-stagger > :nth-child(5) { animation-delay: 200ms; }
+.anim-stagger > :nth-child(6) { animation-delay: 250ms; }
+.anim-stagger > :nth-child(7) { animation-delay: 300ms; }
+.anim-stagger > :nth-child(8) { animation-delay: 350ms; }
+.anim-stagger > :nth-child(n + 9) { animation-delay: 400ms; }
+
+/* The global reduced-motion rule shortens durations only. Without this, delayed items would stay invisible. */
+@media (prefers-reduced-motion: reduce) {
+  .anim-stagger > * { animation-delay: 0ms !important; }
+}

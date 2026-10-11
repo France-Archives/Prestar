@@ -1,47 +1,77 @@
 import { useEffect, useState } from "react";
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { homePathFor } from "@/app/routeConfig";
-import Logo from "@/components/common/Logo";
+import AppNavbar from "@/components/navigation/AppNavbar";
 import BackButton from "@/components/navigation/BackButton";
-import NotificationBell from "@/components/navigation/NotificationBell";
 import Sidebar from "@/components/navigation/Sidebar";
-import UserMenu from "@/components/navigation/UserMenu";
 import { useAuth } from "@/hooks/useAuth";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
-/** Shared signed-in shell: top bar + role-based sidebar + routed content. Student, Staff and Admin layouts use it. */
+const COLLAPSED_KEY = "prestar:sidebar-collapsed";
+
+/** Shared signed-in shell: sidebar rail + header + routed content. Student, Staff and Admin layouts use it. */
 export default function AppShell({ areaLabel }: { areaLabel: string }) {
   const { user } = useAuth();
-  const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
+  const isDesktop = useMediaQuery("(min-width: 768px)");
+
+  // Remember the rail state between visits. Storage can be blocked, so both calls are guarded.
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(COLLAPSED_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
-    setOpen(false);
+    try {
+      localStorage.setItem(COLLAPSED_KEY, collapsed ? "1" : "0");
+    } catch {
+      /* the choice just will not survive a refresh */
+    }
+  }, [collapsed]);
+
+  // Leaving a page or growing to desktop width closes the mobile drawer.
+  useEffect(() => {
+    setDrawerOpen(false);
     window.scrollTo(0, 0);
   }, [pathname]);
+  useEffect(() => {
+    if (isDesktop) setDrawerOpen(false);
+  }, [isDesktop]);
+
+  // While the mobile drawer is open: Esc closes it and the page behind it does not scroll.
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setDrawerOpen(false);
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [drawerOpen]);
 
   if (!user) return null;
-
   const home = homePathFor(user);
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-30 h-16 border-b border-line bg-paper/95 backdrop-blur">
-        <div className="flex h-full items-center gap-3 px-4 sm:px-6">
-          <button type="button" className="btn btn-ghost btn-sm lg:hidden" aria-label="Open menu" onClick={() => setOpen(true)}>
-            ☰
-          </button>
-          <Link to={home} aria-label="PRESTAR home" className="flex items-center">
-            <Logo height={44} />
-          </Link>
-          <span className="badge badge-neutral hidden sm:inline-flex">{areaLabel}</span>
-          <div className="flex-1" />
-          <NotificationBell />
-          <UserMenu />
-        </div>
-      </header>
-      <div className="flex flex-1">
-        <Sidebar open={open} onClose={() => setOpen(false)} />
-        <main className="min-w-0 flex-1">
+    <div className="app-shell" data-collapsed={collapsed} data-drawer={drawerOpen ? "open" : "closed"}>
+      <Sidebar collapsed={collapsed} drawerOpen={drawerOpen} isDesktop={isDesktop} onCloseDrawer={() => setDrawerOpen(false)} />
+      {drawerOpen && <div className="app-scrim" onClick={() => setDrawerOpen(false)} aria-hidden="true" />}
+
+      <div className="app-body">
+        <AppNavbar
+          areaLabel={areaLabel}
+          collapsed={collapsed}
+          drawerOpen={drawerOpen}
+          isDesktop={isDesktop}
+          onToggleMenu={() => (isDesktop ? setCollapsed((c) => !c) : setDrawerOpen((o) => !o))}
+        />
+        <main className="app-main">
           {pathname !== home && (
             <div className="backbar">
               <BackButton fallback={home} />
