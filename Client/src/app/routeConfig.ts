@@ -107,12 +107,18 @@ const A = ROUTES.admin;
 
 const STUDENT_SECTIONS: NavSection[] = [
   {
-    id: "student-library",
-    title: "Library",
+    id: "student-discover",
+    title: "Discover",
     items: [
       { label: "Dashboard", to: S.dashboard, capability: "STUDENT_AREA" },
       { label: "Book catalog", to: S.books, capability: "STUDENT_AREA" },
-      { label: "My loans", to: S.borrowings, capability: "STUDENT_AREA" },
+    ],
+  },
+  {
+    id: "student-library",
+    title: "My library",
+    items: [
+      { label: "My Borrowings", to: S.borrowings, capability: "STUDENT_AREA" },
       { label: "My requests", to: S.requests, capability: "STUDENT_AREA" },
       { label: "Reservations", to: S.reservations, capability: "STUDENT_AREA" },
       { label: "Renewals", to: S.renewals, capability: "STUDENT_AREA" },
