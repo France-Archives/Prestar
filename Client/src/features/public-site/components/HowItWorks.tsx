@@ -1,28 +1,35 @@
+import { BookOpen, FileText, Landmark, RefreshCw, User, type LucideIcon } from "lucide-react";
 import "../styles/landing.css";
 
-const STEPS = [
-  { title: "Sign up and verify", text: "Create a student account and verify your email." },
-  { title: "Submit your COR", text: "Upload your Certificate of Registration each term. Staff review it." },
-  { title: "Request or reserve", text: "Eligible requests are approved automatically when a copy is available. Otherwise join the queue." },
-  { title: "Pick up at the library", text: "Staff check eligibility and hand the book over. That is when the loan starts." },
-  { title: "Return and renew", text: "Renew when nobody is waiting. Staff confirm returns, and fines are paid in person." },
+const STEPS: { title: string; text: string; icon: LucideIcon }[] = [
+  { title: "Sign up and verify", text: "Create a student account and verify your email.", icon: User },
+  { title: "Submit your COR", text: "Upload your Certificate of Registration each term. Staff review it.", icon: FileText },
+  { title: "Request or reserve", text: "Eligible requests are approved automatically when a copy is available. Otherwise join the queue.", icon: BookOpen },
+  { title: "Pick up at the library", text: "Staff check eligibility and hand the book over. That is when the loan starts.", icon: Landmark },
+  { title: "Return and renew", text: "Renew when nobody is waiting. Staff confirm returns, and fines are paid in person.", icon: RefreshCw },
 ];
 
 export default function HowItWorks() {
   return (
-    <section className="mx-auto max-w-[1200px] px-4 py-14 sm:px-8">
-      <h2 style={{ fontSize: "1.6rem", marginBottom: 24 }}>How it works</h2>
-      <div className="grid-auto" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 22 }}>
-        {STEPS.map((s, i) => (
-          <article key={s.title} className="card card-pad step-card">
-            <span className="num">{i + 1}</span>
-            <h3>{s.title}</h3>
-            <p className="subtle" style={{ marginTop: 6 }}>
-              {s.text}
-            </p>
-          </article>
-        ))}
-      </div>
+    <section id="how-it-works" className="land-screen land-how">
+      <span className="land-eyebrow">How it works</span>
+      <h2>A simpler way to borrow books</h2>
+      <p className="land-how__lead">From browsing to pick up, here is how PRESTAR works.</p>
+      <ol className="land-steps">
+        {STEPS.map((s, i) => {
+          const Icon = s.icon;
+          return (
+            <li key={s.title} className="land-step">
+              <span className="land-step__num">{String(i + 1).padStart(2, "0")}</span>
+              <span className="land-step__icon">
+                <Icon size={26} aria-hidden="true" />
+              </span>
+              <h3>{s.title}</h3>
+              <p>{s.text}</p>
+            </li>
+          );
+        })}
+      </ol>
     </section>
   );
 }

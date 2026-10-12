@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useState, type ChangeEvent, type FormEvent, type MouseEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import Alert from "@/components/feedback/Alert";
 import Button from "@/components/common/Button";
@@ -37,7 +37,7 @@ export default function SignupForm() {
     onChange: (e: ChangeEvent<HTMLInputElement>) => setV({ ...v, [k]: e.target.value }),
   });
 
-  const openLegal = (doc: Exclude<LegalDoc, null>) => (e: React.MouseEvent) => {
+  const openLegal = (doc: Exclude<LegalDoc, null>) => (e: MouseEvent) => {
     // The links sit inside the checkbox label, so stop the click from toggling the checkbox.
     e.preventDefault();
     e.stopPropagation();
@@ -87,39 +87,43 @@ export default function SignupForm() {
           <InputField label="Student number" required placeholder="2026-00123" {...text("studentNumber")} />
           <InputField label="Year level" required type="number" min={1} max={10} {...text("yearLevel")} />
         </div>
-        <SelectField
-          label="College"
-          required
-          value={v.college}
-          error={errors.college}
-          onChange={(e) => setV({ ...v, college: e.target.value, program: "" })}
-        >
-          <option value="">Select your college</option>
-          {MOCK_COLLEGES.map((c) => (
-            <option key={c.id} value={c.name}>
-              {c.name}
-            </option>
-          ))}
-        </SelectField>
-        <SelectField
-          label="Course"
-          required
-          value={v.program}
-          error={errors.program}
-          disabled={!v.college}
-          onChange={(e) => setV({ ...v, program: e.target.value })}
-        >
-          <option value="">{v.college ? "Select your course" : "Select a college first"}</option>
-          {courses.map((c) => (
-            <option key={c.id} value={c.name}>
-              {c.name}
-            </option>
-          ))}
-        </SelectField>
+        <div className="form-row">
+          <SelectField
+            label="College"
+            required
+            value={v.college}
+            error={errors.college}
+            onChange={(e) => setV({ ...v, college: e.target.value, program: "" })}
+          >
+            <option value="">Select your college</option>
+            {MOCK_COLLEGES.map((c) => (
+              <option key={c.id} value={c.name}>
+                {c.name}
+              </option>
+            ))}
+          </SelectField>
+          <SelectField
+            label="Course"
+            required
+            value={v.program}
+            error={errors.program}
+            disabled={!v.college}
+            onChange={(e) => setV({ ...v, program: e.target.value })}
+          >
+            <option value="">{v.college ? "Select your course" : "Select a college first"}</option>
+            {courses.map((c) => (
+              <option key={c.id} value={c.name}>
+                {c.name}
+              </option>
+            ))}
+          </SelectField>
+        </div>
         <InputField label="School email" type="email" required autoComplete="email" {...text("email")} />
-        <InputField label="Password" type="password" required autoComplete="new-password" {...text("password")} />
+        <div className="form-row">
+          <InputField label="Password" type="password" required autoComplete="new-password" {...text("password")} />
+          <InputField label="Confirm password" type="password" required autoComplete="new-password" {...text("confirm")} />
+        </div>
         <PasswordStrength password={v.password} />
-        <InputField label="Confirm password" type="password" required autoComplete="new-password" {...text("confirm")} />
         <CheckboxField
           label={
             <>
