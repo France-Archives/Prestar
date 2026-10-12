@@ -7,6 +7,8 @@
   }
   * {
     margin: 0;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--color-forest) 28%, transparent) transparent;
   }
   html {
     -webkit-text-size-adjust: 100%;
@@ -14,10 +16,12 @@
   }
   body {
     font-family: var(--font-sans);
+    font-size: 0.9375rem;
     background: var(--color-canvas);
     color: var(--color-ink);
-    line-height: 1.5;
+    line-height: 1.55;
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
   #root {
     min-height: 100vh;
@@ -41,6 +45,22 @@
     background: none;
     border: 0;
   }
+  button:disabled {
+    cursor: not-allowed;
+  }
+  fieldset {
+    border: 0;
+    padding: 0;
+    min-width: 0;
+  }
+  hr {
+    border: 0;
+    border-top: 1px solid var(--color-line);
+  }
+  strong,
+  b {
+    font-weight: 700;
+  }
   a {
     color: var(--color-green);
     text-decoration: none;
@@ -53,30 +73,32 @@
   h2,
   h3,
   h4 {
-    color: var(--color-forest);
+    color: var(--color-forest-deep);
     letter-spacing: -0.01em;
     line-height: 1.2;
   }
   h1,
-  h2 {
+  h2,
+  h3 {
     font-family: var(--font-serif);
     font-weight: 600;
   }
-  h3,
   h4 {
     font-weight: 700;
   }
   h1 {
-    font-size: clamp(1.6rem, 3vw, 2.25rem);
+    font-size: clamp(1.75rem, 3.4vw, 2.5rem);
+    letter-spacing: -0.015em;
+    line-height: 1.1;
   }
   h2 {
-    font-size: 1.3rem;
+    font-size: 1.35rem;
   }
   h3 {
     font-size: 1.05rem;
   }
   :focus-visible {
-    outline: 2px solid var(--color-teal);
+    outline: 2px solid var(--color-green);
     outline-offset: 2px;
   }
   ::selection {

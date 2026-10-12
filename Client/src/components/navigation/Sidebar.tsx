@@ -1,9 +1,7 @@
 import { useState, type MouseEvent, type FocusEvent } from "react";
-import { Link, NavLink, useNavigate } from "react-router-dom";
-import { LogOut, X } from "lucide-react";
-import logoSrc from "@/assets/images/prestar-logo.png";
-import Logo from "@/components/common/Logo";
-import { ROUTES, getNavSections, homePathFor } from "@/app/routeConfig";
+import { NavLink, useNavigate } from "react-router-dom";
+import { LogOut } from "lucide-react";
+import { ROUTES, getNavSections } from "@/app/routeConfig";
 import { useAuth } from "@/hooks/useAuth";
 import { iconFor } from "./navIcons";
 
@@ -27,13 +25,12 @@ export default function Sidebar({ collapsed, drawerOpen, isDesktop, onCloseDrawe
 
   if (!user) return null;
 
-  // Same role-based sections as before. "Profile" stays out of the sidebar: the avatar in the header opens it.
+  // "Profile" stays out of the sidebar: the avatar in the header opens it.
   const sections = getNavSections(user)
     .map((s) => ({ ...s, items: s.items.filter((i) => i.to !== ROUTES.student.profile) }))
     .filter((s) => s.items.length > 0);
 
-  // Tooltip only while the rail is collapsed on desktop. It is position: fixed (see shell.css),
-  // so the scrolling nav cannot clip it. Coordinates come from the hovered item's rectangle.
+  // Tooltip only while the rail is collapsed on desktop. It is position: fixed, so the scrolling nav cannot clip it.
   const showTip = (label: string, el: HTMLElement) => {
     if (!collapsed || !isDesktop) return;
     const r = el.getBoundingClientRect();
@@ -47,7 +44,6 @@ export default function Sidebar({ collapsed, drawerOpen, isDesktop, onCloseDrawe
     onBlur: hideTip,
   });
 
-  // Same sign-out logic the old sidebar used.
   const signOut = async () => {
     onCloseDrawer();
     await logout();
@@ -58,21 +54,6 @@ export default function Sidebar({ collapsed, drawerOpen, isDesktop, onCloseDrawe
     <>
       {/* `inert` takes the closed mobile drawer out of the tab order. On desktop the sidebar is always live. */}
       <aside id="app-sidebar" aria-label="Sidebar" className="app-sidebar" inert={!isDesktop && !drawerOpen}>
-        <div className="app-sidebar__brand">
-          <Link to={homePathFor(user)} className="app-brand-link" aria-label="PRESTAR home">
-            {/* Both use the same logo file. CSS shows the full logo, or only the emblem when collapsed. */}
-            <span className="app-brand-full">
-              <Logo height={76} />
-            </span>
-            <span className="app-brand-mark">
-              <img src={logoSrc} alt="" />
-            </span>
-          </Link>
-          <button type="button" className="app-iconbtn md:hidden" aria-label="Close menu" onClick={onCloseDrawer}>
-            <X size={18} strokeWidth={2} aria-hidden="true" />
-          </button>
-        </div>
-
         <nav className="app-sidebar__nav" aria-label="Main navigation" onScroll={hideTip}>
           {sections.map((section) => (
             <div key={section.id} className="app-nav-group">
@@ -88,7 +69,6 @@ export default function Sidebar({ collapsed, drawerOpen, isDesktop, onCloseDrawe
                         {...tipHandlers(item.label)}
                       >
                         <Icon className="app-nav-icon" strokeWidth={1.9} aria-hidden="true" />
-                        {/* Stays in the DOM when collapsed (just hidden), so screen readers still hear it. */}
                         <span className="app-nav-label">{item.label}</span>
                       </NavLink>
                     </li>
