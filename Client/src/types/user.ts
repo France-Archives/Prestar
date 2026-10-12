@@ -19,7 +19,8 @@ export interface StudentProfile {
   middleName: string | null;
   lastName: string;
   suffix: string | null;
-  program: string | null;
+  college?: string | null; // optional so existing mock students still compile
+  program: string | null; // the student's course
   yearLevel: number | null; // 1-10
   registryStatus: string; // default 'UNKNOWN'
 }
@@ -73,7 +74,8 @@ export interface RegisterStudentRequest {
   middleName?: string | null;
   lastName: string;
   suffix?: string | null;
-  program?: string | null;
+  college?: string | null;
+  program?: string | null; // the selected course
   yearLevel?: number | null;
 }
 
@@ -112,7 +114,8 @@ export interface UpdateProfileRequest {
   middleName?: string | null;
   lastName?: string;
   suffix?: string | null;
-  program?: string | null;
+  college?: string | null;
+  program?: string | null; // the selected course
   yearLevel?: number | null;
 }
 

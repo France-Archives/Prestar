@@ -24,7 +24,8 @@ export interface SignupValues {
   lastName: string;
   suffix: string;
   studentNumber: string;
-  program: string;
+  college: string;
+  program: string; // holds the selected COURSE name
   yearLevel: string;
   email: string;
   password: string;
@@ -66,7 +67,10 @@ export function validateSignup(v: SignupValues): FieldErrors {
     ["lastName", validateName(v.lastName, "Last name")],
     ["middleName", validateName(v.middleName, "Middle name", false)],
     ["studentNumber", validateStudentNumber(v.studentNumber)],
-    ["yearLevel", validateYearLevel(v.yearLevel)],
+    ["college", v.college ? null : "Select your college."],
+    ["program", v.program ? null : "Select your course."],
+    // Year level is required on signup. The range check is done by the shared validator.
+    ["yearLevel", v.yearLevel.trim() ? validateYearLevel(v.yearLevel) : "Year level is required."],
     ["email", validateEmail(v.email)],
     ["password", validatePassword(v.password)],
     ["confirm", validatePasswordMatch(v.password, v.confirm)],
