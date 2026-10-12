@@ -7,15 +7,15 @@ import Sidebar from "@/components/navigation/Sidebar";
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 
-const COLLAPSED_KEY = "prestar:sidebar-rail";
+const COLLAPSED_KEY = "prestar:sidebar-collapsed";
 
-/** Shared signed-in shell: header on top, sidebar and content below in one grid. Student, Staff and Admin layouts use it. */
+/** Shared signed-in shell: sidebar rail + header + routed content. Student, Staff and Admin layouts use it. */
 export default function AppShell({ areaLabel }: { areaLabel: string }) {
   const { user } = useAuth();
   const { pathname } = useLocation();
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
-  // true = icon rail, false = full sidebar. Storage can be blocked, so both calls are guarded.
+  // Remember the rail state between visits. Storage can be blocked, so both calls are guarded.
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return localStorage.getItem(COLLAPSED_KEY) === "1";
@@ -60,24 +60,26 @@ export default function AppShell({ areaLabel }: { areaLabel: string }) {
 
   return (
     <div className="app-shell" data-collapsed={collapsed} data-drawer={drawerOpen ? "open" : "closed"}>
-      <AppNavbar
-        areaLabel={areaLabel}
-        collapsed={collapsed}
-        drawerOpen={drawerOpen}
-        isDesktop={isDesktop}
-        onToggleMenu={() => (isDesktop ? setCollapsed((c) => !c) : setDrawerOpen((o) => !o))}
-      />
       <Sidebar collapsed={collapsed} drawerOpen={drawerOpen} isDesktop={isDesktop} onCloseDrawer={() => setDrawerOpen(false)} />
       {drawerOpen && <div className="app-scrim" onClick={() => setDrawerOpen(false)} aria-hidden="true" />}
 
-      <main className="app-main">
-        {pathname !== home && (
-          <div className="backbar">
-            <BackButton fallback={home} />
-          </div>
-        )}
-        <Outlet />
-      </main>
+      <div className="app-body">
+        <AppNavbar
+          areaLabel={areaLabel}
+          collapsed={collapsed}
+          drawerOpen={drawerOpen}
+          isDesktop={isDesktop}
+          onToggleMenu={() => (isDesktop ? setCollapsed((c) => !c) : setDrawerOpen((o) => !o))}
+        />
+        <main className="app-main">
+          {pathname !== home && (
+            <div className="backbar">
+              <BackButton fallback={home} />
+            </div>
+          )}
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

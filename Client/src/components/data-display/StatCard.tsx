@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import type { LucideIcon } from "lucide-react";
 
 interface StatCardProps {
   label: string;
@@ -7,17 +6,11 @@ interface StatCardProps {
   to?: string;
   alert?: boolean;
   hint?: string;
-  icon?: LucideIcon;
 }
 
-export default function StatCard({ label, value, to, alert = false, hint, icon: Icon }: StatCardProps) {
+export default function StatCard({ label, value, to, alert = false, hint }: StatCardProps) {
   const body = (
     <>
-      {Icon && (
-        <span className="stat__icon" aria-hidden="true">
-          <Icon size={18} strokeWidth={1.9} />
-        </span>
-      )}
       <b>{value}</b>
       <span>{label}</span>
       {hint && <small className="subtle">{hint}</small>}
