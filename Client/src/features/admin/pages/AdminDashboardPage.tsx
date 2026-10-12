@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { PackageCheck, Scale, ScrollText, FileCheck, Undo2, UserCog } from "lucide-react";
 import Alert from "@/components/feedback/Alert";
 import Card from "@/components/ui/Card";
 import ErrorState from "@/components/feedback/ErrorState";
@@ -11,12 +12,12 @@ import AdminStats from "../components/AdminStats";
 import { ActivityChart, CopyStatusBars } from "../components/SystemActivityChart";
 
 const QUICK = [
-  { label: "Books to Release", to: ROUTES.staff.booksToRelease },
-  { label: "Returns and loans", to: ROUTES.staff.returns },
-  { label: "COR review", to: ROUTES.admin.cor },
-  { label: "Invite a Librarian", to: ROUTES.admin.librarians },
-  { label: "Audit logs", to: ROUTES.admin.auditLogs },
-  { label: "Borrowing policies", to: ROUTES.admin.policies },
+  { label: "Books to Release", to: ROUTES.staff.booksToRelease, icon: PackageCheck },
+  { label: "Returns and loans", to: ROUTES.staff.returns, icon: Undo2 },
+  { label: "COR review", to: ROUTES.admin.cor, icon: FileCheck },
+  { label: "Invite a Librarian", to: ROUTES.admin.librarians, icon: UserCog },
+  { label: "Audit logs", to: ROUTES.admin.auditLogs, icon: ScrollText },
+  { label: "Borrowing policies", to: ROUTES.admin.policies, icon: Scale },
 ];
 
 // GET /admin/dashboard (D1). Admin can also open every Librarian screen from here.
@@ -46,22 +47,24 @@ export default function AdminDashboardPage() {
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
           <Card title="Most borrowed">
-            <ol style={{ paddingLeft: 18, display: "grid", gap: 6 }}>
-              {d.popularBooks.map((b) => (
+            <ol className="rank-list">
+              {d.popularBooks.map((b, i) => (
                 <li key={b.bookId}>
-                  <Link to={ROUTES.student.bookDetails(b.bookId)}>{b.title}</Link> <span className="subtle">· {b.loanCount} loans</span>
+                  <span className="rank-list__n">{i + 1}</span>
+                  <Link to={ROUTES.student.bookDetails(b.bookId)}>{b.title}</Link>
+                  <span className="subtle">{b.loanCount} loans</span>
                 </li>
               ))}
             </ol>
           </Card>
           <Card title="Quick links">
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {QUICK.map((q) => (
-                <Link key={q.to} to={q.to} className="btn btn-ghost btn-sm" style={{ textDecoration: "none" }}>
-                  {q.label}
+            <div className="quick-links">
+              {QUICK.map(({ label, to, icon: Icon }) => (
+                <Link key={to} to={to} className="quick-link">
+                  <Icon size={18} strokeWidth={1.9} aria-hidden="true" />
+                  {label}
                 </Link>
               ))}
-              <p>trash</p>
             </div>
           </Card>
         </div>
