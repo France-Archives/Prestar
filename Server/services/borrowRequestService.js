@@ -2,6 +2,7 @@
 export {
   BorrowFlowError,
   BorrowFlowError as BorrowRequestError,
+  cancelBorrowRequest,
   createBorrowRequest,
   expireStalePickups,
   getAvailableCopiesForRequest,
@@ -13,3 +14,4 @@ export {
   pickupBook,
   reviewBorrowRequest,
 } from "./borrowFlowService.js";
+

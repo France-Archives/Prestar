@@ -24,9 +24,17 @@ export class SignupError extends Error {
  */
 export async function createSignup(input) {
   const email = String(input.email ?? "").trim().toLowerCase();
-  const studentNumber = String(input.student_number ?? input.student_id ?? "").trim();
-  const firstName = String(input.first_name ?? "").trim();
-  const lastName = String(input.last_name ?? "").trim();
+  const studentNumber = String(input.student_number ?? input.studentNumber ?? input.student_id ?? "").trim();
+  const firstName = String(input.first_name ?? input.firstName ?? "").trim();
+  const lastName = String(input.last_name ?? input.lastName ?? "").trim();
+  const course = input.course ?? input.program ?? input.submitted_course
+    ? String(input.course ?? input.program ?? input.submitted_course).trim()
+    : null;
+  const rawYear = input.year_level ?? input.yearLevel ?? input.submitted_year_level;
+  const yearLevel = rawYear !== undefined && rawYear !== null && rawYear !== "" ? Number(rawYear) : null;
+  const studentType = input.student_type ?? input.studentType
+    ? String(input.student_type ?? input.studentType).trim()
+    : "Regular";
 
   // 1. Check if user already exists
   const existingUser = await User.findOne({
@@ -89,9 +97,9 @@ export async function createSignup(input) {
     password_hash: passwordHashed,
     student_number: studentNumber,
     college: input.college ? String(input.college).trim() : null,
-    course: input.course || input.submitted_course ? String(input.course || input.submitted_course).trim() : null,
-    year_level: input.year_level || input.submitted_year_level ? Number(input.year_level || input.submitted_year_level) : null,
-    student_type: input.student_type ? String(input.student_type).trim() : "Regular",
+    course,
+    year_level: yearLevel,
+    student_type: studentType,
   };
 
   const expiresAt = new Date(Date.now() + OTP_EXPIRY_MS);
@@ -268,8 +276,15 @@ export async function verifyOtp(emailInput, otpInput) {
         email: user.email,
         role: user.role,
         student_number: student.student_number,
+        studentNumber: student.student_number,
         first_name: user.first_name,
+        firstName: user.first_name,
         last_name: user.last_name,
+        lastName: user.last_name,
+        course: student.course,
+        program: student.course,
+        year_level: student.year_level,
+        yearLevel: student.year_level,
       },
     };
   });

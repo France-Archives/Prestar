@@ -75,14 +75,24 @@ export async function sendOtpEmail(toEmail, otpCode, firstName = "") {
     html: htmlContent,
   });
 
-  await gmail.users.messages.send({
-    userId: "me",
-    requestBody: {
-      raw: rawMessage,
-    },
-  });
-
-  return { sent: true };
+  try {
+    await gmail.users.messages.send({
+      userId: "me",
+      requestBody: {
+        raw: rawMessage,
+      },
+    });
+    return { sent: true };
+  } catch (error) {
+    console.warn(
+      `\n⚠️  [Gmail API] Failed to send email (${error.message}). Falling back to console log for development/test.`,
+    );
+    console.warn(`🔑 [DEV/TEST OTP for ${toEmail}] (${firstName || "unknown"}): ${otpCode}\n`);
+    if (process.env.NODE_ENV === "production") {
+      throw error;
+    }
+    return { sent: false, devMode: true };
+  }
 }
 
 export default sendOtpEmail;

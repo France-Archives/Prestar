@@ -232,10 +232,32 @@ List books with pagination, optional full-text search, and optional category fil
 **Success `200`**
 ```json
 {
-  "books": [ { "id": 1, "title": "...", "available_copies": 3 } ],
-  "total": 42,
-  "page": 1,
-  "limit": 20
+  "books": [
+    {
+      "id": 1,
+      "book_id": 1,
+      "title": "Introduction to Algorithms",
+      "isbn": "978-0-262-04630-5",
+      "description": "...",
+      "coverImageUrl": "https://...",
+      "cover_image": "https://...",
+      "publicationYear": 2009,
+      "publisher": "MIT Press",
+      "author": { "id": 3, "name": "Thomas Cormen", "first_name": "Thomas", "last_name": "Cormen" },
+      "authors": [{ "id": 3, "name": "Thomas Cormen" }],
+      "category": { "id": 2, "name": "Computer Science" },
+      "availability": { "availableCopies": 3, "totalUsableCopies": 3 },
+      "available_copies": 3,
+      "isArchived": false
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 42,
+    "total_pages": 3,
+    "totalPages": 3
+  }
 }
 ```
 
@@ -278,6 +300,56 @@ Retrieve full details for a single active book, including copy availability.
 | `400` | `id` is not a positive integer |
 | `401` | Not authenticated |
 | `404` | Book not found or not active |
+
+---
+
+### 2.3 `GET /api/books/top`
+Returns the top most-borrowed books ranked by total loan count (books that were actually picked up, i.e. `borrowed_books.status IN ('Borrowed', 'Returned')`).
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Any authenticated user |
+
+**Query parameters**
+
+| Param | Type | Default | Constraints |
+|---|---|---|---|
+| `limit` | integer | `10` | 1 to 50 |
+
+**Success `200`**
+```json
+{
+  "books": [
+    {
+      "bookId": 1,
+      "book_id": 1,
+      "id": 1,
+      "title": "Introduction to Algorithms",
+      "loanCount": 42,
+      "loan_count": 42,
+      "isbn": "978-0-262-04630-5",
+      "coverImageUrl": "https://...",
+      "cover_image": "https://...",
+      "author": { "id": 3, "name": "Thomas Cormen" },
+      "authors": [{ "id": 3, "name": "Thomas Cormen" }],
+      "category": { "id": 2, "name": "Computer Science" },
+      "availability": {
+        "availableCopies": 3,
+        "totalUsableCopies": 5
+      }
+    }
+  ]
+}
+```
+
+Each item matches the frontend `PopularBook` type (`bookId`, `title`, `loanCount`) plus extra display fields (`author`, `coverImageUrl`, `category`, `availability`) so the frontend can render cards without a second API call.
+
+**Errors**
+| Code | Meaning |
+|---|---|
+| `400` | `limit` is not a valid integer from 1 to 50 |
+| `401` | Not authenticated |
 
 ---
 

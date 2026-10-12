@@ -23,28 +23,44 @@ export function validateCreateBorrowRequest(req, res, next) {
     return res.status(400).json({ error: "A JSON request body is required." });
   }
 
-  const bookId = parsePositiveId(req.body.book_id);
+  const rawBookId = req.body.book_id ?? req.body.bookId;
+  const bookId = parsePositiveId(rawBookId);
   if (bookId === null) {
     return res
       .status(400)
       .json({ error: "book_id must be a positive integer." });
   }
 
-  const rawRequestedDays = req.body.requested_days;
-  const requestedDays = parsePositiveId(rawRequestedDays);
-  if (
-    requestedDays === null ||
-    requestedDays < 1 ||
-    requestedDays > MAX_REQUEST_DAYS
-  ) {
-    return res.status(400).json({
-      error: `requested_days must be an integer between 1 and ${MAX_REQUEST_DAYS}.`,
-    });
+  const rawRequestedDays =
+    req.body.requested_days ??
+    req.body.requestedDays ??
+    req.body.requestedDurationDays ??
+    req.body.duration ??
+    req.body.days;
+
+  let requestedDays;
+  if (rawRequestedDays === undefined || rawRequestedDays === null || rawRequestedDays === "") {
+    requestedDays = 7;
+  } else {
+    requestedDays = parsePositiveId(rawRequestedDays);
+    if (
+      requestedDays === null ||
+      requestedDays < 1 ||
+      requestedDays > MAX_REQUEST_DAYS
+    ) {
+      return res.status(400).json({
+        error: `requested_days must be an integer between 1 and ${MAX_REQUEST_DAYS}.`,
+      });
+    }
   }
 
+  req.validatedBookId = bookId;
   req.validatedInput = {
     book_id: bookId,
+    bookId: bookId,
     requested_days: requestedDays,
+    requestedDays: requestedDays,
+    requestedDurationDays: requestedDays,
   };
   return next();
 }
@@ -136,7 +152,7 @@ export function validateReviewBorrowRequest(req, res, next) {
   req.reviewInput = {
     decision,
     remarks: remarks ? remarks.trim() : "",
-    copy_id: parsedCopyId,
+    ...(parsedCopyId !== null ? { copy_id: parsedCopyId } : {}),
   };
   return next();
 }

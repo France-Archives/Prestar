@@ -15,7 +15,7 @@ function positiveInteger(name, fallback) {
 }
 
 export const PICKUP_WINDOW_DAYS = positiveInteger("PICKUP_WINDOW_DAYS", 3);
-export const MAX_REQUEST_DAYS = positiveInteger("MAX_REQUEST_DAYS", 14);
+export const MAX_REQUEST_DAYS = positiveInteger("MAX_REQUEST_DAYS", 60);
 export const MAX_ACTIVE_BORROWS = positiveInteger("MAX_ACTIVE_BORROWS", 10);
 export const MAX_COPIES_PER_BOOK = positiveInteger("MAX_COPIES_PER_BOOK", 2);
 

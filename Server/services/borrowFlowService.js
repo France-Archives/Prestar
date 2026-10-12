@@ -190,7 +190,7 @@ export async function createBorrowRequest({ userId, bookId, requestedDays }) {
 
   try {
     return await withActor(userId, async (transaction) => {
-      return await BorrowRequest.create(
+      const created = await BorrowRequest.create(
         {
           user_id: userId,
           book_id: bookId,
@@ -200,6 +200,30 @@ export async function createBorrowRequest({ userId, bookId, requestedDays }) {
         },
         { transaction },
       );
+
+      return {
+        id: created.request_id,
+        request_id: created.request_id,
+        user_id: created.user_id,
+        userId: created.user_id,
+        book_id: created.book_id,
+        bookId: created.book_id,
+        book_title: book.title,
+        bookTitle: book.title,
+        requested_days: created.requested_days,
+        requestedDays: created.requested_days,
+        requestedDurationDays: created.requested_days,
+        status: created.status,
+        request_date: created.request_date,
+        requestedAt: created.request_date,
+        decision_reason: null,
+        decisionReason: null,
+        remarks: null,
+        assigned_copy_id: null,
+        assignedCopyId: null,
+        pickup_deadline: null,
+        pickupDeadline: null,
+      };
     });
   } catch (error) {
     if (
@@ -219,6 +243,68 @@ export async function createBorrowRequest({ userId, bookId, requestedDays }) {
     }
     throw error;
   }
+}
+
+/**
+ * Step 1b: Student cancels their own pending or approved borrow request.
+ */
+export async function cancelBorrowRequest({ requestId, userId }) {
+  await expireStalePickups();
+
+  return withActor(userId, async (transaction) => {
+    const request = await BorrowRequest.findOne({
+      where: { request_id: requestId, user_id: userId },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+    if (!request) {
+      throw new BorrowFlowError(404, "REQUEST_NOT_FOUND", "Borrow request not found.");
+    }
+
+    const currentStatus = String(request.status).toLowerCase();
+    if (
+      currentStatus !== "pending" &&
+      currentStatus !== "approved" &&
+      currentStatus !== "on_hold" &&
+      currentStatus !== "on hold"
+    ) {
+      throw new BorrowFlowError(
+        409,
+        "INVALID_STATE",
+        "This request can no longer be cancelled.",
+      );
+    }
+
+    // Release any reserved copy if request was Approved or On Hold
+    const loan = await BorrowedBook.findOne({
+      where: { request_id: requestId, status: "Reserved" },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+    if (loan) {
+      await loan.update({ status: "Cancelled" }, { transaction });
+      await BookCopy.update(
+        { status: "Available" },
+        { where: { copy_id: loan.copy_id }, transaction },
+      );
+    }
+
+    await request.update(
+      {
+        status: "Cancelled",
+        remarks: "Cancelled by the student",
+      },
+      { transaction },
+    );
+
+    return {
+      id: request.request_id,
+      request_id: request.request_id,
+      status: "Cancelled",
+      decisionReason: "Cancelled by the student",
+      remarks: "Cancelled by the student",
+    };
+  });
 }
 
 /**
@@ -442,7 +528,9 @@ export async function reviewBorrowRequest({
     return {
       message: "Request approved and copy reserved.",
       request_id: requestId,
+      status: "Approved",
       borrow_id: borrowedBook.borrow_id,
+      loan: borrowedBook,
       copy_id: chosenCopyId,
       pickup_deadline: pickupDeadline,
     };
@@ -695,16 +783,25 @@ export async function listMyBorrowRequests(userId, { page = 1, limit = 10 }) {
   });
 
   const formatted = rows.map((reqRow) => ({
+    id: reqRow.request_id,
     request_id: reqRow.request_id,
+    bookId: reqRow.book_id,
     book_id: reqRow.book_id,
+    bookTitle: reqRow.book?.title || null,
     book_title: reqRow.book?.title || null,
     author: reqRow.book?.author
       ? `${reqRow.book.author.first_name} ${reqRow.book.author.last_name}`
       : null,
+    requestedDurationDays: reqRow.requested_days,
+    requestedDays: reqRow.requested_days,
     requested_days: reqRow.requested_days,
+    requestedAt: reqRow.request_date,
     request_date: reqRow.request_date,
     status: reqRow.status,
     remarks: reqRow.remarks,
+    decisionReason: reqRow.remarks,
+    decision_reason: reqRow.remarks,
+    pickupDeadline: reqRow.pickup_deadline,
     pickup_deadline: reqRow.pickup_deadline,
   }));
 
@@ -772,18 +869,27 @@ export async function listBorrowRequestsQueue({
     rows.map(async (row) => {
       const eligibility = await checkBorrowEligibility(row.user_id);
       return {
+        id: row.request_id,
         request_id: row.request_id,
+        userId: row.user_id,
         user_id: row.user_id,
+        bookId: row.book_id,
         book_id: row.book_id,
+        requestedDurationDays: row.requested_days,
+        requestedDays: row.requested_days,
         requested_days: row.requested_days,
+        requestedAt: row.request_date,
         request_date: row.request_date,
         status: row.status,
         reviewed_by: row.reviewed_by,
         reviewed_at: row.reviewed_at,
+        pickupDeadline: row.pickup_deadline,
         pickup_deadline: row.pickup_deadline,
+        decisionReason: row.remarks,
         remarks: row.remarks,
         book: row.book
           ? {
+              id: row.book.book_id,
               book_id: row.book.book_id,
               title: row.book.title,
               isbn: row.book.isbn,
@@ -791,13 +897,18 @@ export async function listBorrowRequestsQueue({
           : null,
         student: row.student
           ? {
+              id: row.student.user_id,
+              userId: row.student.user_id,
               user_id: row.student.user_id,
               name: row.student.user
                 ? `${row.student.user.first_name} ${row.student.user.last_name}`
                 : null,
+              studentNumber: row.student.student_number,
               student_number: row.student.student_number,
               college: row.student.college,
+              program: row.student.course,
               course: row.student.course,
+              yearLevel: row.student.year_level,
               year_level: row.student.year_level,
             }
           : null,

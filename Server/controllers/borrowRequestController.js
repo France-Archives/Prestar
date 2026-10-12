@@ -1,12 +1,36 @@
-// Server/controllers/borrowRequestController.js
 import {
   BorrowFlowError,
+  cancelBorrowRequest,
   createBorrowRequest,
   getAvailableCopiesForRequest,
   listBorrowRequestsQueue,
   listMyBorrowRequests,
   reviewBorrowRequest,
 } from "../services/borrowFlowService.js";
+
+export async function cancelRequest(req, res) {
+  try {
+    const result = await cancelBorrowRequest({
+      requestId: req.resourceId,
+      userId: req.user.id,
+    });
+    return res.status(200).json({
+      message: "Borrow request cancelled successfully.",
+      request: result,
+      ...result,
+    });
+  } catch (error) {
+    if (error instanceof BorrowFlowError) {
+      return res.status(error.status).json({
+        code: error.code,
+        message: error.message,
+        error: error.message,
+      });
+    }
+    console.error("Cancel borrow request error:", error);
+    return res.status(500).json({ error: "Internal server error." });
+  }
+}
 
 export async function createRequest(req, res) {
   try {

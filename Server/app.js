@@ -36,6 +36,7 @@ app.use(cors({
 app.use("/api/auth", authRoutes);
 app.use("/api/books", bookRoutes);
 app.use("/api/borrow-requests", borrowRequestRoutes);
+app.use("/api/borrowing-requests", borrowRequestRoutes);
 app.use("/api/borrowed-books", borrowedBookRoutes);
 app.use("/api/otp", otpRoutes);
 

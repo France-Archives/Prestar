@@ -58,10 +58,20 @@ export async function sendVerificationEmail(toEmail, code) {
 		body: `Your code is ${code}. It expires in 5 minutes. If you didn't request this, ignore this email.`,
 	});
 
-	await gmail.users.messages.send({
-		userId: "me",
-		requestBody: { raw },
-	});
-
-	return { sent: true };
+	try {
+		await gmail.users.messages.send({
+			userId: "me",
+			requestBody: { raw },
+		});
+		return { sent: true };
+	} catch (error) {
+		console.warn(
+			`\n⚠️  [OTP Mail] Failed to send email via Gmail API (${error.message}). Falling back to console log for development/test.`,
+		);
+		console.warn(`🔑 [DEV/TEST OTP for ${toEmail}]: ${code}\n`);
+		if (process.env.NODE_ENV === "production") {
+			throw error;
+		}
+		return { sent: false, devMode: true };
+	}
 }

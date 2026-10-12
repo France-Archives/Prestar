@@ -3,6 +3,7 @@ import { Router } from "express";
 import authMiddleware from "../middleware/authMiddleware.js";
 import requireRole from "../middleware/roleMiddleware.js";
 import {
+  cancelRequest,
   createRequest,
   getAvailableCopies,
   listMyRequests,
@@ -24,6 +25,9 @@ router.use(authMiddleware);
 
 // 1. POST /api/borrow-requests [Student]
 router.post("/", studentsOnly, validateCreateBorrowRequest, createRequest);
+
+// 1b. POST /api/borrow-requests/:id/cancel [Student]
+router.post("/:id/cancel", studentsOnly, validateRequestId, cancelRequest);
 
 // 2. GET /api/borrow-requests/mine [Student]
 router.get("/mine", studentsOnly, validateRequestListQuery, listMyRequests);

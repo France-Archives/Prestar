@@ -4,6 +4,7 @@ import {
   getCurrentUser,
   login,
   logout,
+  updateProfile,
 } from "../controllers/authController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 import {
@@ -27,9 +28,12 @@ const router = Router();
 
 router.post("/login", loginRateLimiter, validateLogin, login);
 router.post("/signup", signupRateLimiter, validateSignup, signup);
+router.post("/register", signupRateLimiter, validateSignup, signup);
 router.post("/signup/verify-otp", validateVerifyOtp, verifySignupOtp);
 router.post("/signup/resend-otp", otpRateLimiter, validateResendOtp, resendSignupOtp);
 router.post("/logout", logout);
 router.get("/me", authMiddleware, getCurrentUser);
+router.patch("/me", authMiddleware, updateProfile);
+router.patch("/profile", authMiddleware, updateProfile);
 
 export default router;
