@@ -304,7 +304,7 @@
   color: var(--color-brick);
 }
 .app-nav-item--danger .app-nav-icon {
-  color: var(--color-brick);
+  color: #E09F3E;
 }
 .app-nav-item--danger:hover {
   background: var(--color-brick-soft);
