@@ -85,7 +85,6 @@
 }
 .app-brand-art img {
   position: absolute;
-  left: calc(var(--h, 3.25rem) * -0.234);
   top: calc(var(--h, 3.25rem) * -0.172);
   height: calc(var(--h, 3.25rem) * 1.1875);
   width: auto;
@@ -177,7 +176,7 @@
   height: calc(100dvh - var(--header-h));
   min-width: 0;
   overflow: hidden;
-  background: var(--color-paper);
+  background: #1B4332;
   border-right: 1px solid var(--color-line-soft);
 }
 @media (max-width: 767.98px) {
@@ -254,7 +253,7 @@
 }
 .app-nav-item:hover {
   background: color-mix(in srgb, var(--color-mist) 55%, transparent);
-  color: var(--color-forest-deep);
+  color: #E09F3E;
   text-decoration: none;
 }
 .app-nav-item:focus-visible {
@@ -281,7 +280,7 @@
   flex: none;
   width: 1.25rem;
   height: 1.25rem;
-  color: var(--color-green);
+  color: white;
   transition: color var(--dur-fast);
 }
 .app-nav-item.is-active .app-nav-icon,
@@ -292,6 +291,7 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  color:white !important
 }
 
 .app-sidebar__foot {
