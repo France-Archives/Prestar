@@ -1,5 +1,4 @@
-import { useId, useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 
 interface FieldShellProps {
   label: string;
@@ -39,41 +38,16 @@ function Shell({ label, error, hint, required, render }: FieldShellProps & { ren
   );
 }
 
-export function InputField({ label, error, hint, required, type, ...rest }: FieldShellProps & InputHTMLAttributes<HTMLInputElement>) {
-  const [show, setShow] = useState(false);
-  const isPassword = type === "password";
+export function InputField({ label, error, hint, required, ...rest }: FieldShellProps & InputHTMLAttributes<HTMLInputElement>) {
   return (
     <Shell
       label={label}
       error={error}
       hint={hint}
       required={required}
-      render={(p) =>
-        isPassword ? (
-          <div className="input-wrap">
-            <input
-              className="input"
-              id={p.id}
-              type={show ? "text" : "password"}
-              aria-invalid={p.invalid}
-              aria-describedby={p.describedBy}
-              required={required}
-              {...rest}
-            />
-            <button
-              type="button"
-              className="input-wrap__toggle"
-              aria-label={show ? "Hide password" : "Show password"}
-              aria-pressed={show}
-              onClick={() => setShow((s) => !s)}
-            >
-              {show ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
-            </button>
-          </div>
-        ) : (
-          <input className="input" id={p.id} type={type} aria-invalid={p.invalid} aria-describedby={p.describedBy} required={required} {...rest} />
-        )
-      }
+      render={(p) => (
+        <input className="input" id={p.id} aria-invalid={p.invalid} aria-describedby={p.describedBy} required={required} {...rest} />
+      )}
     />
   );
 }

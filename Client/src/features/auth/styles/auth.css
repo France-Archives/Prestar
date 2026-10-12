@@ -1,35 +1,22 @@
-/* Auth-only extras: demo account panel and the password strength bar.
-   The login/signup layout itself lives in src/styles/auth.css. */
-
+/* Optional auth-only styles. */
 .demo-panel {
-  margin-top: 20px;
+  margin-top: 18px;
   padding: 12px 14px;
-  border: 1px dashed color-mix(in srgb, var(--color-amber) 75%, transparent);
+  border: 1px dashed var(--color-amber);
   border-radius: var(--radius-md);
   background: var(--color-amber-soft);
   font-size: 0.8125rem;
-  line-height: 1.45;
 }
 .demo-panel button {
   display: block;
   width: 100%;
-  padding: 8px 8px;
+  padding: 6px 4px;
   text-align: left;
-  border-radius: 8px;
-  color: var(--color-forest-deep);
-  transition: background var(--dur-fast) var(--ease);
-}
-.demo-panel button b {
-  font-weight: 500;
+  border-radius: 6px;
 }
 .demo-panel button:hover {
-  background: color-mix(in srgb, var(--color-amber) 22%, transparent);
+  background: rgba(224, 159, 62, 0.2);
 }
-.demo-panel button:focus-visible {
-  outline: 2px solid var(--color-green);
-  outline-offset: 1px;
-}
-
 .strength-bar {
   height: 6px;
   border-radius: 999px;
@@ -38,6 +25,5 @@
 }
 .strength-bar > div {
   height: 100%;
-  border-radius: 999px;
   transition: width 0.25s var(--ease), background 0.25s;
 }
