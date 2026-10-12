@@ -224,7 +224,7 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   white-space: nowrap;
-  color: var(--color-amber-ink);
+  color: #E09F3E;
 }
 .app-nav-list {
   display: grid;
@@ -262,7 +262,7 @@
 }
 .app-nav-item.is-active,
 .app-nav-item.is-active:hover {
-  background: var(--color-mist);
+  background: #E09F3E;
   color: var(--color-forest-deep);
   font-weight: 600;
 }
