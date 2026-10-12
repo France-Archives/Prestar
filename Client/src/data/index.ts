@@ -12,3 +12,4 @@ export * from "./mockFines";
 export * from "./mockNotifications";
 export * from "./mockInterests";
 export * from "./mockDashboard";
+export * from "./mockColleges";

@@ -1,22 +1,261 @@
-.hero h1 {
-  color: #fff;
-  font-size: clamp(2rem, 5vw, 3.25rem);
+/* Landing page: every section is one full screen, and scrolling snaps from one colour to the next.
+   Cream (hero) -> green (how it works) -> cream (collection) -> green footer. */
+
+html.landing-snap {
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
 }
-.step-card {
+html.landing-snap footer {
+  scroll-snap-align: end;
+}
+
+.land-screen {
   position: relative;
-  padding-top: 30px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100vh;
+  min-height: 100svh;
+  padding: 5.5rem clamp(1.25rem, 6vw, 5rem) 3rem;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
 }
-.step-card .num {
+.land-eyebrow {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-amber-ink);
+}
+
+/* ---------- 1. hero: solid cream on the left, photo card on the right ---------- */
+.land-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2rem;
+  align-items: center;
+  padding-top: 5.5rem;
+  padding-bottom: 3rem;
+  background: var(--color-canvas);
+}
+.land-hero__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 36rem;
+}
+.land-hero h1 {
+  margin: 0.75rem 0 1rem;
+  font-family: var(--font-serif);
+  font-size: clamp(2.25rem, 4.6vw, 3.75rem);
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  color: var(--color-forest-deep);
+}
+.land-hero p {
+  max-width: 32rem;
+  margin: 0 0 1.75rem;
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  color: var(--color-ink);
+}
+
+/* outline "Log in": does not compete with the amber main button */
+.land-btn-outline {
+  background: transparent;
+  border: 1.5px solid var(--color-forest);
+  color: var(--color-forest-deep);
+}
+.land-btn-outline:hover {
+  background: var(--color-forest);
+  color: #fff;
+}
+
+/* the photo card */
+.land-hero__art {
+  min-height: 15rem;
+  border-radius: 1.75rem;
+  background-color: var(--color-forest);
+  background-image: url("/images/landing-hero.jpg");
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 30px 60px -30px rgba(7, 53, 44, 0.45);
+}
+
+@media (min-width: 900px) {
+  .land-hero {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: clamp(2rem, 5vw, 4.5rem);
+    padding-bottom: 2.5rem;
+  }
+  .land-hero__art {
+    align-self: stretch;
+    min-height: 0;
+    /* arch-shaped top-left corner, soft corners elsewhere */
+    border-radius: 11rem 1.75rem 1.75rem 1.75rem;
+  }
+}
+
+.land-cue {
   position: absolute;
-  top: -13px;
-  left: 14px;
+  left: clamp(1.25rem, 6vw, 5rem);
+  bottom: 1.25rem;
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  background: var(--color-amber);
-  color: var(--color-forest-deep);
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  color: var(--color-forest);
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  animation: land-bob 2s ease-in-out infinite;
+}
+@keyframes land-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(6px); }
+}
+@media (max-width: 899px) {
+  .land-cue {
+    display: none;
+  }
+}
+
+/* ---------- 2. how it works: full green ---------- */
+.land-how {
+  align-items: center;
+  text-align: center;
+  color: var(--color-cream);
+  background:
+    radial-gradient(60rem 28rem at 50% -10%, rgba(255, 255, 255, 0.07), transparent 60%),
+    var(--color-forest);
+}
+.land-how .land-eyebrow {
+  color: #e09f3e;
+}
+.land-how h2 {
+  margin: 0.5rem 0;
   font-family: var(--font-serif);
+  font-size: clamp(1.9rem, 4vw, 3rem);
+  color: #fff;
+}
+.land-how__lead {
+  color: color-mix(in srgb, var(--color-cream) 80%, transparent);
+}
+.land-steps {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1.5rem;
+  width: 100%;
+  max-width: 80rem;
+  margin: 3rem auto 0;
+  padding: 0;
+  list-style: none;
+}
+/* one amber line runs behind the five icons */
+.land-steps::before {
+  content: "";
+  position: absolute;
+  top: 3.75rem;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: #e09f3e;
+  opacity: 0.6;
+}
+.land-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.land-step__num {
+  height: 1.25rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.75rem;
   font-weight: 700;
+  line-height: 1.25rem;
+  letter-spacing: 0.1em;
+  color: #e09f3e;
+}
+.land-step__icon {
+  display: grid;
+  place-items: center;
+  width: 4rem;
+  height: 4rem;
+  border: 1px solid #e09f3e;
+  border-radius: 50%;
+  background: var(--color-forest);
+  color: var(--color-cream);
+}
+.land-step h3 {
+  margin: 1rem 0 0.375rem;
+  font-family: var(--font-sans);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #fff;
+}
+.land-step p {
+  max-width: 15rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--color-cream) 85%, transparent);
+}
+@media (max-width: 1023px) {
+  .land-how {
+    align-items: stretch;
+  }
+  .land-steps {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.25rem;
+    max-width: 34rem;
+    margin-top: 2rem;
+    text-align: left;
+  }
+  .land-steps::before,
+  .land-step__num {
+    display: none;
+  }
+  .land-step {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 1rem;
+    align-items: center;
+  }
+  .land-step__icon {
+    grid-row: span 2;
+    width: 3.25rem;
+    height: 3.25rem;
+  }
+  .land-step h3 {
+    margin: 0;
+  }
+  .land-step p {
+    max-width: none;
+  }
+}
+
+/* ---------- 3. collection: cream again ---------- */
+.land-books {
+  background: var(--color-canvas);
+}
+.land-books__inner {
+  width: 100%;
+  max-width: 80rem;
+  margin-inline: auto;
+}
+.land-books h2 {
+  margin-top: 0.25rem;
+  font-family: var(--font-serif);
+  font-size: clamp(1.75rem, 3.4vw, 2.5rem);
+  color: var(--color-forest-deep);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.landing-snap {
+    scroll-behavior: auto;
+  }
+  .land-cue {
+    animation: none;
+  }
 }

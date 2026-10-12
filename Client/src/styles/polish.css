@@ -1,4 +1,4 @@
-/* Polish for every role (student, librarian, admin): motion, page rhythm, book cards, book modal, stat cards, tables.
+/* Polish for every role (student, librarian, admin): motion, page rhythm, book shelves, book cards, book modal, stat cards, tables.
    Loaded last, so it refines utilities.css without redefining components. */
 
 @keyframes polish-rise {
@@ -99,28 +99,73 @@ a.stat {
 }
 
 /* ---------- student dashboard ---------- */
+/* greeting card: the bookshelf photo on the right, a cream fade on the left keeps the text readable */
+/* greeting card: the bookshelf photo shows its green; only a light cream wash sits behind the text */
 .dash-hello {
+  position: relative;
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px 20px;
+  align-items: center;
+  min-height: 10.5rem;
   margin-bottom: 14px;
+  padding: 1.5rem 1.75rem;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid var(--color-line-soft);
+  border-radius: 20px;
+  background-color: var(--color-forest);
+  background-image:
+    linear-gradient(
+      90deg,
+      rgba(245, 243, 234, 0.92) 0%,
+      rgba(245, 243, 234, 0.78) 30%,
+      rgba(245, 243, 234, 0.22) 56%,
+      rgba(245, 243, 234, 0) 78%
+    ),
+    linear-gradient(rgba(7, 53, 44, 0.12), rgba(7, 53, 44, 0.12)),
+    url("/images/greeting-bg.jpg");
+  background-size: cover;
+  background-position: center right;
+  background-repeat: no-repeat;
+  box-shadow: var(--shadow-card);
+}
+.dash-hello__text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  max-width: 32rem;
 }
 .dash-hello h1 {
   font-size: clamp(1.5rem, 2.6vw, 2rem);
 }
 .dash-hello .subtle {
   margin-top: 2px;
+  color: var(--color-forest-deep);
+  font-weight: 500;
 }
+.dash-hello__cta {
+  margin-top: 0.875rem;
+}
+@media (max-width: 639px) {
+  .dash-hello {
+    min-height: 0;
+    padding: 1.25rem 1.125rem;
+    background-image:
+      linear-gradient(180deg, rgba(245, 243, 234, 0.9), rgba(245, 243, 234, 0.7)),
+      url("/images/greeting-bg.jpg");
+  }
+}
+/* every notice spans the full width */
 .dash-notices {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
   margin-bottom: 0;
 }
+.dash-notices:empty {
+  display: none;
+}
 .dash-notices > .stack {
-  grid-column: 1 / -1;
   gap: 8px;
 }
 .dash-notices .alert-box {
@@ -211,6 +256,62 @@ a.stat {
 .book-cover--placeholder span:not(.book-cover__rule) {
   font-size: 0.6875rem;
   opacity: 0.82;
+}
+
+/* ---------- book shelves ---------- */
+.bshelf-wrap {
+  display: grid;
+  gap: 2rem;
+}
+.bshelf {
+  --cw: 140px;
+  --gap: 16px;
+  --n: 5;
+}
+.bshelf__books,
+.bshelf__labels {
+  display: grid;
+  grid-template-columns: repeat(var(--n), var(--cw));
+  justify-content: start;
+  column-gap: var(--gap);
+  margin: 0;
+  list-style: none;
+}
+.bshelf__books {
+  align-items: end;
+  padding: 1.25rem 1rem 0;
+  border-radius: 12px 12px 0 0;
+  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--color-wood-light) 30%, transparent));
+}
+.bshelf__slot {
+  display: flex;
+  align-items: flex-end;
+}
+.bshelf__slot .book-card__cover {
+  width: 100%;
+}
+.bshelf__slot.is-selected .book-cover {
+  box-shadow: 0 0 0 2px var(--color-canvas), 0 0 0 4px var(--color-forest), var(--shadow-lift);
+}
+.bshelf__plank {
+  position: relative;
+  height: 12px;
+  margin: 0 -6px;
+  border-radius: 3px 3px 6px 6px;
+  background: linear-gradient(to bottom, var(--color-wood-light) 0 45%, var(--color-wood) 45% 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 10px 14px -6px rgba(90, 60, 20, 0.35);
+}
+.bshelf__plank::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.03) 0 2px, transparent 2px 22px);
+}
+.bshelf__labels {
+  padding: 0.75rem 1rem 0;
+}
+.bshelf__labels > li {
+  min-width: 0;
 }
 
 /* ---------- book card, row and grid ---------- */

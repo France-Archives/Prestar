@@ -6,7 +6,6 @@ import LoadingState from "@/components/feedback/LoadingState";
 import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import { useAuth } from "@/hooks/useAuth";
-import * as authService from "@/services/authService";
 import * as booksService from "@/services/booksService";
 import * as reportsService from "@/services/reportsService";
 import BookGrid from "@/features/books/components/BookGrid";
@@ -39,7 +38,6 @@ function Section({ eyebrow, title, note, action, children }: { eyebrow: string; 
 export default function StudentDashboardPage() {
   const { user } = useAuth();
   const dash = useAsync(() => reportsService.getStudentDashboard(), []);
-  const profile = useAsync(() => authService.getMyProfile(), []);
   // The statistics carry no covers or authors, so look the popular titles up in the catalog.
   const catalog = useAsync(() => booksService.listBooks({ pageSize: 100 }), []);
 
@@ -50,8 +48,9 @@ export default function StudentDashboardPage() {
 
   const d = dash.data;
   const firstName = user?.displayName.split(" ")[0] ?? "";
-  const noInterests = (profile.data?.interests.length ?? 3) < 3;
   const offered = d.reservations.filter((r) => r.status === "OFFERED").length;
+  // A pending COR is shown only on the COR page, and an approval arrives as a notification.
+  const needsCor = d.cor.status !== "APPROVED" && d.cor.status !== "PENDING";
 
   const byId = new Map((catalog.data?.data ?? []).map((b) => [b.id, b] as const));
   const popular = d.mostBorrowed.flatMap((p) => {
@@ -62,27 +61,21 @@ export default function StudentDashboardPage() {
 
   return (
     <div className="page">
-      <header className="dash-hello">
-        <div>
+         <header className="dash-hello">
+        <div className="dash-hello__text">
           <span className="eyebrow">Student library</span>
           <h1>{greeting()}, {firstName}.</h1>
           <p className="subtle">Find your next book to borrow.</p>
+          <Link to={S.books} className="btn btn-primary btn-sm dash-hello__cta">Browse the catalog</Link>
         </div>
-        <Link to={S.books} className="btn btn-primary btn-sm">Browse the catalog</Link>
       </header>
 
       <div className="dash-notices">
         {d.accountStatus === "SUSPENDED" && <Alert kind="warn">Your account is suspended. You can browse and see your history, but you cannot start new borrowing.</Alert>}
         {d.accountStatus === "PENDING_VERIFICATION" && <Alert kind="warn">Verify your email to activate borrowing. Check the verification link we sent you.</Alert>}
-        {d.cor.status !== "APPROVED" && (
-          <Alert kind={d.cor.status === "PENDING" ? "info" : "warn"}>
-            {d.cor.status === "PENDING" ? "Your COR is waiting for review." : "Submit your COR for this term to start borrowing."}{" "}
-            <Link to={d.cor.status === "PENDING" ? S.cor : S.uploadCor}>{d.cor.status === "PENDING" ? "View COR" : "Submit COR"}</Link>
-          </Alert>
-        )}
-        {noInterests && (
-          <Alert kind="info">
-            Choose 3 reading interests for better recommendations. <Link to={S.interests}>Choose interests</Link>
+        {needsCor && (
+          <Alert kind="warn">
+            Submit your COR for this term to start borrowing. <Link to={S.uploadCor}>Submit COR</Link>
           </Alert>
         )}
         {d.pickupWaiting.length > 0 && (
@@ -105,12 +98,12 @@ export default function StudentDashboardPage() {
               {Array.from({ length: 6 }, (_, i) => <div key={i} className="book-skel skeleton" />)}
             </div>
           ) : (
-            popular.length > 0 && <BookGrid layout="row" ranked books={popular.map((p) => p.book)} meta={popularMeta} />
+            popular.length > 0 && <BookGrid layout="shelf" ranked books={popular.map((p) => p.book)} meta={popularMeta} />
           )}
         </Section>
       )}
 
-      <Section eyebrow="Chosen for you" title="Recommended For You" action={<Link to={S.interests} className="link-btn">Edit interests</Link>}>
+      <Section eyebrow="Chosen for you" title="Recommended For You">
         <BookGrid books={d.recommended} emptyText="No recommendations yet." />
       </Section>
     </div>
