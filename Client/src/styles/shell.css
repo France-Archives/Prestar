@@ -1,274 +1,39 @@
-/* Shell: sidebar rail + header + main. Imported through index.css.
-   Removed: cream backgrounds, .app-navlink (quick links are gone) and the old .app-brand clip. */
+/* App shell: header on top (burger + logo + search + profile), sidebar and content below in one grid.
+   Desktop: the sidebar is a full column or an icon rail, and the content resizes with it.
+   Mobile (<768px): the sidebar is an off-canvas drawer under the header, with a backdrop. */
 
-/* data-collapsed="true" = icon rail (desktop only). data-drawer="open" = mobile drawer. */
 .app-shell {
-  --sidebar-current: var(--sidebar-w);
-  --shell-serif: var(--font-serif);
+  --sb: var(--sidebar-w);
+  display: grid;
+  grid-template-columns: var(--sb) minmax(0, 1fr);
+  grid-template-rows: var(--header-h) minmax(0, 1fr);
   min-height: 100vh;
   background: var(--color-canvas);
+  transition: grid-template-columns var(--dur-slow) var(--ease-out-expo);
 }
 @media (min-width: 768px) {
   .app-shell[data-collapsed="true"] {
-    --sidebar-current: var(--sidebar-w-collapsed);
+    --sb: var(--sidebar-w-collapsed);
   }
-}
-
-/* ---------- sidebar ---------- */
-.app-sidebar {
-  position: fixed;
-  inset: 0 auto 0 0;
-  z-index: 50;
-  display: flex;
-  flex-direction: column;
-  width: var(--sidebar-current);
-  background: var(--color-sidebar);
-  border-right: 1px solid var(--color-sidebar-line);
-  transition: width var(--dur) var(--ease), transform var(--dur) var(--ease);
-}
-/* Below 768px the sidebar is an off-canvas drawer. It always shows labels and ignores the collapsed state. */
-@media (max-width: 767.98px) {
-  .app-sidebar {
-    width: var(--sidebar-w);
-    transform: translateX(-100%);
-  }
-  .app-shell[data-drawer="open"] .app-sidebar {
-    transform: none;
-    box-shadow: var(--shadow-raised);
-  }
-}
-
-/* ---------- brand (logo) ---------- */
-.app-sidebar__brand {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-shrink: 0;
-  height: var(--header-h);
-  padding: 0 1rem;
-  border-bottom: 1px solid var(--color-sidebar-line);
-  overflow: hidden;
-}
-.app-brand-link {
-  display: block;
-  min-width: 0;
-  text-decoration: none;
-}
-/* Expanded: the full logo. The PNG is 587x236 with empty margins, so a 76px-high image is shifted
-   (-15px, -11px) to put the visible artwork flush-left and vertically centered in the 64px bar. */
-.app-brand-full {
-  position: relative;
-  display: block;
-  width: 168px;
-  height: var(--header-h);
-  overflow: hidden;
-}
-.app-brand-full .brand-logo {
-  position: absolute;
-  left: -15px;
-  top: -11px;
-  max-width: none;
-}
-/* Collapsed: only the emblem (x 48-189 of the PNG), cropped into a 40px square. */
-.app-brand-mark {
-  position: relative;
-  display: none;
-  width: 2.5rem;
-  height: 2.5rem;
-  overflow: hidden;
-}
-.app-brand-mark img {
-  position: absolute;
-  left: -12px;
-  top: -16px;
-  height: 64px;
-  width: auto;
-  max-width: none;
-}
-@media (min-width: 768px) {
-  .app-shell[data-collapsed="true"] .app-sidebar__brand {
-    justify-content: center;
-  }
-  .app-shell[data-collapsed="true"] .app-brand-full {
-    display: none;
-  }
-  .app-shell[data-collapsed="true"] .app-brand-mark {
-    display: block;
-  }
-}
-
-/* ---------- navigation ---------- */
-.app-sidebar__nav {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 0.875rem 0.75rem;
-  scrollbar-width: thin;
-}
-.app-nav-group + .app-nav-group {
-  margin-top: 1.25rem;
-}
-.app-nav-title {
-  margin: 0 0 0.375rem;
-  padding: 0 0.75rem;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  color: var(--color-sidebar-muted);
-}
-.app-nav-list {
-  display: grid;
-  gap: 2px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.app-nav-item {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  height: 2.5rem;
-  padding: 0 0.75rem;
-  border-radius: var(--radius-sm);
-  color: var(--color-sidebar-ink);
-  font-size: 0.875rem;
-  font-weight: 500;
-  white-space: nowrap;
-  text-decoration: none;
-  transition: background var(--dur-fast), color var(--dur-fast);
-}
-.app-nav-item:hover {
-  background: var(--color-sidebar-hover);
-  color: var(--color-forest);
-  text-decoration: none;
-}
-.app-nav-item:focus-visible {
-  outline: 2px solid var(--color-forest);
-  outline-offset: 2px;
-}
-/* Active page: deep forest green. Same color on hover, so it never looks clickable-again. */
-.app-nav-item.is-active,
-.app-nav-item.is-active:hover {
-  background: var(--color-forest);
-  color: #fff;
-  font-weight: 600;
-  box-shadow: var(--shadow-card);
-}
-.app-nav-icon {
-  flex-shrink: 0;
-  width: 1.25rem;
-  height: 1.25rem;
-}
-.app-nav-label {
-  max-width: 12rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  transition: max-width var(--dur) var(--ease), opacity var(--dur-fast);
-}
-
-/* Collapsed rail: icons only and centered. Labels fade out but stay in the DOM for screen readers. */
-@media (min-width: 768px) {
-  .app-shell[data-collapsed="true"] .app-nav-item {
-    justify-content: center;
-    gap: 0;
-    padding: 0;
-  }
-  .app-shell[data-collapsed="true"] .app-nav-label {
-    max-width: 0;
-    opacity: 0;
-  }
-  .app-shell[data-collapsed="true"] .app-nav-title {
-    display: none; /* group titles become a thin divider */
-  }
-  .app-shell[data-collapsed="true"] .app-nav-group + .app-nav-group {
-    margin-top: 0.75rem;
-    padding-top: 0.75rem;
-    border-top: 1px solid var(--color-sidebar-line);
-  }
-}
-
-.app-sidebar__foot {
-  flex-shrink: 0;
-  padding: 0.625rem 0.75rem;
-  border-top: 1px solid var(--color-sidebar-line);
-}
-/* Sign out reuses .app-nav-item, with a brick color */
-.app-nav-item--danger {
-  width: 100%;
-  color: var(--color-brick);
-}
-.app-nav-item--danger:hover {
-  background: var(--color-brick-soft);
-  color: var(--color-brick);
-}
-
-/* Tooltip for the collapsed rail. position: fixed on purpose: the nav scrolls (overflow), so a
-   CSS-only tooltip would be clipped. Sidebar.tsx sets top/left from the hovered icon's rect. */
-.app-tooltip {
-  position: fixed;
-  z-index: 80;
-  padding: 0.375rem 0.625rem;
-  border-radius: 6px;
-  background: var(--color-forest-deep);
-  color: #fff;
-  font-size: 0.75rem;
-  font-weight: 600;
-  line-height: 1.2;
-  white-space: nowrap;
-  pointer-events: none;
-  box-shadow: var(--shadow-raised);
-  animation: fade-only 120ms var(--ease) both;
-}
-
-/* Mobile drawer backdrop */
-.app-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 45;
-  background: rgba(18, 48, 31, 0.45);
-  animation: fade-only var(--dur) var(--ease) both;
-}
-@media (min-width: 768px) {
-  .app-scrim {
-    display: none;
-  }
-}
-
-/* ---------- body (header + main), pushed by the sidebar width ---------- */
-.app-body {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 100vh;
-  margin-left: var(--sidebar-current);
-  transition: margin-left var(--dur) var(--ease); /* content resizes smoothly with the sidebar */
 }
 @media (max-width: 767.98px) {
-  .app-body {
-    margin-left: 0;
+  .app-shell {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
-.app-main {
-  flex: 1;
-  min-width: 0;
-  background: var(--color-canvas);
-}
 
-/* ---------- header ---------- */
-/* Keep any position: fixed child (drawers) in a portal: backdrop-filter traps fixed descendants. */
+/* ---------- top bar ---------- */
 .app-header {
+  grid-column: 1 / -1;
+  grid-row: 1;
   position: sticky;
   top: 0;
-  z-index: 30;
+  z-index: 45;
   height: var(--header-h);
-  background: color-mix(in srgb, var(--color-canvas) 88%, transparent);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--color-line);
+  background: color-mix(in srgb, var(--color-canvas) 92%, transparent);
+  -webkit-backdrop-filter: saturate(1.3) blur(14px);
+  backdrop-filter: saturate(1.3) blur(14px);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
 }
 .app-header__inner {
   display: grid;
@@ -278,88 +43,352 @@
   height: 100%;
   padding: 0 var(--gutter);
 }
-/* wide screens: equal side columns, so the search is truly centered. */
-@media (min-width: 900px) {
+@media (min-width: 1100px) {
   .app-header__inner {
-    grid-template-columns: 1fr minmax(0, 36rem) 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 34rem) minmax(0, 1fr);
   }
 }
+.app-header__lead {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.app-header__brand {
+  display: block;
+  flex: none;
+  text-decoration: none;
+}
+.app-header__brand:hover {
+  text-decoration: none;
+}
+@media (max-width: 479px) {
+  .app-header__brand {
+    display: none;
+  }
+}
+.app-header__end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+}
 
-.app-iconbtn {
-  display: inline-grid;
-  place-items: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: var(--radius-md);
-  color: var(--color-forest);
-  transition: background var(--dur-fast);
+/* The PNG has empty margins, so a window crops it to the artwork. Everything scales from --h. */
+.app-brand-art {
+  position: relative;
+  display: block;
+  flex: none;
+  height: var(--h, 3.25rem);
+  width: calc(var(--h, 3.25rem) * 2.6);
+  overflow: hidden;
 }
-.app-iconbtn:hover {
-  background: var(--color-mist);
-}
-.app-iconbtn:focus-visible {
-  outline: 2px solid var(--color-green);
-  outline-offset: 2px;
+.app-brand-art img {
+  position: absolute;
+  left: calc(var(--h, 3.25rem) * -0.234);
+  top: calc(var(--h, 3.25rem) * -0.172);
+  height: calc(var(--h, 3.25rem) * 1.1875);
+  width: auto;
+  max-width: none;
 }
 
-/* centered search */
 .app-search {
   position: relative;
   width: 100%;
+  max-width: 34rem;
+  justify-self: center;
 }
 .app-search-icon {
   position: absolute;
-  left: 0.8rem;
+  left: 0.9rem;
   top: 50%;
   width: 1rem;
   height: 1rem;
   transform: translateY(-50%);
   color: var(--color-muted);
   pointer-events: none;
+  transition: color var(--dur-fast);
+}
+.app-search:focus-within .app-search-icon {
+  color: var(--color-green);
 }
 .app-search input {
   width: 100%;
-  height: 2.5rem;
-  padding: 0 0.875rem 0 2.5rem;
+  height: var(--control-h);
+  padding: 0 1rem 0 2.5rem;
   font-size: 0.875rem;
   color: var(--color-ink);
-  background: #fff;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-md);
-  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
+  background: var(--color-paper);
+  border: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+  border-radius: 12px;
+  box-shadow: 0 4px 14px -10px rgba(7, 53, 44, 0.25);
+  transition:
+    border-color var(--dur-fast),
+    box-shadow var(--dur) var(--ease),
+    background var(--dur-fast);
 }
 .app-search input::placeholder {
   color: var(--color-muted);
 }
 .app-search input:hover {
-  border-color: var(--color-green);
+  border-color: var(--color-sage);
 }
 .app-search input:focus {
   outline: none;
   border-color: var(--color-green);
+  background: #fff;
   box-shadow: var(--ring);
 }
 
-/* ---------- page area (scoped to .app-main so public/auth pages are untouched) ---------- */
-/* Page width and padding come from .page in utilities.css. */
-.app-main .eyebrow {
+.app-iconbtn {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-control);
+  color: var(--color-forest);
+  transition:
+    background var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
+}
+.app-iconbtn:hover {
+  background: color-mix(in srgb, var(--color-mist) 70%, transparent);
+}
+.app-iconbtn:active {
+  transform: scale(0.94);
+}
+.app-iconbtn:focus-visible {
+  outline: 2px solid var(--color-green);
+  outline-offset: 2px;
+}
+
+/* ---------- sidebar ---------- */
+.app-sidebar {
+  grid-column: 1;
+  grid-row: 2;
+  position: sticky;
+  top: var(--header-h);
+  align-self: start;
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - var(--header-h));
+  height: calc(100dvh - var(--header-h));
+  min-width: 0;
+  overflow: hidden;
+  background: var(--color-paper);
+  border-right: 1px solid var(--color-line-soft);
+}
+@media (max-width: 767.98px) {
+  .app-sidebar {
+    position: fixed;
+    top: var(--header-h);
+    bottom: 0;
+    left: 0;
+    z-index: 50;
+    width: min(var(--sidebar-w), 86vw);
+    height: auto;
+    transform: translateX(-104%);
+    visibility: hidden;
+    transition:
+      transform var(--dur-slow) var(--ease-out-expo),
+      visibility 0s linear var(--dur-slow);
+  }
+  .app-shell[data-drawer="open"] .app-sidebar {
+    transform: none;
+    visibility: visible;
+    box-shadow: var(--shadow-raised);
+    transition:
+      transform var(--dur-slow) var(--ease-out-expo),
+      visibility 0s;
+  }
+}
+
+.app-sidebar__nav {
+  flex: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0.875rem 0.75rem 1rem;
+  scrollbar-width: thin;
+}
+.app-nav-group + .app-nav-group {
+  margin-top: 0.875rem;
+  padding-top: 0.875rem;
+  border-top: 1px solid var(--color-line-soft);
+}
+.app-nav-title {
+  margin: 0 0 0.375rem;
+  padding: 0 0.75rem;
   font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.14em;
+  font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--color-amber-ink);
+}
+.app-nav-list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.app-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  height: 2.5rem;
+  padding: 0 0.75rem;
+  border-radius: var(--radius-control);
+  color: var(--color-forest);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+  text-decoration: none;
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+.app-nav-item:hover {
+  background: color-mix(in srgb, var(--color-mist) 55%, transparent);
+  color: var(--color-forest-deep);
+  text-decoration: none;
+}
+.app-nav-item:focus-visible {
+  outline: 2px solid var(--color-green);
+  outline-offset: 2px;
+}
+.app-nav-item.is-active,
+.app-nav-item.is-active:hover {
+  background: var(--color-mist);
+  color: var(--color-forest-deep);
+  font-weight: 600;
+}
+.app-nav-item.is-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 22%;
+  bottom: 22%;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--color-amber);
+}
+.app-nav-icon {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
   color: var(--color-green);
+  transition: color var(--dur-fast);
 }
-.app-main .page h1 {
-  font-family: var(--shell-serif);
-  font-weight: 600;
-  font-size: clamp(1.5rem, 3.2vw, 2.1rem);
-  line-height: 1.1;
-  letter-spacing: -0.01em;
-  color: var(--color-heading);
+.app-nav-item.is-active .app-nav-icon,
+.app-nav-item:hover .app-nav-icon {
+  color: var(--color-forest);
 }
-.app-main .page h2 {
-  font-family: var(--shell-serif);
-  font-weight: 600;
-  font-size: 1.15rem;
-  color: var(--color-heading);
+.app-nav-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-sidebar__foot {
+  flex-shrink: 0;
+  padding: 0.75rem;
+  border-top: 1px solid var(--color-line-soft);
+}
+.app-nav-item--danger {
+  width: 100%;
+  color: var(--color-brick);
+}
+.app-nav-item--danger .app-nav-icon {
+  color: var(--color-brick);
+}
+.app-nav-item--danger:hover {
+  background: var(--color-brick-soft);
+  color: var(--color-brick);
+}
+
+/* collapsed rail (desktop only): icons stay, labels are hidden visually but still read by screen readers */
+@media (min-width: 768px) {
+  .app-shell[data-collapsed="true"] .app-sidebar__nav,
+  .app-shell[data-collapsed="true"] .app-sidebar__foot {
+    padding-inline: 0.5rem;
+  }
+  .app-shell[data-collapsed="true"] .app-nav-title {
+    display: none;
+  }
+  .app-shell[data-collapsed="true"] .app-nav-item {
+    width: 2.75rem;
+    height: 2.75rem;
+    margin-inline: auto;
+    padding: 0;
+    justify-content: center;
+  }
+  .app-shell[data-collapsed="true"] .app-nav-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .app-shell[data-collapsed="true"] .app-nav-item.is-active::before {
+    left: -0.5rem;
+  }
+}
+
+.app-tooltip {
+  position: fixed;
+  z-index: 70;
+  padding: 0.375rem 0.625rem;
+  border-radius: 8px;
+  background: var(--color-forest-deep);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: var(--shadow-raised);
+  animation: fade-only var(--dur-fast) var(--ease) both;
+}
+
+/* mobile backdrop: starts under the header, so the burger can still close the drawer */
+.app-scrim {
+  position: fixed;
+  inset: var(--header-h) 0 0 0;
+  z-index: 40;
+  background: rgba(7, 53, 44, 0.5);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  animation: fade-only var(--dur) var(--ease) both;
+}
+@media (min-width: 768px) {
+  .app-scrim {
+    display: none;
+  }
+}
+
+/* ---------- content ---------- */
+.app-main {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  background: var(--color-canvas);
+}
+@media (max-width: 767.98px) {
+  .app-main {
+    grid-column: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell,
+  .app-sidebar,
+  .app-nav-item,
+  .app-iconbtn {
+    transition-duration: 0.01ms !important;
+  }
 }
