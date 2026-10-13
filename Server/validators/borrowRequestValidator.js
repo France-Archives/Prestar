@@ -156,3 +156,81 @@ export function validateReviewBorrowRequest(req, res, next) {
   };
   return next();
 }
+
+export function validateApproveBorrowRequest(req, res, next) {
+  const body = req.body || {};
+  const rawCopyId = body.copy_id ?? body.copyId;
+  let parsedCopyId = null;
+  if (rawCopyId !== undefined && rawCopyId !== null && rawCopyId !== "") {
+    parsedCopyId = parsePositiveId(rawCopyId);
+    if (parsedCopyId === null) {
+      return res.status(400).json({ error: "copy_id must be a positive integer." });
+    }
+  }
+
+  const remarks = body.remarks;
+  if (remarks !== undefined && remarks !== null && (typeof remarks !== "string" || remarks.trim().length > 2000)) {
+    return res.status(400).json({ error: "remarks must be a string up to 2000 characters." });
+  }
+
+  req.approveInput = {
+    decision: "approve",
+    remarks: remarks ? remarks.trim() : "",
+    ...(parsedCopyId !== null ? { copy_id: parsedCopyId, copyId: parsedCopyId } : {}),
+  };
+  return next();
+}
+
+export function validateRejectBorrowRequest(req, res, next) {
+  const body = req.body || {};
+  const remarks = body.remarks ?? body.reason ?? body.notes;
+  if (!remarks || typeof remarks !== "string" || !remarks.trim()) {
+    return res.status(400).json({ error: "remarks, reason, or notes is required when rejecting a request." });
+  }
+  if (remarks.trim().length > 2000) {
+    return res.status(400).json({ error: "remarks must be a string up to 2000 characters." });
+  }
+
+  const reasonCode = body.reason_code ?? body.reasonCode;
+  const formattedRemarks = reasonCode
+    ? `[${reasonCode}] ${remarks.trim()}`
+    : remarks.trim();
+
+  req.rejectInput = {
+    decision: "reject",
+    remarks: formattedRemarks,
+    reasonCode: typeof reasonCode === "string" ? reasonCode.trim() : undefined,
+  };
+  return next();
+}
+
+export function validatePickupHandover(req, res, next) {
+  const body = req.body || {};
+  const copyBarcode = body.copy_barcode ?? body.copyBarcode ?? body.barcode;
+  if (copyBarcode !== undefined && copyBarcode !== null && typeof copyBarcode !== "string") {
+    return res.status(400).json({ error: "copy_barcode must be a string." });
+  }
+  req.handoverInput = {
+    copyBarcode: copyBarcode ? copyBarcode.trim() : undefined,
+  };
+  return next();
+}
+
+export function validateRejectPickup(req, res, next) {
+  const body = req.body || {};
+  const remarks = body.remarks ?? body.reason ?? body.notes;
+  if (!remarks || typeof remarks !== "string" || !remarks.trim()) {
+    return res.status(400).json({ error: "remarks, reason, or notes is required when rejecting a pickup request." });
+  }
+  if (remarks.trim().length > 2000) {
+    return res.status(400).json({ error: "remarks must be a string up to 2000 characters." });
+  }
+
+  const reasonCode = body.reason_code ?? body.reasonCode;
+  req.rejectPickupInput = {
+    remarks: remarks.trim(),
+    reasonCode: typeof reasonCode === "string" ? reasonCode.trim() : undefined,
+  };
+  return next();
+}
+

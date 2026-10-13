@@ -18,7 +18,10 @@ export async function getBook(req, res, next) {
   try {
     const book = await getBookDetails(req.resourceId);
     if (!book) return res.status(404).json({ error: "Active book not found." });
-    return res.status(200).json({ book });
+    return res.status(200).json({
+      data: book,
+      book,
+    });
   } catch (error) {
     return next(error);
   }
@@ -35,7 +38,10 @@ export async function getTopBooks(req, res, next) {
       }
     }
     const books = await getTopBorrowedBooks(topLimit);
-    return res.status(200).json({ books });
+    return res.status(200).json({
+      data: books,
+      books,
+    });
   } catch (error) {
     return next(error);
   }

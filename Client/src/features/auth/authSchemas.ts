@@ -3,6 +3,7 @@ import {
   validateName,
   validatePassword,
   validatePasswordMatch,
+  validateSchoolEmail,
   validateStudentNumber,
   validateYearLevel,
 } from "@/utils/validators";
@@ -67,7 +68,7 @@ export function validateSignup(v: SignupValues): FieldErrors {
     ["middleName", validateName(v.middleName, "Middle name", false)],
     ["studentNumber", validateStudentNumber(v.studentNumber)],
     ["yearLevel", validateYearLevel(v.yearLevel)],
-    ["email", validateEmail(v.email)],
+    ["email", validateSchoolEmail(v.email)],
     ["password", validatePassword(v.password)],
     ["confirm", validatePasswordMatch(v.password, v.confirm)],
   ]);

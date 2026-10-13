@@ -12,6 +12,7 @@ export {
   listMyBorrowRequests,
   listMyBorrowedBooks,
   pickupBook,
+  rejectPickupBook,
   reviewBorrowRequest,
 } from "./borrowFlowService.js";
 

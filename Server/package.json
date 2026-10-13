@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
-    "test": "node --test tests/bookProcessFlow.test.js tests/borrowRequestValidator.test.js tests/otpSignupFlow.test.js tests/otpVerification.test.js"
+    "test": "node --test tests/academicTermsAndVerification.test.js tests/bookProcessFlow.test.js tests/borrowRequestValidator.test.js tests/otpSignupFlow.test.js tests/otpVerification.test.js"
   },
   "keywords": [],
   "author": "",

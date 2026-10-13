@@ -3,15 +3,23 @@ import { Router } from "express";
 import authMiddleware from "../middleware/authMiddleware.js";
 import requireRole from "../middleware/roleMiddleware.js";
 import {
+  approveRequest,
   cancelRequest,
+  confirmHandover,
   createRequest,
   getAvailableCopies,
   listMyRequests,
   listRequestsQueue,
+  rejectHandover,
+  rejectRequest,
   reviewRequest,
 } from "../controllers/borrowRequestController.js";
 import {
+  validateApproveBorrowRequest,
   validateCreateBorrowRequest,
+  validatePickupHandover,
+  validateRejectBorrowRequest,
+  validateRejectPickup,
   validateRequestId,
   validateRequestListQuery,
   validateReviewBorrowRequest,
@@ -50,6 +58,49 @@ router.post(
   validateRequestId,
   validateReviewBorrowRequest,
   reviewRequest,
+);
+
+// 5b. POST /api/borrow-requests/:id/approve [Librarian, Admin]
+router.post(
+  "/:id/approve",
+  staffOnly,
+  validateRequestId,
+  validateApproveBorrowRequest,
+  approveRequest,
+);
+
+// 5c. POST /api/borrow-requests/:id/reject [Librarian, Admin]
+router.post(
+  "/:id/reject",
+  staffOnly,
+  validateRequestId,
+  validateRejectBorrowRequest,
+  rejectRequest,
+);
+
+// 5d. POST /api/borrow-requests/:id/confirm-handover (or /pickup) [Librarian, Admin]
+router.post(
+  "/:id/confirm-handover",
+  staffOnly,
+  validateRequestId,
+  validatePickupHandover,
+  confirmHandover,
+);
+router.post(
+  "/:id/pickup",
+  staffOnly,
+  validateRequestId,
+  validatePickupHandover,
+  confirmHandover,
+);
+
+// 5e. POST /api/borrow-requests/:id/reject-handover [Librarian, Admin]
+router.post(
+  "/:id/reject-handover",
+  staffOnly,
+  validateRequestId,
+  validateRejectPickup,
+  rejectHandover,
 );
 
 export default router;

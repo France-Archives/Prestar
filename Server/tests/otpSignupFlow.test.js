@@ -10,8 +10,28 @@ import {
 } from "../services/signupService.js";
 
 test("New OTP Signup Flow Test Suite", async (t) => {
-  const testEmail = `test_${Date.now()}@prestar.edu`;
+  const testEmail = `test_${Date.now()}@wmsu.edu.ph`;
   const testStudentNo = `SN_${Date.now()}`;
+
+  await t.test("rejects non-WMSU email format during signup", async () => {
+    await assert.rejects(
+      async () => {
+        await createSignup({
+          first_name: "Test",
+          last_name: "Student",
+          email: "student@gmail.com",
+          student_number: `SN_INVALID_${Date.now()}`,
+          password: "StrongPassword123!",
+        });
+      },
+      (err) => {
+        assert.ok(err instanceof SignupError);
+        assert.equal(err.status, 400);
+        assert.equal(err.message, "Email must be a valid WMSU email address ending with @wmsu.edu.ph.");
+        return true;
+      },
+    );
+  });
 
   await t.test("initiates signup and issues 6-digit OTP", async () => {
     const res = await createSignup({
@@ -81,14 +101,14 @@ test("New OTP Signup Flow Test Suite", async (t) => {
     );
 
     const verifyRes = await verifyOtp(testEmail, testOtpCode);
-    assert.ok(verifyRes.user);
-    assert.equal(verifyRes.user.email, testEmail);
-    assert.equal(verifyRes.user.role, "Student");
+    assert.equal(verifyRes.message, "Registration successful. You may now log in.");
+    assert.equal(verifyRes.user, undefined);
 
     // Check DB records
     const user = await User.findOne({ where: { email: testEmail } });
     assert.ok(user);
     assert.equal(user.status, "Active");
+    assert.equal(user.email_verified, true);
 
     const student = await Student.findOne({ where: { user_id: user.id } });
     assert.ok(student);

@@ -1,5 +1,6 @@
 // Server/validators/authValidator.js
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const wmsuEmailPattern = /^[^\s@]+@wmsu\.edu\.ph$/i;
 const studentTypes = new Set(["Regular", "Transferee", "Returnee", "Other"]);
 
 export function validateLogin(req, res, next) {
@@ -76,6 +77,9 @@ export function validateSignup(req, res, next) {
   if (!emailPattern.test(body.email)) {
     return res.status(400).json({ error: "A valid email address is required." });
   }
+  if (!wmsuEmailPattern.test(body.email)) {
+    return res.status(400).json({ error: "Email must be a valid WMSU email address ending with @wmsu.edu.ph." });
+  }
 
   // Password
   if (typeof body.password !== "string" || body.password.length < 8) {
@@ -137,6 +141,9 @@ export function validateVerifyOtp(req, res, next) {
   if (!emailPattern.test(normalizedEmail)) {
     return res.status(400).json({ error: "A valid email address is required." });
   }
+  if (!wmsuEmailPattern.test(normalizedEmail)) {
+    return res.status(400).json({ error: "Email must be a valid WMSU email address ending with @wmsu.edu.ph." });
+  }
 
   if (typeof otp !== "string" || !/^\d{6}$/.test(otp.trim())) {
     return res.status(400).json({ error: "A 6-digit OTP is required." });
@@ -153,6 +160,9 @@ export function validateResendOtp(req, res, next) {
 
   if (!emailPattern.test(normalizedEmail)) {
     return res.status(400).json({ error: "A valid email address is required." });
+  }
+  if (!wmsuEmailPattern.test(normalizedEmail)) {
+    return res.status(400).json({ error: "Email must be a valid WMSU email address ending with @wmsu.edu.ph." });
   }
 
   req.body.email = normalizedEmail;

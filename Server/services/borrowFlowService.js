@@ -203,25 +203,16 @@ export async function createBorrowRequest({ userId, bookId, requestedDays }) {
 
       return {
         id: created.request_id,
-        request_id: created.request_id,
-        user_id: created.user_id,
+        requestId: created.request_id,
         userId: created.user_id,
-        book_id: created.book_id,
         bookId: created.book_id,
-        book_title: book.title,
         bookTitle: book.title,
-        requested_days: created.requested_days,
-        requestedDays: created.requested_days,
         requestedDurationDays: created.requested_days,
         status: created.status,
-        request_date: created.request_date,
         requestedAt: created.request_date,
-        decision_reason: null,
         decisionReason: null,
         remarks: null,
-        assigned_copy_id: null,
         assignedCopyId: null,
-        pickup_deadline: null,
         pickupDeadline: null,
       };
     });
@@ -527,25 +518,44 @@ export async function reviewBorrowRequest({
 
     return {
       message: "Request approved and copy reserved.",
-      request_id: requestId,
+      requestId,
       status: "Approved",
-      borrow_id: borrowedBook.borrow_id,
+      borrowId: borrowedBook.borrow_id,
       loan: borrowedBook,
-      copy_id: chosenCopyId,
-      pickup_deadline: pickupDeadline,
+      copyId: chosenCopyId,
+      pickupDeadline,
     };
   });
 }
 
 /**
- * Step 4: Librarian marks a reserved loan picked up.
+ * Step 4: Librarian marks a reserved loan picked up (Confirm Handover).
+ * Accepts either borrowId (from borrowed_books) or requestId (from borrow_requests).
  */
-export async function pickupBook({ borrowId, issuerId }) {
+export async function pickupBook({ borrowId, requestId, issuerId, copyBarcode }) {
   return withActor(issuerId, async (transaction) => {
-    const loan = await BorrowedBook.findByPk(borrowId, {
-      transaction,
-      lock: transaction.LOCK.UPDATE,
-    });
+    let loan;
+    if (borrowId) {
+      loan = await BorrowedBook.findByPk(borrowId, {
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+    } else if (requestId) {
+      loan = await BorrowedBook.findOne({
+        where: { request_id: requestId, status: "Reserved" },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+      // Fallback if loan already transitioned
+      if (!loan) {
+        loan = await BorrowedBook.findOne({
+          where: { request_id: requestId },
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+        });
+      }
+    }
+
     if (!loan) {
       throw new BorrowFlowError(404, "LOAN_NOT_FOUND", "Borrowed book record not found.");
     }
@@ -580,6 +590,20 @@ export async function pickupBook({ borrowId, issuerId }) {
         "INVALID_STATUS",
         "Loan is not in Reserved status or request is not Approved.",
       );
+    }
+
+    // Optional barcode verification (e.g. from scanner)
+    if (copyBarcode && typeof copyBarcode === "string" && copyBarcode.trim()) {
+      const scanned = copyBarcode.trim();
+      const matchesBarcode = copy.barcode && copy.barcode.trim() === scanned;
+      const matchesAccession = copy.accession_no && copy.accession_no.trim() === scanned;
+      if (!matchesBarcode && !matchesAccession) {
+        throw new BorrowFlowError(
+          422,
+          "BARCODE_MISMATCH",
+          "The scanned barcode does not match the assigned book copy.",
+        );
+      }
     }
 
     if (
@@ -645,10 +669,113 @@ export async function pickupBook({ borrowId, issuerId }) {
 
     return {
       message: "Book pickup confirmed successfully.",
-      borrow_id: loan.borrow_id,
-      borrow_date: now,
-      due_date: dueDateStr,
+      id: loan.borrow_id,
+      borrowId: loan.borrow_id,
+      requestId: request.request_id,
+      borrowDate: now,
+      dueAt: dueDateStr,
+      dueDate: dueDateStr,
       status: "Borrowed",
+    };
+  });
+}
+
+/**
+ * Step 4b: Librarian rejects a reserved pickup handover.
+ * Releases the reserved copy back to 'Available' and cancels the loan.
+ */
+export async function rejectPickupBook({ borrowId, requestId, staffId, remarks, reasonCode }) {
+  if (!remarks || typeof remarks !== "string" || !remarks.trim()) {
+    throw new BorrowFlowError(400, "REMARKS_REQUIRED", "Rejection remarks/reason is required.");
+  }
+  const cleanRemarks = remarks.trim();
+
+  return withActor(staffId, async (transaction) => {
+    let loan;
+    if (borrowId) {
+      loan = await BorrowedBook.findByPk(borrowId, {
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+    } else if (requestId) {
+      loan = await BorrowedBook.findOne({
+        where: { request_id: requestId, status: "Reserved" },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+      if (!loan) {
+        loan = await BorrowedBook.findOne({
+          where: { request_id: requestId },
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+        });
+      }
+    }
+
+    if (!loan) {
+      throw new BorrowFlowError(404, "LOAN_NOT_FOUND", "Borrowed book record not found.");
+    }
+
+    const request = await BorrowRequest.findByPk(loan.request_id, {
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+    if (!request) {
+      throw new BorrowFlowError(
+        404,
+        "REQUEST_NOT_FOUND",
+        "Associated borrow request not found.",
+      );
+    }
+
+    const copy = await BookCopy.findByPk(loan.copy_id, {
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+
+    if (loan.status !== "Reserved" || request.status !== "Approved") {
+      throw new BorrowFlowError(
+        409,
+        "INVALID_STATUS",
+        "Only an approved and reserved pickup request can be rejected at handover.",
+      );
+    }
+
+    // Cancel reserved loan record
+    await loan.update({ status: "Cancelled" }, { transaction });
+
+    // Release copy back to Available
+    if (copy) {
+      await copy.update({ status: "Available" }, { transaction });
+    }
+
+    const formattedRemarks = reasonCode
+      ? `[${reasonCode}] ${cleanRemarks}`
+      : cleanRemarks;
+
+    // Reject request
+    await BorrowRequest.update(
+      {
+        status: "Rejected",
+        remarks: formattedRemarks,
+        reviewed_by: staffId,
+        reviewed_at: new Date(),
+      },
+      {
+        where: { request_id: request.request_id },
+        fields: ["status", "remarks", "reviewed_by", "reviewed_at"],
+        transaction,
+      },
+    );
+
+    return {
+      message: "Pickup request rejected successfully. The assigned copy has been released.",
+      requestId: request.request_id,
+      borrowId: loan.borrow_id,
+      copyId: loan.copy_id,
+      status: "Rejected",
+      copyStatus: "Available",
+      remarks: formattedRemarks,
     };
   });
 }
@@ -784,25 +911,17 @@ export async function listMyBorrowRequests(userId, { page = 1, limit = 10 }) {
 
   const formatted = rows.map((reqRow) => ({
     id: reqRow.request_id,
-    request_id: reqRow.request_id,
     bookId: reqRow.book_id,
-    book_id: reqRow.book_id,
     bookTitle: reqRow.book?.title || null,
-    book_title: reqRow.book?.title || null,
     author: reqRow.book?.author
       ? `${reqRow.book.author.first_name} ${reqRow.book.author.last_name}`
       : null,
     requestedDurationDays: reqRow.requested_days,
-    requestedDays: reqRow.requested_days,
-    requested_days: reqRow.requested_days,
     requestedAt: reqRow.request_date,
-    request_date: reqRow.request_date,
     status: reqRow.status,
     remarks: reqRow.remarks,
     decisionReason: reqRow.remarks,
-    decision_reason: reqRow.remarks,
     pickupDeadline: reqRow.pickup_deadline,
-    pickup_deadline: reqRow.pickup_deadline,
   }));
 
   return {
@@ -870,27 +989,19 @@ export async function listBorrowRequestsQueue({
       const eligibility = await checkBorrowEligibility(row.user_id);
       return {
         id: row.request_id,
-        request_id: row.request_id,
         userId: row.user_id,
-        user_id: row.user_id,
         bookId: row.book_id,
-        book_id: row.book_id,
         requestedDurationDays: row.requested_days,
-        requestedDays: row.requested_days,
-        requested_days: row.requested_days,
         requestedAt: row.request_date,
-        request_date: row.request_date,
         status: row.status,
-        reviewed_by: row.reviewed_by,
-        reviewed_at: row.reviewed_at,
+        reviewedBy: row.reviewed_by,
+        reviewedAt: row.reviewed_at,
         pickupDeadline: row.pickup_deadline,
-        pickup_deadline: row.pickup_deadline,
         decisionReason: row.remarks,
         remarks: row.remarks,
         book: row.book
           ? {
               id: row.book.book_id,
-              book_id: row.book.book_id,
               title: row.book.title,
               isbn: row.book.isbn,
             }
@@ -899,22 +1010,19 @@ export async function listBorrowRequestsQueue({
           ? {
               id: row.student.user_id,
               userId: row.student.user_id,
-              user_id: row.student.user_id,
               name: row.student.user
                 ? `${row.student.user.first_name} ${row.student.user.last_name}`
                 : null,
               studentNumber: row.student.student_number,
-              student_number: row.student.student_number,
               college: row.student.college,
               program: row.student.course,
               course: row.student.course,
               yearLevel: row.student.year_level,
-              year_level: row.student.year_level,
             }
           : null,
         eligibility: {
           eligible: eligibility.eligible,
-          reason_codes: eligibility.reasons.map((r) => r.code),
+          reasonCodes: eligibility.reasons.map((r) => r.code),
           reasons: eligibility.reasons,
         },
       };
@@ -1016,23 +1124,29 @@ export async function listMyBorrowedBooks(userId, { status }) {
     }
 
     return {
-      borrow_id: loan.borrow_id,
+      id: loan.borrow_id,
+      borrowId: loan.borrow_id,
+      bookId: loan.book_id,
       book: {
+        id: loan.book?.book_id,
         title: loan.book?.title,
-        cover_image: loan.book?.cover_image,
+        coverImageUrl: loan.book?.cover_image || null,
         author: loan.book?.author
           ? `${loan.book.author.first_name} ${loan.book.author.last_name}`
           : null,
       },
-      accession_no: loan.copy?.accession_no,
-      shelf_location: loan.copy?.shelf_location,
+      copyId: loan.copy_id,
+      accessionNo: loan.copy?.accession_no,
+      shelfLocation: loan.copy?.shelf_location,
       status: loan.status,
-      pickup_deadline:
+      pickupDeadline:
         loan.status === "Reserved" ? loan.request?.pickup_deadline : null,
-      borrow_date: loan.borrow_date,
-      due_date: loan.due_date,
-      days_remaining: daysRemaining,
-      is_overdue: isOverdue,
+      borrowedAt: loan.borrow_date,
+      borrowDate: loan.borrow_date,
+      dueAt: loan.due_date,
+      dueDate: loan.due_date,
+      daysRemaining,
+      isOverdue,
     };
   });
 }
@@ -1140,25 +1254,29 @@ export async function listBorrowedBooksStaff({
     const student = loan.request?.student;
     const user = student?.user;
     return {
-      borrow_id: loan.borrow_id,
-      request_id: loan.request_id,
+      id: loan.borrow_id,
+      borrowId: loan.borrow_id,
+      requestId: loan.request_id,
       status: loan.status,
-      borrow_date: loan.borrow_date,
-      due_date: loan.due_date,
-      pickup_deadline: loan.request?.pickup_deadline,
+      borrowedAt: loan.borrow_date,
+      borrowDate: loan.borrow_date,
+      dueAt: loan.due_date,
+      dueDate: loan.due_date,
+      pickupDeadline: loan.request?.pickup_deadline,
       book: {
-        book_id: loan.book?.book_id,
+        id: loan.book?.book_id,
         title: loan.book?.title,
         isbn: loan.book?.isbn,
       },
       copy: {
-        copy_id: loan.copy?.copy_id,
-        accession_no: loan.copy?.accession_no,
-        shelf_location: loan.copy?.shelf_location,
+        id: loan.copy?.copy_id,
+        accessionNo: loan.copy?.accession_no,
+        shelfLocation: loan.copy?.shelf_location,
       },
       student: {
-        user_id: student?.user_id,
-        student_number: student?.student_number,
+        id: student?.user_id,
+        userId: student?.user_id,
+        studentNumber: student?.student_number,
         name: user ? `${user.first_name} ${user.last_name}` : null,
         email: user?.email,
       },

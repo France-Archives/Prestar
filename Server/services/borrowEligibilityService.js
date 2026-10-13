@@ -6,6 +6,7 @@ import {
   User,
   sequelize,
 } from "../models/index.js";
+import { expireOverdueVerifications } from "./academicTermService.js";
 
 /**
  * Checks borrow eligibility for a given user.
@@ -32,6 +33,9 @@ export async function checkBorrowEligibility(userId, options = {}) {
       message: "User account is not active."
     });
   }
+
+  // Lazily transition any overdue approved verifications to 'Expired'
+  await expireOverdueVerifications(new Date(), { transaction });
 
   // 2. NO_ACTIVE_TERM: must have an academic_terms row with status = 'Active'
   const activeTerm = await AcademicTerm.findOne({
@@ -71,6 +75,13 @@ export async function checkBorrowEligibility(userId, options = {}) {
         code: "VERIFICATION_REJECTED",
         message: "Student enrollment verification was rejected.",
         remarks: verification.remarks || null,
+      });
+    } else if (verification.status === "Expired") {
+      reasons.push({
+        code: "VERIFICATION_EXPIRED",
+        message: "Student enrollment verification has expired for the current date.",
+        valid_from: verification.valid_from,
+        valid_until: verification.valid_until,
       });
     } else if (verification.status === "Approved") {
       const todayStr = new Date().toISOString().slice(0, 10);

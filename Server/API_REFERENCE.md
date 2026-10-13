@@ -79,9 +79,22 @@ Return the currently authenticated user's profile.
   "user": {
     "id": 1,
     "email": "student@example.com",
-    "role": "Student"
+    "role": "Student",
+    "accountStatus": "ACTIVE",
+    "firstName": "Juan",
+    "lastName": "Dela Cruz",
+    "displayName": "Juan Dela Cruz",
+    "student": {
+      "id": 1,
+      "userId": 1,
+      "studentNumber": "2024-00001",
+      "college": "College of Computer Studies",
+      "course": "BS Information Technology",
+      "program": "BS Information Technology",
+      "yearLevel": 1
+    }
   },
-  "dashboard_url": "/student/dashboard"
+  "dashboardUrl": "/student/dashboard"
 }
 ```
 
@@ -103,7 +116,7 @@ Initiate registration and dispatch a 6-digit OTP code to the provided email via 
 **Request body**
 ```json
 {
-  "email": "student@example.edu",
+  "email": "student@wmsu.edu.ph",
   "password": "StrongPassword123!",
   "first_name": "Juan",
   "last_name": "Dela Cruz",
@@ -115,12 +128,16 @@ Initiate registration and dispatch a 6-digit OTP code to the provided email via 
 }
 ```
 
+> **Email requirement**: Must be a valid institutional WMSU email ending with `@wmsu.edu.ph`.
+
 **Success `200`**
 ```json
 {
   "message": "OTP sent to your email. Please verify to complete your registration.",
-  "email": "student@example.edu",
+  "email": "student@wmsu.edu.ph",
+  "cooldownSeconds": 120,
   "cooldown_seconds": 120,
+  "remainingOtps": 2,
   "remaining_otps": 2
 }
 ```
@@ -149,18 +166,10 @@ Verify the 6-digit OTP code received via email and finalize account creation in 
 }
 ```
 
-**Success `201`**
+**Success `200`**
 ```json
 {
-  "message": "Registration successful. You may now log in.",
-  "user": {
-    "id": 1,
-    "email": "student@example.edu",
-    "role": "Student",
-    "student_number": "2024-00001",
-    "first_name": "Juan",
-    "last_name": "Dela Cruz"
-  }
+  "message": "Registration successful. You may now log in."
 }
 ```
 
@@ -232,31 +241,40 @@ List books with pagination, optional full-text search, and optional category fil
 **Success `200`**
 ```json
 {
-  "books": [
+  "data": [
     {
       "id": 1,
-      "book_id": 1,
+      "bookId": 1,
       "title": "Introduction to Algorithms",
       "isbn": "978-0-262-04630-5",
       "description": "...",
       "coverImageUrl": "https://...",
-      "cover_image": "https://...",
       "publicationYear": 2009,
       "publisher": "MIT Press",
-      "author": { "id": 3, "name": "Thomas Cormen", "first_name": "Thomas", "last_name": "Cormen" },
+      "language": "English",
+      "price": "89.99",
+      "status": "Active",
+      "author": { "id": 3, "name": "Thomas Cormen" },
       "authors": [{ "id": 3, "name": "Thomas Cormen" }],
       "category": { "id": 2, "name": "Computer Science" },
       "availability": { "availableCopies": 3, "totalUsableCopies": 3 },
-      "available_copies": 3,
-      "isArchived": false
+      "availableCopies": 3,
+      "isArchived": false,
+      "createdAt": "2026-01-10T12:00:00.000Z",
+      "updatedAt": "2026-02-15T08:30:00.000Z"
     }
   ],
+  "books": [ /* same array of books */ ],
   "pagination": {
     "page": 1,
     "limit": 20,
     "total": 42,
-    "total_pages": 3,
     "totalPages": 3
+  },
+  "meta": {
+    "page": 1,
+    "pageSize": 20,
+    "total": 42
   }
 }
 ```
@@ -284,13 +302,31 @@ Retrieve full details for a single active book, including copy availability.
 **Success `200`**
 ```json
 {
-  "book": {
+  "data": {
     "id": 5,
+    "bookId": 5,
     "title": "Introduction to Algorithms",
-    "author": "...",
-    "available_copies": 2,
-    "copies": [ { "id": 12, "status": "Available", "condition": "Good" } ]
-  }
+    "isbn": "978-0-262-04630-5",
+    "description": "...",
+    "coverImageUrl": "https://...",
+    "publisher": "MIT Press",
+    "publicationYear": 2009,
+    "language": "English",
+    "price": "89.99",
+    "status": "Active",
+    "author": { "id": 3, "name": "Thomas Cormen" },
+    "authors": [{ "id": 3, "name": "Thomas Cormen" }],
+    "category": { "id": 2, "name": "Computer Science" },
+    "availability": {
+      "availableCopies": 2,
+      "totalUsableCopies": 4
+    },
+    "availableCopies": 2,
+    "isArchived": false,
+    "createdAt": "2026-01-10T12:00:00.000Z",
+    "updatedAt": "2026-02-15T08:30:00.000Z"
+  },
+  "book": { /* same clean book object */ }
 }
 ```
 
@@ -320,26 +356,26 @@ Returns the top most-borrowed books ranked by total loan count (books that were 
 **Success `200`**
 ```json
 {
-  "books": [
+  "data": [
     {
-      "bookId": 1,
-      "book_id": 1,
       "id": 1,
+      "bookId": 1,
       "title": "Introduction to Algorithms",
       "loanCount": 42,
-      "loan_count": 42,
       "isbn": "978-0-262-04630-5",
+      "description": "...",
       "coverImageUrl": "https://...",
-      "cover_image": "https://...",
       "author": { "id": 3, "name": "Thomas Cormen" },
       "authors": [{ "id": 3, "name": "Thomas Cormen" }],
       "category": { "id": 2, "name": "Computer Science" },
       "availability": {
         "availableCopies": 3,
         "totalUsableCopies": 5
-      }
+      },
+      "availableCopies": 3
     }
-  ]
+  ],
+  "books": [ /* same array of top books */ ]
 }
 ```
 
@@ -397,13 +433,21 @@ Submit a new borrow request for an active book.
 ```json
 {
   "message": "Borrow request created successfully.",
-  "request": {
-    "request_id": 101,
-    "user_id": 9001,
-    "book_id": 5,
-    "requested_days": 7,
+  "data": {
+    "id": 101,
+    "userId": 9001,
+    "bookId": 5,
+    "requestedDurationDays": 7,
     "status": "Pending",
-    "request_date": "2026-10-11T09:00:00.000Z"
+    "requestedAt": "2026-10-11T09:00:00.000Z"
+  },
+  "request": {
+    "id": 101,
+    "userId": 9001,
+    "bookId": 5,
+    "requestedDurationDays": 7,
+    "status": "Pending",
+    "requestedAt": "2026-10-11T09:00:00.000Z"
   }
 }
 ```
@@ -440,15 +484,16 @@ List the authenticated student's own borrow requests (newest first, paginated).
 {
   "requests": [
     {
-      "request_id": 101,
-      "book_id": 5,
-      "book_title": "Design Patterns",
+      "id": 101,
+      "bookId": 5,
+      "bookTitle": "Design Patterns",
       "author": "Erich Gamma, Richard Helm",
-      "requested_days": 7,
-      "request_date": "2026-10-11T09:00:00.000Z",
+      "requestedDurationDays": 7,
+      "requestedAt": "2026-10-11T09:00:00.000Z",
       "status": "Pending",
       "remarks": null,
-      "pickup_deadline": null
+      "decisionReason": null,
+      "pickupDeadline": null
     }
   ],
   "pagination": {
@@ -490,32 +535,33 @@ Review queue for staff — lists pending requests (or filtered by status), oldes
 {
   "requests": [
     {
-      "request_id": 101,
-      "user_id": 9001,
-      "book_id": 5,
-      "requested_days": 7,
-      "request_date": "2026-10-11T09:00:00.000Z",
+      "id": 101,
+      "userId": 9001,
+      "bookId": 5,
+      "requestedDurationDays": 7,
+      "requestedAt": "2026-10-11T09:00:00.000Z",
       "status": "Pending",
-      "reviewed_by": null,
-      "reviewed_at": null,
-      "pickup_deadline": null,
+      "reviewedBy": null,
+      "reviewedAt": null,
+      "pickupDeadline": null,
+      "decisionReason": null,
       "remarks": null,
       "book": {
-        "book_id": 5,
+        "id": 5,
         "title": "Design Patterns",
         "isbn": "978-0201633610"
       },
       "student": {
-        "user_id": 9001,
+        "id": 9001,
         "name": "Jane Doe",
-        "student_number": "SN-2024-001",
+        "studentNumber": "SN-2024-001",
         "college": "CCS",
-        "course": "BSIT",
-        "year_level": 3
+        "program": "BSIT",
+        "yearLevel": 3
       },
       "eligibility": {
         "eligible": true,
-        "reason_codes": [],
+        "reasonCodes": [],
         "reasons": []
       }
     }
@@ -606,10 +652,10 @@ Approve or reject a **Pending** borrow request. Atomic transaction with row-leve
 ```json
 {
   "message": "Request approved and copy reserved.",
-  "request_id": 101,
-  "borrow_id": 55,
-  "copy_id": 12,
-  "pickup_deadline": "2026-10-14T09:00:00.000Z"
+  "requestId": 101,
+  "borrowId": 55,
+  "copyId": 12,
+  "pickupDeadline": "2026-10-14T09:00:00.000Z"
 }
 ```
 
@@ -617,7 +663,7 @@ Approve or reject a **Pending** borrow request. Atomic transaction with row-leve
 ```json
 {
   "message": "Request rejected successfully.",
-  "request_id": 101,
+  "requestId": 101,
   "status": "Rejected",
   "remarks": "Reason for rejection"
 }
@@ -631,6 +677,105 @@ Approve or reject a **Pending** borrow request. Atomic transaction with row-leve
 | `403` | Role not allowed |
 | `404` | Request not found |
 | `409` | Request not in Pending status, student ineligible (`STUDENT_INELIGIBLE`), limits exceeded (`MAX_COPIES_PER_BOOK_EXCEEDED`, `MAX_ACTIVE_BORROWS_EXCEEDED`), or copy not available (`NO_COPY_AVAILABLE`) |
+
+---
+
+### 3.6 `POST /api/borrow-requests/:id/approve`
+*(Role: Librarian, Admin)* Dedicated endpoint to approve a pending borrow request, auto-assigning (or selecting) an available copy and reserving it.
+
+**Request body**
+```json
+{
+  "copy_id": 12,
+  "remarks": "Approved by librarian"
+}
+```
+
+**Success `200`**
+```json
+{
+  "message": "Request approved and copy reserved.",
+  "requestId": 101,
+  "borrowId": 55,
+  "copyId": 12,
+  "pickupDeadline": "2026-10-15T09:00:00.000Z"
+}
+```
+
+---
+
+### 3.7 `POST /api/borrow-requests/:id/reject`
+*(Role: Librarian, Admin)* Dedicated endpoint to reject a pending borrow request with a required reason.
+
+**Request body**
+```json
+{
+  "remarks": "Course limit exceeded"
+}
+```
+
+**Success `200`**
+```json
+{
+  "message": "Request rejected successfully.",
+  "requestId": 101,
+  "status": "Rejected",
+  "remarks": "Course limit exceeded"
+}
+```
+
+---
+
+### 3.8 `POST /api/borrow-requests/:id/confirm-handover`
+*(Role: Librarian, Admin)* (Alias: `POST /api/borrow-requests/:id/pickup`)
+Confirm book handover by request ID. Releases the reserved copy to the student as an active loan (`status = 'Borrowed'`).
+
+**Request body (optional barcode scan verification):**
+```json
+{
+  "copy_barcode": "ACC-00012"
+}
+```
+
+**Success `200`**
+```json
+{
+  "message": "Book pickup confirmed successfully.",
+  "id": 55,
+  "borrowId": 55,
+  "requestId": 101,
+  "borrowDate": "2026-10-12T10:00:00.000Z",
+  "dueAt": "2026-10-26",
+  "dueDate": "2026-10-26",
+  "status": "Borrowed"
+}
+```
+
+---
+
+### 3.9 `POST /api/borrow-requests/:id/reject-handover`
+*(Role: Librarian, Admin)* Reject handover at the pickup desk. Cancels the reservation, releases the assigned copy back to `Available`, and marks request as `Rejected`.
+
+**Request body:**
+```json
+{
+  "remarks": "Student presented invalid ID",
+  "reason_code": "STUDENT_NOT_PRESENT"
+}
+```
+
+**Success `200`**
+```json
+{
+  "message": "Pickup request rejected successfully. The assigned copy has been released.",
+  "requestId": 101,
+  "borrowId": 55,
+  "copyId": 12,
+  "status": "Rejected",
+  "copyStatus": "Available",
+  "remarks": "[STUDENT_NOT_PRESENT] Student presented invalid ID"
+}
+```
 
 ---
 
@@ -658,20 +803,25 @@ List the authenticated student's own loans (Reserved for pickup or on loan). Stu
 {
   "loans": [
     {
-      "borrow_id": 55,
+      "id": 55,
+      "borrowId": 55,
+      "bookId": 5,
       "book": {
+        "id": 5,
         "title": "Design Patterns",
-        "cover_image": "https://example.com/cover.jpg",
+        "coverImageUrl": "https://example.com/cover.jpg",
         "author": "Erich Gamma, Richard Helm"
       },
-      "accession_no": "ACC-00012",
-      "shelf_location": "Shelf B-3",
+      "copyId": 12,
+      "accessionNo": "ACC-00012",
+      "shelfLocation": "Shelf B-3",
       "status": "Reserved",
-      "pickup_deadline": "2026-10-14T09:00:00.000Z",
-      "borrow_date": null,
-      "due_date": null,
-      "days_remaining": null,
-      "is_overdue": false
+      "pickupDeadline": "2026-10-14T09:00:00.000Z",
+      "borrowedAt": null,
+      "dueAt": null,
+      "dueDate": null,
+      "daysRemaining": null,
+      "isOverdue": false
     }
   ]
 }
@@ -701,25 +851,28 @@ Staff list of borrowed books (Reserved or Borrowed). Searchable by `student_numb
 {
   "loans": [
     {
-      "borrow_id": 55,
-      "request_id": 101,
+      "id": 55,
+      "borrowId": 55,
+      "requestId": 101,
       "status": "Reserved",
-      "borrow_date": null,
-      "due_date": null,
-      "pickup_deadline": "2026-10-14T09:00:00.000Z",
+      "borrowedAt": null,
+      "dueAt": null,
+      "dueDate": null,
+      "pickupDeadline": "2026-10-14T09:00:00.000Z",
       "book": {
-        "book_id": 5,
+        "id": 5,
         "title": "Design Patterns",
         "isbn": "978-0201633610"
       },
       "copy": {
-        "copy_id": 12,
-        "accession_no": "ACC-00012",
-        "shelf_location": "Shelf B-3"
+        "id": 12,
+        "accessionNo": "ACC-00012",
+        "shelfLocation": "Shelf B-3"
       },
       "student": {
-        "user_id": 9001,
-        "student_number": "SN-2024-001",
+        "id": 9001,
+        "userId": 9001,
+        "studentNumber": "SN-2024-001",
         "name": "Jane Doe",
         "email": "jane@university.edu"
       }
@@ -792,9 +945,11 @@ Mark an approved and reserved book as picked up and borrowed. Executed in a sing
 ```json
 {
   "message": "Book pickup confirmed successfully.",
-  "borrow_id": 55,
-  "borrow_date": "2026-10-11T10:00:00.000Z",
-  "due_date": "2026-10-18",
+  "id": 55,
+  "borrowId": 55,
+  "borrowDate": "2026-10-11T10:00:00.000Z",
+  "dueAt": "2026-10-18",
+  "dueDate": "2026-10-18",
   "status": "Borrowed"
 }
 ```
@@ -807,6 +962,33 @@ Mark an approved and reserved book as picked up and borrowed. Executed in a sing
 | `403` | Role not allowed |
 | `404` | Loan or request not found |
 | `409` | Loan not in Reserved status (`INVALID_STATUS`), pickup deadline expired (`PICKUP_EXPIRED`), student ineligible (`STUDENT_INELIGIBLE`), or max active borrows exceeded |
+
+---
+
+### 4.5 `POST /api/borrowed-books/:id/reject-pickup`
+*(Role: Librarian, Admin)* (Alias: `POST /api/borrowed-books/:id/reject`)
+Reject handover by loan/borrow ID (`borrow_id`). Cancels the loan (`status = 'Cancelled'`), releases the assigned copy back to `Available`, and marks the request as `Rejected`.
+
+**Request body:**
+```json
+{
+  "remarks": "Student did not claim before counter close",
+  "reason_code": "STUDENT_NOT_PRESENT"
+}
+```
+
+**Success `200`**
+```json
+{
+  "message": "Pickup request rejected successfully. The assigned copy has been released.",
+  "requestId": 101,
+  "borrowId": 55,
+  "copyId": 12,
+  "status": "Rejected",
+  "copyStatus": "Available",
+  "remarks": "[STUDENT_NOT_PRESENT] Student did not claim before counter close"
+}
+```
 
 ---
 
@@ -839,5 +1021,93 @@ Error responses return JSON with standardized message and error code structures:
 
 ---
 
-*Generated: 2026-10-11 — Prestar Library Management System Backend v3*
+## 6. Academic Terms & COR Verification
+
+### Term Schedule Rules
+- **1st Term (First Semester):** August 1 to December 31 (`YYYY-08-01` to `YYYY-12-31`). Deadline: `YYYY-12-31`.
+- **2nd Term (Second Semester):** January 1 to May 31 (`YYYY-01-01` to `YYYY-05-31`). Deadline: `YYYY-05-31`.
+- **Summer Term:** June 1 to July 31 (`YYYY-06-01` to `YYYY-07-31`). Deadline: `YYYY-07-31`.
+
+### Verification Lifecycle Rules
+1. **Approval Date Determines Term:** When staff approves a COR verification, the academic term is dynamically assigned based on the approval date.
+2. **Start Date (`valid_from`):** Populated with the approval date (`YYYY-MM-DD`).
+3. **End Date / Deadline (`valid_until`):** Always set to the end of the month of the respective term (`12-31`, `05-31`, or `07-31`).
+4. **Expiration (`status = 'Expired'`):** When the current date passes `valid_until`, the COR status becomes `Expired`, and borrowing is blocked with `VERIFICATION_EXPIRED`.
+
+### 6.1 `GET /api/academic-terms`
+Returns the list of academic terms sorted by start date.
+
+**Success `200`**
+```json
+[
+  {
+    "id": 1,
+    "termId": 1,
+    "term_id": 1,
+    "name": "1st Semester 2026-2027",
+    "startDate": "2026-08-01",
+    "endDate": "2026-12-31",
+    "corDeadline": "2026-12-31",
+    "status": "Active"
+  }
+]
+```
+
+### 6.2 `GET /api/me/verifications`
+Returns the authenticated student's COR verifications.
+
+**Success `200`**
+```json
+[
+  {
+    "id": 1,
+    "verificationId": 1,
+    "userId": 42,
+    "termId": 1,
+    "termName": "1st Semester 2026-2027",
+    "status": "Approved",
+    "validFrom": "2026-10-12",
+    "validUntil": "2026-12-31",
+    "submittedAt": "2026-10-10T08:00:00.000Z",
+    "reviewedAt": "2026-10-12T09:30:00.000Z"
+  }
+]
+```
+
+### 6.3 `POST /api/me/verifications`
+Submits a student COR proof document.
+
+**Payload:**
+```json
+{
+  "proof_file": "cor_document_data_or_url"
+}
+```
+
+### 6.4 `GET /api/staff/verifications`
+*(Role: Librarian, Admin)* Lists the verification queue with optional `?status=Pending` and `?search=`.
+
+### 6.5 `POST /api/staff/verifications/:id/approve`
+*(Role: Librarian, Admin)* Approves student COR, setting `valid_from` to the approval date, `valid_until` to the term's end date, and status to `Approved`.
+
+**Payload:**
+```json
+{
+  "remarks": "Approved"
+}
+```
+
+### 6.6 `POST /api/staff/verifications/:id/reject`
+*(Role: Librarian, Admin)* Rejects student COR with required reason.
+
+**Payload:**
+```json
+{
+  "reason": "Document blurred or invalid term"
+}
+```
+
+---
+
+*Generated: 2026-10-12 — Prestar Library Management System Backend v3*
 

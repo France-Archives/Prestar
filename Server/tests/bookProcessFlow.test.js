@@ -24,6 +24,7 @@ import {
   createBorrowRequest,
   listMyBorrowRequests,
   pickupBook,
+  rejectPickupBook,
   reviewBorrowRequest,
 } from "../services/borrowFlowService.js";
 import {
@@ -100,7 +101,7 @@ describe("Book Process & Frontend Form Integration Test Suite", () => {
       studentNumber: `SN-${uniqueSuffix}`,
       program: "BS Computer Science", // Frontend sends program
       yearLevel: 3, // Frontend sends yearLevel
-      email: `student_${uniqueSuffix}@prestar.edu`,
+      email: `student_${uniqueSuffix}@wmsu.edu.ph`,
       password: "StrongPassword123!",
     };
 
@@ -121,8 +122,7 @@ describe("Book Process & Frontend Form Integration Test Suite", () => {
     await otpRecord.update({ otp_hash: otpHashed });
 
     const verifyRes = await verifyOtp(signupData.email, testCode);
-    assert.equal(verifyRes.user.program, "BS Computer Science");
-    assert.equal(verifyRes.user.course, "BS Computer Science");
+    assert.equal(verifyRes.message, "Registration successful. You may now log in.");
 
     // Check DB student record
     testUser = await User.findOne({ where: { email: signupData.email } });
@@ -156,22 +156,20 @@ describe("Book Process & Frontend Form Integration Test Suite", () => {
 
     assert.ok(requestRes);
     assert.equal(requestRes.requestedDurationDays, 14);
-    assert.equal(requestRes.requested_days, 14);
     assert.equal(requestRes.status, "Pending");
 
     // Verify stored in DB borrow_requests table
-    const dbReq = await BorrowRequest.findByPk(requestRes.request_id);
+    const dbReq = await BorrowRequest.findByPk(requestRes.id);
     assert.ok(dbReq);
     assert.equal(dbReq.requested_days, 14);
   });
 
-  it("3. Student lists own requests and receives both camelCase and snake_case properties", async () => {
+  it("3. Student lists own requests and receives clean camelCase properties", async () => {
     const listRes = await listMyBorrowRequests(testUser.id, { page: 1, limit: 10 });
     assert.ok(listRes.requests.length >= 1);
 
     const first = listRes.requests[0];
     assert.equal(first.requestedDurationDays, 14);
-    assert.equal(first.requested_days, 14);
     assert.equal(first.bookId, testBook.book_id);
     assert.equal(first.status, "Pending");
   });
@@ -211,11 +209,11 @@ describe("Book Process & Frontend Form Integration Test Suite", () => {
     });
 
     assert.equal(pickupRes.status, "Borrowed");
-    assert.ok(pickupRes.due_date);
+    assert.ok(pickupRes.dueAt || pickupRes.dueDate);
 
     // Verify due_date is approximately 14 days from now
     const now = new Date();
-    const dueDate = new Date(pickupRes.due_date);
+    const dueDate = new Date(pickupRes.dueAt || pickupRes.dueDate);
     const diffDays = Math.round((dueDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
     assert.ok(diffDays >= 13 && diffDays <= 15, `Expected ~14 days diff, got ${diffDays}`);
   });
@@ -236,7 +234,7 @@ describe("Book Process & Frontend Form Integration Test Suite", () => {
     });
 
     await reviewBorrowRequest({
-      requestId: newReq.request_id,
+      requestId: newReq.id,
       reviewerId: staffUser.id,
       decision: "approve",
       remarks: "Approved",
@@ -245,7 +243,7 @@ describe("Book Process & Frontend Form Integration Test Suite", () => {
 
     // Student cancels the approved request
     const cancelRes = await cancelBorrowRequest({
-      requestId: newReq.request_id,
+      requestId: newReq.id,
       userId: testUser.id,
     });
 
@@ -257,8 +255,132 @@ describe("Book Process & Frontend Form Integration Test Suite", () => {
 
     // Clean up second copy & its borrow record
     await BorrowedBook.destroy({ where: { copy_id: secondCopy.copy_id } });
-    await BorrowRequest.destroy({ where: { request_id: newReq.request_id } });
+    await BorrowRequest.destroy({ where: { request_id: newReq.id } });
     await secondCopy.destroy();
+  });
+
+  it("6b. Staff rejects pending borrow request and records reason", async () => {
+    const rejectCopy = await BookCopy.create({
+      book_id: testBook.book_id,
+      accession_no: `ACC-${uniqueSuffix}-REJECT`,
+      status: "Available",
+      condition_status: "Good",
+    });
+
+    const rejectReq = await createBorrowRequest({
+      userId: testUser.id,
+      bookId: testBook.book_id,
+      requestedDays: 7,
+    });
+
+    const rejectRes = await reviewBorrowRequest({
+      requestId: rejectReq.id,
+      reviewerId: staffUser.id,
+      decision: "reject",
+      remarks: "Title undergoing inventory audit",
+    });
+
+    assert.equal(rejectRes.status, "Rejected");
+    assert.equal(rejectRes.remarks, "Title undergoing inventory audit");
+
+    const inDb = await BorrowRequest.findByPk(rejectReq.id);
+    assert.equal(inDb.status, "Rejected");
+    assert.equal(inDb.remarks, "Title undergoing inventory audit");
+
+    // Clean up
+    await BorrowRequest.destroy({ where: { request_id: rejectReq.id } });
+    await rejectCopy.destroy();
+  });
+
+  it("6c. Staff confirms pickup handover using requestId (claimHandover)", async () => {
+    // Create copy & request
+    const claimCopy = await BookCopy.create({
+      book_id: testBook.book_id,
+      accession_no: `ACC-${uniqueSuffix}-CLAIM`,
+      status: "Available",
+      condition_status: "Good",
+    });
+
+    const req = await createBorrowRequest({
+      userId: testUser.id,
+      bookId: testBook.book_id,
+      requestedDays: 7,
+    });
+
+    await reviewBorrowRequest({
+      requestId: req.id,
+      reviewerId: staffUser.id,
+      decision: "approve",
+      copyId: claimCopy.copy_id,
+    });
+
+    // Confirm handover by requestId
+    const claimRes = await pickupBook({
+      requestId: req.id,
+      issuerId: staffUser.id,
+    });
+
+    assert.equal(claimRes.status, "Borrowed");
+    assert.equal(claimRes.requestId, req.id);
+
+    const refreshedCopy = await BookCopy.findByPk(claimCopy.copy_id);
+    assert.equal(refreshedCopy.status, "Borrowed");
+
+    // Clean up
+    await BorrowedBook.destroy({ where: { copy_id: claimCopy.copy_id } });
+    await BorrowRequest.destroy({ where: { request_id: req.id } });
+    await claimCopy.destroy();
+  });
+
+  it("6d. Staff rejects pickup handover (rejectHandover) and releases reserved copy back to Available", async () => {
+    const handoverCopy = await BookCopy.create({
+      book_id: testBook.book_id,
+      accession_no: `ACC-${uniqueSuffix}-HANDOVER`,
+      status: "Available",
+      condition_status: "Good",
+    });
+
+    const req = await createBorrowRequest({
+      userId: testUser.id,
+      bookId: testBook.book_id,
+      requestedDays: 7,
+    });
+
+    await reviewBorrowRequest({
+      requestId: req.id,
+      reviewerId: staffUser.id,
+      decision: "approve",
+      copyId: handoverCopy.copy_id,
+    });
+
+    // Verify copy is Reserved before rejection
+    let copyInDb = await BookCopy.findByPk(handoverCopy.copy_id);
+    assert.equal(copyInDb.status, "Reserved");
+
+    // Staff rejects the pickup handover
+    const rejectHandoverRes = await rejectPickupBook({
+      requestId: req.id,
+      staffId: staffUser.id,
+      remarks: "Student presented invalid physical ID",
+      reasonCode: "STUDENT_NOT_PRESENT",
+    });
+
+    assert.equal(rejectHandoverRes.status, "Rejected");
+    assert.equal(rejectHandoverRes.copyStatus, "Available");
+    assert.match(rejectHandoverRes.remarks, /Student presented invalid physical ID/);
+
+    // Verify copy is restored to Available in DB
+    copyInDb = await BookCopy.findByPk(handoverCopy.copy_id);
+    assert.equal(copyInDb.status, "Available");
+
+    // Verify loan is Cancelled in DB
+    const loanInDb = await BorrowedBook.findOne({ where: { copy_id: handoverCopy.copy_id } });
+    assert.equal(loanInDb.status, "Cancelled");
+
+    // Clean up
+    await BorrowedBook.destroy({ where: { copy_id: handoverCopy.copy_id } });
+    await BorrowRequest.destroy({ where: { request_id: req.id } });
+    await handoverCopy.destroy();
   });
 
   it("7. listBooks returns enriched books matching frontend BookSummary format", async () => {

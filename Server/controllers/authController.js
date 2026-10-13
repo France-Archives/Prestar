@@ -30,30 +30,6 @@ export async function login(req, res) {
     }
 
     const token = generateToken(user);
-    const student = user.role === "Student" ? await Student.findByPk(user.id) : null;
-    const userPayload = {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      status: user.status,
-      accountStatus: user.status?.toUpperCase() || "ACTIVE",
-      first_name: user.first_name,
-      firstName: user.first_name,
-      last_name: user.last_name,
-      lastName: user.last_name,
-      displayName: `${user.first_name || ""} ${user.last_name || ""}`.trim(),
-      student: student ? {
-        id: student.user_id,
-        userId: student.user_id,
-        student_number: student.student_number,
-        studentNumber: student.student_number,
-        college: student.college,
-        course: student.course,
-        program: student.course,
-        year_level: student.year_level,
-        yearLevel: student.year_level,
-      } : null,
-    };
 
     return res
       .cookie(COOKIE_NAME, token, { ...cookieOptions, maxAge: SIX_HOURS_MS })
@@ -62,8 +38,6 @@ export async function login(req, res) {
       .status(200)
       .json({
         message: "Login successful.",
-        user: userPayload,
-        data: userPayload,
       });
   } catch (error) {
     console.error("Login failed:", error);
@@ -97,20 +71,16 @@ export async function getCurrentUser(req, res) {
       role: user.role,
       status: user.status,
       accountStatus: user.status?.toUpperCase() || "ACTIVE",
-      first_name: user.first_name,
       firstName: user.first_name,
-      last_name: user.last_name,
       lastName: user.last_name,
       displayName: `${user.first_name || ""} ${user.last_name || ""}`.trim(),
       student: student ? {
         id: student.user_id,
         userId: student.user_id,
-        student_number: student.student_number,
         studentNumber: student.student_number,
         college: student.college,
         course: student.course,
         program: student.course,
-        year_level: student.year_level,
         yearLevel: student.year_level,
       } : null,
       librarian: null,
@@ -119,6 +89,7 @@ export async function getCurrentUser(req, res) {
     return res.status(200).json({
       user: sessionUser,
       data: sessionUser,
+      dashboardUrl: getDashboardRoute(req.user?.role),
       dashboard_url: getDashboardRoute(req.user?.role),
     });
   } catch (error) {

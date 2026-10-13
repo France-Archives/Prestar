@@ -70,7 +70,7 @@ export default function SignupForm() {
         <InputField label="Year level" type="number" min={1} max={10} {...text("yearLevel")} />
       </div>
       <InputField label="Program" {...text("program")} />
-      <InputField label="School email" type="email" required autoComplete="email" {...text("email")} />
+      <InputField label="School email" type="email" required placeholder="student@wmsu.edu.ph" autoComplete="email" {...text("email")} />
       <InputField label="Password" type="password" required autoComplete="new-password" {...text("password")} />
       <PasswordStrength password={v.password} />
       <InputField label="Confirm password" type="password" required autoComplete="new-password" {...text("confirm")} />

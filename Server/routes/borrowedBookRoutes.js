@@ -7,12 +7,14 @@ import {
   listMyLoans,
   listStaffLoans,
   pickupLoan,
+  rejectPickupLoan,
 } from "../controllers/borrowedBookController.js";
 import {
   validateBorrowId,
   validateBorrowedBookStaffQuery,
   validateMyLoansQuery,
 } from "../validators/borrowedBookValidator.js";
+import { validateRejectPickup } from "../validators/borrowRequestValidator.js";
 
 const router = Router();
 const staffOnly = requireRole(["Admin", "Librarian"]);
@@ -31,5 +33,21 @@ router.get("/:id/pickup-check", staffOnly, validateBorrowId, getPickupCheckDetai
 
 // 9. POST /api/borrowed-books/:id/pickup [Librarian, Admin]
 router.post("/:id/pickup", staffOnly, validateBorrowId, pickupLoan);
+
+// 9b. POST /api/borrowed-books/:id/reject-pickup (or /reject) [Librarian, Admin]
+router.post(
+  "/:id/reject-pickup",
+  staffOnly,
+  validateBorrowId,
+  validateRejectPickup,
+  rejectPickupLoan,
+);
+router.post(
+  "/:id/reject",
+  staffOnly,
+  validateBorrowId,
+  validateRejectPickup,
+  rejectPickupLoan,
+);
 
 export default router;

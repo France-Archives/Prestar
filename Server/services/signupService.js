@@ -36,6 +36,11 @@ export async function createSignup(input) {
     ? String(input.student_type ?? input.studentType).trim()
     : "Regular";
 
+  const wmsuEmailPattern = /^[^\s@]+@wmsu\.edu\.ph$/i;
+  if (!wmsuEmailPattern.test(email)) {
+    throw new SignupError(400, "Email must be a valid WMSU email address ending with @wmsu.edu.ph.");
+  }
+
   // 1. Check if user already exists
   const existingUser = await User.findOne({
     where: { email },
@@ -132,7 +137,9 @@ export async function createSignup(input) {
   return {
     message: "OTP sent to your email. Please verify to complete your registration.",
     email,
+    cooldownSeconds: 120,
     cooldown_seconds: 120,
+    remainingOtps: Math.max(0, MAX_OTP_COUNT - nextResendCount),
     remaining_otps: Math.max(0, MAX_OTP_COUNT - nextResendCount),
   };
 }
@@ -249,6 +256,7 @@ export async function verifyOtp(emailInput, otpInput) {
         password_hash: payload.password_hash,
         role: "Student",
         status: "Active",
+        email_verified: true,
       },
       { transaction },
     );
@@ -271,21 +279,6 @@ export async function verifyOtp(emailInput, otpInput) {
 
     return {
       message: "Registration successful. You may now log in.",
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        student_number: student.student_number,
-        studentNumber: student.student_number,
-        first_name: user.first_name,
-        firstName: user.first_name,
-        last_name: user.last_name,
-        lastName: user.last_name,
-        course: student.course,
-        program: student.course,
-        year_level: student.year_level,
-        yearLevel: student.year_level,
-      },
     };
   });
 }

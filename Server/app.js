@@ -9,6 +9,7 @@ import bookRoutes from "./routes/bookRoutes.js";
 import borrowRequestRoutes from "./routes/borrowRequestRoutes.js";
 import borrowedBookRoutes from "./routes/borrowedBookRoutes.js";
 import otpRoutes from "./routes/otpRoutes.js";
+import verificationRoutes from "./routes/verificationRoutes.js";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -39,6 +40,7 @@ app.use("/api/borrow-requests", borrowRequestRoutes);
 app.use("/api/borrowing-requests", borrowRequestRoutes);
 app.use("/api/borrowed-books", borrowedBookRoutes);
 app.use("/api/otp", otpRoutes);
+app.use("/api", verificationRoutes);
 
 app.use((req, res) => {
 	res.status(404).json({ error: "Route not found." });
