@@ -48,7 +48,7 @@ export default function MyInterestsPage() {
   };
 
   return (
-    <div className="hello" style={{ maxWidth: 760 }}>
+    <div className="page" style={{ maxWidth: 760 }}>
       <PageHeader eyebrow="Student" title="My interests" description="Pick exactly 3 topics. We use them to recommend books." />
       <Card>
         <div className="stack">
