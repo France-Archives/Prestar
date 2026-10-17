@@ -1,0 +1,203 @@
+/* Public Navbar — always solid cream, above everything */
+.pub-navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* Always solid cream — never transparent regardless of section */
+  background: var(--color-canvas);
+  /* z-index above floating books (z-index 1) and snap dot nav (z-index 100) */
+  z-index: 150;
+  /* No border — just spacing at rest */
+  transition: box-shadow var(--dur) var(--ease);
+}
+
+.pub-navbar--scrolled {
+  /* Soft shadow only when scrolled — no hard border, background stays cream */
+  box-shadow: 0 2px 20px -4px rgba(7, 53, 44, 0.14), 0 1px 0 rgba(7, 53, 44, 0.05);
+}
+
+.pub-navbar__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  height: 4.25rem;
+  max-width: 1440px;
+  margin-inline: auto;
+  padding-inline: clamp(1rem, 4vw, 3.5rem);
+}
+
+.pub-navbar__brand {
+  display: block;
+  flex: none;
+}
+
+/* Desktop nav links — hide below 768px */
+.pub-navbar__links {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+@media (max-width: 767px) {
+  .pub-navbar__links {
+    display: none;
+  }
+}
+
+/* Links and buttons always dark-green on cream */
+.pub-nav-link {
+  position: relative;
+  padding: 0.5rem 0.875rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-forest-deep);
+  text-decoration: none;
+  transition: color var(--dur-fast), background var(--dur-fast);
+}
+
+.pub-nav-link:hover {
+  color: var(--color-forest);
+  background: color-mix(in srgb, var(--color-mist) 70%, transparent);
+  text-decoration: none;
+}
+
+.pub-nav-link--active {
+  color: var(--color-forest-deep);
+  font-weight: 600;
+}
+
+/* Sliding amber indicator under active link */
+.pub-nav-link--active::after {
+  content: "";
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  width: 1.25rem;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--color-amber);
+  transform: translateX(-50%);
+  transition: width var(--dur) var(--ease-out-expo);
+}
+
+/* Desktop auth actions — hide below 768px */
+.pub-navbar__actions--desktop {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: none;
+}
+
+@media (max-width: 767px) {
+  .pub-navbar__actions--desktop {
+    display: none;
+  }
+}
+
+.pub-navbar__btn {
+  height: 2.25rem;
+  padding: 0 14px;
+  font-size: 0.875rem;
+}
+
+.pub-navbar__cta {
+  height: 2.25rem;
+  padding: 0 16px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* ── Hamburger button — visible below 768px only ── */
+.pub-hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(11, 61, 50, 0.18);
+  background: transparent;
+  color: var(--color-forest-deep);
+  cursor: pointer;
+  flex: none;
+  transition: background var(--dur-fast), border-color var(--dur-fast);
+}
+
+.pub-hamburger:hover {
+  background: color-mix(in srgb, var(--color-mist) 70%, transparent);
+  border-color: rgba(11, 61, 50, 0.3);
+}
+
+.pub-hamburger:focus-visible {
+  outline: 2px solid var(--color-amber);
+  outline-offset: 2px;
+}
+
+@media (max-width: 767px) {
+  .pub-hamburger {
+    display: flex;
+  }
+}
+
+/* ── Mobile dropdown menu ── */
+.pub-mobile-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--color-canvas);
+  box-shadow: 0 8px 32px -8px rgba(7, 53, 44, 0.22), 0 2px 0 rgba(7, 53, 44, 0.06);
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
+  padding: 0.75rem clamp(1rem, 4vw, 2rem) 1.25rem;
+  z-index: 149; /* below navbar (150) but above content */
+  overflow: hidden;
+}
+
+.pub-mobile-link {
+  display: block;
+  padding: 0.875rem 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: var(--color-forest-deep);
+  text-decoration: none;
+  border-radius: 10px;
+  transition: background var(--dur-fast), color var(--dur-fast);
+  min-height: 44px;
+}
+
+.pub-mobile-link:hover {
+  background: color-mix(in srgb, var(--color-mist) 60%, transparent);
+  color: var(--color-forest);
+}
+
+.pub-mobile-link--active {
+  color: var(--color-forest);
+  font-weight: 700;
+}
+
+.pub-mobile-menu__divider {
+  height: 1px;
+  background: rgba(11, 61, 50, 0.1);
+  margin: 0.5rem 0;
+}
+
+.pub-mobile-menu__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding-top: 0.25rem;
+}
+
+.pub-mobile-menu__actions .btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  font-size: 1rem;
+}

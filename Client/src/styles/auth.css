@@ -1,0 +1,336 @@
+/* Login / Signup: one cream rounded card with a soft raised shadow.
+   Markup: .auth-split > .auth-top + .auth-body > .auth-shell[data-variant] > .auth-card + .auth-aside
+   Login shows [form | panel]. Signup shows [panel | form]. Small screens show the form only. */
+
+.auth-split {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--color-canvas);
+  overflow-x: clip;
+}
+
+/* standard top bar: logo at the far left, link at the far right */
+.auth-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  width: 100%;
+  height: 4.5rem;
+  padding-inline: clamp(1rem, 4vw, 3.5rem);
+}
+.auth-top__brand {
+  display: block;
+  text-decoration: none;
+}
+.auth-top .link-btn {
+  color: var(--color-forest);
+  font-weight: 600;
+}
+.auth-top .link-btn:hover {
+  color: var(--color-amber-ink);
+  text-decoration: none;
+}
+
+.auth-body {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 0.25rem var(--gutter) 1.5rem;
+}
+
+/* ---------- the card ---------- */
+.auth-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+  max-width: 28.5rem;
+  overflow: hidden;
+  background: var(--color-canvas);
+  border-radius: 1.5rem;
+  box-shadow:
+    20px 26px 50px -18px rgba(7, 53, 44, 0.22),
+    -16px -16px 40px rgba(255, 255, 255, 0.8);
+}
+@media (min-width: 640px) {
+  .auth-shell[data-variant="signup"] {
+    max-width: 36rem;
+  }
+}
+
+.auth-card {
+  min-width: 0;
+  padding: 1.5rem 1.5rem 1.75rem;
+  background: transparent;
+  animation: auth-card-in 480ms var(--ease-out-expo) both;
+}
+.auth-card__head {
+  margin-bottom: 1rem;
+  text-align: center;
+}
+.auth-card h1 {
+  font-family: var(--font-serif);
+  font-size: clamp(1.5rem, 2.4vw, 1.75rem);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-forest-deep);
+}
+.auth-card__head .subtle {
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+.auth-card .stack {
+  gap: 0.75rem;
+}
+.auth-card .form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+@media (max-width: 479px) {
+  .auth-card .form-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.auth-card .field {
+  gap: 0.25rem;
+}
+.auth-card .field > .label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-forest-deep);
+}
+/* soft inset fields, same cream as the card */
+.auth-card .input,
+.auth-card .select {
+  min-height: 2.5rem;
+  font-size: 0.9375rem;
+  border-radius: var(--radius-control);
+  border: 1px solid transparent;
+  background: var(--color-canvas);
+  box-shadow:
+    inset 3px 3px 7px rgba(7, 53, 44, 0.09),
+    inset -3px -3px 7px rgba(255, 255, 255, 0.9);
+}
+.auth-card .input:focus,
+.auth-card .select:focus {
+  background: var(--color-paper);
+  border-color: var(--color-green);
+  box-shadow: var(--ring);
+}
+.auth-card .btn-primary {
+  height: 2.75rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: var(--color-forest-deep);
+  box-shadow: 0 12px 22px -12px rgba(7, 53, 44, 0.65);
+}
+.auth-card .btn-primary:hover:not(:disabled) {
+  background: var(--color-forest);
+}
+.auth-card .link-btn,
+.auth-card__foot a {
+  color: var(--color-amber-ink);
+}
+.auth-card__foot {
+  margin-top: 1rem;
+  text-align: center;
+  font-size: 0.8125rem;
+}
+.auth-card .demo-panel {
+  margin-top: 1rem;
+  padding: 0.5rem 0.625rem;
+  max-height: 9.5rem;
+  overflow-y: auto;
+}
+
+/* ---------- the panel: hidden on small screens ---------- */
+.auth-aside {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .auth-shell {
+    max-width: 52rem;
+    min-height: 26rem;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    grid-template-areas: "form panel";
+  }
+  .auth-shell[data-variant="signup"] {
+    max-width: 62rem;
+    grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr);
+    grid-template-areas: "panel form";
+  }
+  .auth-card {
+    grid-area: form;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 2.25rem 2.75rem;
+  }
+  /* signup is compact so it fits on one screen */
+  .auth-shell[data-variant="signup"] .auth-card {
+    padding: 1.5rem 2.25rem;
+  }
+  .auth-shell[data-variant="signup"] .auth-card .input,
+  .auth-shell[data-variant="signup"] .auth-card .select {
+    min-height: 2.375rem;
+  }
+  /* the panel already offers the other action */
+  .auth-shell:not([data-variant="plain"]) .auth-card__foot {
+    display: none;
+  }
+
+  .auth-aside {
+    grid-area: panel;
+    position: relative;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    padding: 2rem;
+    text-align: center;
+    color: var(--color-forest);
+    background: var(--color-canvas);
+    animation: auth-aside-in 520ms var(--ease-out-expo) both;
+  }
+  /* two soft raised circles, the only decoration */
+  .auth-aside::before,
+  .auth-aside::after {
+    content: "";
+    position: absolute;
+    border-radius: 50%;
+    background: var(--color-canvas);
+    box-shadow:
+      14px 18px 36px -14px rgba(7, 53, 44, 0.2),
+      -10px -10px 26px rgba(255, 255, 255, 0.85);
+    pointer-events: none;
+  }
+  .auth-aside::before {
+    width: 14rem;
+    height: 14rem;
+    top: -7rem;
+    right: -3rem;
+    animation: auth-float 9s ease-in-out infinite;
+  }
+  .auth-aside::after {
+    width: 17rem;
+    height: 17rem;
+    bottom: -9.5rem;
+    left: -2.5rem;
+    animation: auth-float 11s ease-in-out infinite reverse;
+  }
+  .auth-aside__inner {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.625rem;
+    max-width: 17rem;
+  }
+  .auth-aside__eyebrow {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-amber-ink);
+  }
+  .auth-aside h2 {
+    font-family: var(--font-serif);
+    font-size: 1.75rem;
+    line-height: 1.15;
+    color: var(--color-forest-deep);
+  }
+  .auth-aside p {
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--color-muted);
+  }
+  /* same dark green button as the form, on both pages */
+  .auth-aside__cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 2.75rem;
+    margin-top: 0.5rem;
+    padding: 0 1.75rem;
+    border-radius: 999px;
+    background: var(--color-forest-deep);
+    color: var(--color-cream);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    box-shadow: 0 12px 22px -12px rgba(7, 53, 44, 0.65);
+    transition: transform var(--dur) var(--ease-spring), background var(--dur-fast);
+  }
+  .auth-aside__cta:hover {
+    background: var(--color-forest);
+    color: #fff;
+    text-decoration: none;
+    transform: translateY(-2px);
+  }
+
+  /* login: the form arrives from the right, the panel from the left. Signup is the mirror. */
+  .auth-shell[data-variant="login"] .auth-card {
+    animation: auth-card-from-right 640ms var(--ease-out-expo) both;
+  }
+  .auth-shell[data-variant="login"] .auth-aside {
+    animation: auth-aside-from-left 640ms var(--ease-out-expo) both;
+  }
+  .auth-shell[data-variant="signup"] .auth-card {
+    animation: auth-card-from-left 640ms var(--ease-out-expo) both;
+  }
+  .auth-shell[data-variant="signup"] .auth-aside {
+    animation: auth-aside-from-right 640ms var(--ease-out-expo) both;
+  }
+}
+
+/* ---------- motion ---------- */
+@keyframes auth-card-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes auth-aside-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes auth-card-from-right {
+  0%   { opacity: 0; transform: translateX(100%); }
+  45%  { opacity: 0; }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes auth-card-from-left {
+  0%   { opacity: 0; transform: translateX(-100%); }
+  45%  { opacity: 0; }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes auth-aside-from-left {
+  from { transform: translateX(-100%); }
+  to   { transform: none; }
+}
+@keyframes auth-aside-from-right {
+  from { transform: translateX(100%); }
+  to   { transform: none; }
+}
+@keyframes auth-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(10px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-card,
+  .auth-aside,
+  .auth-aside::before,
+  .auth-aside::after,
+  .auth-shell .auth-card,
+  .auth-shell .auth-aside {
+    animation: none !important;
+  }
+}

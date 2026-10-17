@@ -1,0 +1,72 @@
+import { useParams } from "react-router-dom";
+import Alert from "@/components/feedback/Alert";
+import Card from "@/components/ui/Card";
+import ErrorState from "@/components/feedback/ErrorState";
+import LoadingState from "@/components/feedback/LoadingState";
+import StatusBadge from "@/components/data-display/StatusBadge";
+import Timeline from "@/components/data-display/Timeline";
+import PageHeader from "@/components/layout/PageHeader";
+import Breadcrumbs from "@/components/navigation/Breadcrumbs";
+import { ROUTES } from "@/app/routeConfig";
+import { useAsync } from "@/hooks/useAsync";
+import * as librarianService from "@/services/librarianService";
+import { statusLabel } from "@/utils/constants";
+import { formatDate } from "@/utils/formatDate";
+import { formatCopyLocation } from "@/utils/formatCopyLocation";
+import HandoverChecklist from "../components/HandoverChecklist";
+
+export default function HandoverDetailsPage() {
+  const { requestId = "" } = useParams();
+  const details = useAsync(() => librarianService.getHandoverDetails(requestId), [requestId]);
+
+  if (details.loading && !details.data) return <div className="page"><LoadingState rows={4} /></div>;
+  if (details.error || !details.data) return <div className="page"><ErrorState message={details.error ?? "Request not found."} onRetry={() => void details.reload()} /></div>;
+  const { item, request, attempts } = details.data;
+  const reservation = details.data.reservation;
+  const title = request?.bookTitle ?? reservation?.bookTitle ?? "Handover";
+  const student = request?.student ?? reservation?.student;
+  const status = request?.status ?? reservation?.status;
+  const duration = request?.requestedDurationDays ?? reservation?.requestedDurationDays;
+  const copyBarcode = request?.copy?.barcode ?? reservation?.offeredCopy?.barcode;
+  const copyLocation = item ? formatCopyLocation(item.copy) : null;
+  const requestedAt = request?.requestedAt ?? reservation?.reservedAt;
+  const pickupDeadline = request?.pickupDeadline ?? reservation?.pickupDeadline;
+  const note = request?.decisionReason;
+
+  return (
+    <div className="page" style={{ maxWidth: 900 }}>
+      <Breadcrumbs items={[{ label: "Books to Release", to: ROUTES.staff.booksToRelease }, { label: "Handover" }]} />
+      <PageHeader eyebrow="Circulation" title={title} description={student ? `${reservation ? "Reserved by" : "Requested by"} ${student.firstName} ${student.lastName} (${student.studentNumber})` : undefined} />
+      <div className="stack">
+        <Alert kind="info">Please ask the student to present their school ID before handover.</Alert>
+        <Card title={reservation ? "Reservation" : "Request"}>
+          <dl className="kv">
+            <div><dt>Status</dt><dd>{status ? <StatusBadge status={status} /> : "—"}</dd></div>
+            <div><dt>Loan duration</dt><dd>{duration} days</dd></div>
+            <div><dt>Assigned copy</dt><dd>{copyBarcode ?? "—"}</dd></div>
+            <div><dt>Shelf location</dt><dd>{copyLocation || "No shelf location recorded"}</dd></div>
+            <div><dt>{reservation ? "Reserved" : "Requested"}</dt><dd>{requestedAt ? formatDate(requestedAt) : "—"}</dd></div>
+            <div><dt>Pickup deadline</dt><dd>{pickupDeadline ? formatDate(pickupDeadline) : "—"}</dd></div>
+            {note && <div><dt>Note</dt><dd>{note}</dd></div>}
+          </dl>
+        </Card>
+        {item ? (
+          <HandoverChecklist item={item} onChanged={() => void details.reload()} />
+        ) : (
+          <Alert kind="info">This request is {status ? statusLabel(status).toLowerCase() : "unavailable"} and is no longer awaiting release.</Alert>
+        )}
+        <Card title="Handover history" note="Every check, hold, rejection and claim is recorded.">
+          <Timeline
+            empty="No handover attempts yet."
+            items={attempts.map((a) => ({
+              id: a.id,
+              title: statusLabel(a.action),
+              meta: `${a.staffName} · ${formatDate(a.createdAt)}${a.reasonCode ? ` · ${a.reasonCode}` : ""}`,
+              detail: a.notes,
+            }))}
+          />
+        </Card>
+      </div>
+    </div>
+  );
+}

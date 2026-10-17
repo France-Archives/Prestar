@@ -1,0 +1,134 @@
+/* Reset and base. Inside @layer base so Tailwind utilities can override. */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+  * {
+    margin: 0;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--color-forest) 28%, transparent) transparent;
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+  body {
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  #root {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  img,
+  svg {
+    max-width: 100%;
+    display: block;
+  }
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+  button {
+    cursor: pointer;
+    background: none;
+    border: 0;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+  fieldset {
+    border: 0;
+    padding: 0;
+    min-width: 0;
+  }
+  hr {
+    border: 0;
+    border-top: 1px solid var(--color-line);
+  }
+  strong,
+  b {
+    font-weight: 700;
+  }
+  a {
+    color: var(--color-green);
+    text-decoration: none;
+  }
+  a:hover {
+    color: var(--color-forest);
+    text-decoration: underline;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    color: var(--color-forest-deep);
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-serif);
+    font-weight: 600;
+  }
+  h4 {
+    font-weight: 700;
+  }
+  h1 {
+    font-size: clamp(1.75rem, 3.4vw, 2.5rem);
+    letter-spacing: -0.015em;
+    line-height: 1.1;
+  }
+  h2 {
+    font-size: 1.35rem;
+  }
+  h3 {
+    font-size: 1.05rem;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-green);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: var(--color-amber);
+    color: var(--color-forest-deep);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes pulse-soft {
+  50% {
+    opacity: 0.55;
+  }
+}

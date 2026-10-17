@@ -1,0 +1,130 @@
+import { useState } from "react";
+import Alert from "@/components/feedback/Alert";
+import Button from "@/components/common/Button";
+import Card from "@/components/ui/Card";
+import { CheckboxField } from "@/components/forms/FormField";
+import { useToast } from "@/hooks/useToast";
+import * as librarianService from "@/services/librarianService";
+import * as reservationsService from "@/services/reservationsService";
+import type { BookToRelease, PenaltyCheck } from "@/types";
+import { describeError } from "@/utils/errors";
+import ActionReasonDialog, { HOLD_REASONS, REJECT_REASONS } from "./ActionReasonDialog";
+import PenaltySummary from "./PenaltySummary";
+
+interface HandoverChecklistProps {
+  item: BookToRelease;
+  onChanged: () => void;
+}
+
+// Check Penalties -> Confirm Handover. The backend re-checks eligibility inside the handover transaction,
+// and mandatory restrictions cannot be bypassed here. Hold and Reject Handover are separate actions.
+export default function HandoverChecklist({ item, onChanged }: HandoverChecklistProps) {
+  const toast = useToast();
+  const [check, setCheck] = useState<PenaltyCheck | null>(null);
+  const [idOk, setIdOk] = useState(false);
+  const [copyOk, setCopyOk] = useState(false);
+  const [busy, setBusy] = useState<"check" | "claim" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<"hold" | "reject" | null>(null);
+
+  const runCheck = async () => {
+    setBusy("check");
+    setError(null);
+    try {
+      setCheck(await librarianService.checkHandoverEligibility(item.requestId));
+    } catch (e) {
+      setError(describeError(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const confirm = async () => {
+    setBusy("claim");
+    setError(null);
+    try {
+      if (item.reservationId) {
+        await reservationsService.claimReservation(item.reservationId);
+      } else {
+        await librarianService.claimHandover(item.requestId);
+      }
+      toast.success("Handover confirmed. The loan has started.");
+      onChanged();
+    } catch (e) {
+      setError(describeError(e));
+      setCheck(null); // eligibility may have changed: check again
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const canConfirm = Boolean(check?.eligible) && idOk && copyOk;
+
+  return (
+    <Card title="Handover" note="Step 1: Check Penalties. Step 2: verify the student and inspect the assigned copy. Step 3: Confirm Handover.">
+      <div className="stack">
+        <dl className="kv">
+          <div><dt>Student</dt><dd>{item.student.firstName} {item.student.lastName} ({item.student.studentNumber})</dd></div>
+          <div><dt>Book</dt><dd>{item.book.title}</dd></div>
+          <div><dt>Assigned copy barcode</dt><dd>{item.copy.barcode}</dd></div>
+        </dl>
+        <div>
+          <Button variant="ghost" onClick={runCheck} loading={busy === "check"}>
+            Review / Check
+          </Button>
+        </div>
+        {check && <PenaltySummary check={check} />}
+
+        <hr style={{ border: 0, borderTop: "1px solid var(--color-line)" }} />
+
+        <CheckboxField label="I checked the student's school ID against the name and student number on this request." checked={idOk} onChange={(e) => setIdOk(e.target.checked)} />
+        <CheckboxField label="The copy in my hand is in usable condition." checked={copyOk} onChange={(e) => setCopyOk(e.target.checked)} />
+
+        {error && <Alert kind="error">{error}</Alert>}
+
+        <div className="row-actions">
+          <Button onClick={confirm} loading={busy === "claim"} disabled={!canConfirm}>
+            Confirm Handover
+          </Button>
+          {!item.reservationId && item.status === "APPROVED" && (
+            <Button variant="ghost" onClick={() => setDialog("hold")}>
+              Place on Hold
+            </Button>
+          )}
+          {!item.reservationId && <Button variant="danger" onClick={() => setDialog("reject")}>Reject Handover</Button>}
+        </div>
+        {!check && <p className="subtle">Confirm Handover unlocks after Review / Check finds the student eligible.</p>}
+      </div>
+
+      {dialog === "hold" && (
+        <ActionReasonDialog
+          title="Place pickup on hold"
+          intro="Use this for a resolvable issue. The copy stays assigned to the student."
+          reasons={HOLD_REASONS}
+          confirmLabel="Place on hold"
+          onClose={() => setDialog(null)}
+          onSubmit={async (reasonCode, notes) => {
+            await librarianService.holdHandover(item.requestId, { reasonCode, notes });
+            toast.success("Pickup placed on hold.");
+            onChanged();
+          }}
+        />
+      )}
+      {dialog === "reject" && (
+        <ActionReasonDialog
+          title="Reject handover"
+          intro="Use this when the release cannot proceed. The copy is released and the student must request again."
+          reasons={REJECT_REASONS}
+          confirmLabel="Reject handover"
+          danger
+          onClose={() => setDialog(null)}
+          onSubmit={async (reasonCode, notes) => {
+            await librarianService.rejectHandover(item.requestId, { reasonCode, notes });
+            toast.success("Handover rejected.");
+            onChanged();
+          }}
+        />
+      )}
+    </Card>
+  );
+}
