@@ -3,7 +3,8 @@ import { createBrowserRouter, Navigate, type RouteObject } from "react-router-do
 import type { Capability } from "@/utils/permissions";
 import { GuestOnly, PageLoading, RequireAuth, RequireCapability } from "./guards";
 import { ROUTES } from "./routeConfig";
-import PublicLayout from "@/layouts/PublicLayout";
+import LandingLayout from "@/layouts/LandingLayout";
+import PublicLayoutWithFooter from "@/layouts/PublicLayout";
 import StudentLayout from "@/layouts/StudentLayout";
 import StaffLayout from "@/layouts/StaffLayout";
 import AdminLayout from "@/layouts/AdminLayout";
@@ -153,16 +154,21 @@ const adminRoutes: RouteObject[] = [
 ];
 
 export const router = createBrowserRouter([
-  // Public site
+  // Landing page — no footer (footer lives inside the final CTA snap screen)
   {
-    element: <PublicLayout />,
+    element: <LandingLayout />,
+    children: [{ path: ROUTES.home, element: el(P.Landing) }],
+  },
+  // Other public pages (Contact, Terms, Privacy) — full layout with footer
+  {
+    element: <PublicLayoutWithFooter />,
     children: [
-      { path: ROUTES.home, element: el(P.Landing) },
       { path: ROUTES.contact, element: el(P.Contact) },
       { path: ROUTES.terms, element: el(P.Terms) },
       { path: ROUTES.privacy, element: el(P.Privacy) },
     ],
   },
+
   // Signed-out only
   {
     element: <GuestOnly />,
