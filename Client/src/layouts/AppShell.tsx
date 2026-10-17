@@ -9,6 +9,8 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 const COLLAPSED_KEY = "prestar:sidebar-rail";
 
+const getCollapsedKey = (userId?: string) => `${COLLAPSED_KEY}:${userId ?? "guest"}`;
+
 /** Shared signed-in shell: header on top, sidebar and content below in one grid. Student, Staff and Admin layouts use it. */
 export default function AppShell({ areaLabel }: { areaLabel: string }) {
   const { user } = useAuth();
@@ -17,21 +19,35 @@ export default function AppShell({ areaLabel }: { areaLabel: string }) {
 
   // true = icon rail, false = full sidebar. Storage can be blocked, so both calls are guarded.
   const [collapsed, setCollapsed] = useState(() => {
+    const key = getCollapsedKey(user?.id);
     try {
-      return localStorage.getItem(COLLAPSED_KEY) === "1";
+      const stored = localStorage.getItem(key);
+      return stored === null ? true : stored === "1";
     } catch {
-      return false;
+      return true;
     }
   });
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
+    if (!user) return;
+    const key = getCollapsedKey(user.id);
     try {
-      localStorage.setItem(COLLAPSED_KEY, collapsed ? "1" : "0");
+      const stored = localStorage.getItem(key);
+      setCollapsed(stored === null ? true : stored === "1");
+    } catch {
+      setCollapsed(true);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user) return;
+    try {
+      localStorage.setItem(getCollapsedKey(user.id), collapsed ? "1" : "0");
     } catch {
       /* the choice just will not survive a refresh */
     }
-  }, [collapsed]);
+  }, [collapsed, user?.id]);
 
   // Leaving a page or growing to desktop width closes the mobile drawer.
   useEffect(() => {

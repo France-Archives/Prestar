@@ -20,7 +20,6 @@ export const COPY_CONDITIONS = ["NEW", "GOOD", "FAIR", "DAMAGED", "UNUSABLE"] as
 export type CopyCondition = (typeof COPY_CONDITIONS)[number];
 
 export const BORROWING_REQUEST_STATUSES = [
-  "PENDING",
   "APPROVED",
   "ON_HOLD",
   "RELEASE_REJECTED",

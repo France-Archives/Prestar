@@ -56,3 +56,22 @@ export interface CreateBorrowingRequest {
 export interface CreateBorrowingResponse extends BorrowingRequest {
   message: string;
 }
+
+export interface BorrowBatchItemRequest {
+  bookId: UUID;
+  requestedQuantity: number;
+  borrowQuantity: number;
+  requestedDurationDays: AllowedDurationDays;
+  reserveRemainder: boolean;
+}
+
+export interface BorrowBatchItemResult {
+  bookId: UUID;
+  bookTitle: string;
+  requestedQuantity: number;
+  requestedDurationDays: AllowedDurationDays;
+  requests: BorrowingRequest[];
+  reservationCreated: boolean;
+  unfulfilledQuantity: number;
+  messages: string[];
+}

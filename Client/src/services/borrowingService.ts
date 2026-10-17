@@ -1,10 +1,11 @@
-import type { BorrowingRequest, BorrowingRequestStatus, CreateBorrowingRequest, CreateBorrowingResponse, Loan, LoanStatus, UUID } from "@/types";
+import type { BorrowBatchItemRequest, BorrowBatchItemResult, BorrowingRequest, BorrowingRequestStatus, CreateBorrowingRequest, CreateBorrowingResponse, Loan, LoanStatus, UUID } from "@/types";
 import type { MockBorrowingRequest } from "@/data";
-import { fail } from "@/utils/errors";
+import { describeError, fail } from "@/utils/errors";
 import { addDaysIso, formatDate } from "@/utils/formatDate";
 import { validateDuration } from "@/utils/validators";
 import { assertEligible, begin, copyById, releaseCopy, setting, toLoan, toRequest } from "./mockEngine";
 import { commit, db, newId, notify, nowIso, out, requireStudent } from "./mockStore";
+import { createReservation } from "./reservationsService";
 
 // TEMPORARY MOCK IMPLEMENTATION: Replace with the real borrowing API (B1 to B3, B7, B8).
 // Eligibility, copy assignment, auto-approval and the pickup deadline are decided by the BACKEND.
@@ -70,7 +71,7 @@ export async function cancelBorrowingRequest(requestId: UUID): Promise<Borrowing
   const { student } = requireStudent();
   const request = db.requests.find((r) => r.id === requestId && r.studentId === student.id);
   if (!request) fail("NOT_FOUND", "We could not find that request.");
-  if (request.status !== "APPROVED" && request.status !== "ON_HOLD" && request.status !== "PENDING") {
+  if (request.status !== "APPROVED" && request.status !== "ON_HOLD") {
     fail("INVALID_STATE", "This request can no longer be cancelled.", 409);
   }
   request.status = "CANCELLED";
@@ -103,4 +104,54 @@ export async function getMyHistory(): Promise<Loan[]> {
       .sort((a, b) => b.borrowedAt.localeCompare(a.borrowedAt))
       .map(toLoan),
   );
+}
+
+/** Process each title independently through the existing single-copy request and reservation services. */
+export async function submitBorrowBatchItem(item: BorrowBatchItemRequest): Promise<BorrowBatchItemResult> {
+  if (!Number.isInteger(item.requestedQuantity) || item.requestedQuantity < 1 || !Number.isInteger(item.borrowQuantity) || item.borrowQuantity < 0 || item.borrowQuantity > item.requestedQuantity) {
+    fail("VALIDATION_ERROR", "Choose a valid quantity before submitting.", 422);
+  }
+
+  const bookTitle = db.books.find((book) => book.id === item.bookId)?.title ?? "Book";
+  const requests: BorrowingRequest[] = [];
+  const messages: string[] = [];
+  let reservationCreated = false;
+  let attempted = 0;
+
+  for (let index = 0; index < item.borrowQuantity; index += 1) {
+    attempted += 1;
+    try {
+      const request = await createBorrowingRequest({ bookId: item.bookId, requestedDurationDays: item.requestedDurationDays });
+      requests.push(request);
+    } catch (error) {
+      messages.push(describeError(error));
+      break;
+    }
+  }
+
+  const remainder = item.requestedQuantity - requests.length;
+  if (remainder > 0 && item.reserveRemainder) {
+    try {
+      await createReservation({ bookId: item.bookId, requestedDurationDays: item.requestedDurationDays });
+      reservationCreated = true;
+    } catch (error) {
+      messages.push(describeError(error));
+    }
+  }
+
+  const unfulfilledQuantity = Math.max(0, item.requestedQuantity - requests.length - (reservationCreated ? 1 : 0));
+  if (remainder > 0 && !item.reserveRemainder) messages.push(`${remainder} requested ${remainder === 1 ? "copy was" : "copies were"} not requested or reserved.`);
+  if (reservationCreated && remainder > 1) messages.push("The current reservation workflow queues one copy per title; additional copies in the remainder are not represented.");
+  if (attempted === 0 && !reservationCreated) messages.push("No borrowing request or reservation was submitted.");
+
+  return out({
+    bookId: item.bookId,
+    bookTitle,
+    requestedQuantity: item.requestedQuantity,
+    requestedDurationDays: item.requestedDurationDays,
+    requests,
+    reservationCreated,
+    unfulfilledQuantity,
+    messages,
+  });
 }

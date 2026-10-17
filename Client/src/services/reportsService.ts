@@ -15,7 +15,7 @@ import { LIMITS } from "@/utils/constants";
 import { dateKey, daysUntil, overdueDays } from "@/utils/formatDate";
 import { roundMoney } from "@/utils/formatCurrency";
 import { can } from "@/utils/permissions";
-import { begin, corSummaryOf, currentTerm, setting, studentRef, toBookSummary, toBookToRelease, toLoan, toRequest, toReservation, toStaffLoan, toFineSummary, toNotification, queuePosition, copyById, copyRef } from "./mockEngine";
+import { begin, corSummaryOf, currentTerm, setting, studentRef, toBookSummary, toBookToRelease, toReservationBookToRelease, toLoan, toRequest, toReservation, toStaffLoan, toFineSummary, toNotification, queuePosition, copyById, copyRef } from "./mockEngine";
 import { db, out, requireCapability, requireStudent, sessionUserOf } from "./mockStore";
 
 // TEMPORARY MOCK IMPLEMENTATION: Replace with backend statistics/reports (P13, D1 to D4).
@@ -58,11 +58,14 @@ export async function getStudentDashboard(): Promise<StudentDashboardData> {
 export async function getStaffDashboard(): Promise<StaffDashboardData> {
   await begin();
   const account = requireCapability("STAFF_AREA");
-  const toRelease = db.requests.filter((r) => r.status === "APPROVED" || r.status === "ON_HOLD").map(toBookToRelease).sort((a, b) => a.pickupDeadline.localeCompare(b.pickupDeadline));
+  const toRelease = [
+    ...db.requests.filter((r) => r.status === "APPROVED" || r.status === "ON_HOLD").map(toBookToRelease),
+    ...db.reservations.filter((r) => r.status === "OFFERED").map(toReservationBookToRelease),
+  ].sort((a, b) => a.pickupDeadline.localeCompare(b.pickupDeadline));
   const canReviewCor = can(sessionUserOf(account), "COR_REVIEW");
   return out({
     booksToRelease: toRelease,
-    awaitingRelease: toRelease.filter((b) => b.status === "APPROVED").length,
+    awaitingRelease: toRelease.filter((b) => b.status === "APPROVED" || b.status === "OFFERED").length,
     onHold: toRelease.filter((b) => b.status === "ON_HOLD").length,
     pendingCorReviews: canReviewCor ? db.cors.filter((c) => c.status === "PENDING").length : null,
     overdueLoans: db.loans.filter((l) => l.status === "ACTIVE" && overdueDays(l.dueAt) > 0).map(toStaffLoan).sort((a, b) => b.overdueDays - a.overdueDays),
@@ -73,7 +76,7 @@ export async function getStaffDashboard(): Promise<StaffDashboardData> {
         const { studentId: _studentId, ...base } = r;
         return { ...base, student: studentRef(r.studentId), queuePosition: queuePosition(r), offeredCopy: copy ? copyRef(copy) : null };
       }),
-    pickupsDueSoon: toRelease.filter((b) => b.status === "APPROVED" && daysUntil(b.pickupDeadline) <= 1), // window is TO CONFIRM
+    pickupsDueSoon: toRelease.filter((b) => (b.status === "APPROVED" || b.status === "OFFERED") && daysUntil(b.pickupDeadline) <= 1), // window is TO CONFIRM
   });
 }
 

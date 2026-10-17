@@ -8,6 +8,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
+      "motion/react": fileURLToPath(new URL("./node_modules/motion/react.js", import.meta.url)),
     },
   },
 });

@@ -24,6 +24,7 @@ export const ROUTES = {
     bookDetails: (id: string) => `/app/books/${id}`,
     interests: "/app/interests",
     borrowings: "/app/borrowing",
+    borrowList: "/app/borrow-list",
     requests: "/app/requests",
     reservations: "/app/reservations",
     renewals: "/app/renewals",
@@ -51,6 +52,7 @@ export const ROUTES = {
     categories: "/staff/categories",
     authors: "/staff/authors",
     maintenance: "/staff/maintenance",
+    shelfLocator: "/staff/shelf-locator",
     notifications: "/staff/notifications",
   },
 
@@ -119,6 +121,7 @@ const STUDENT_SECTIONS: NavSection[] = [
     title: "My library",
     items: [
       { label: "My Borrowings", to: S.borrowings, capability: "STUDENT_AREA" },
+      { label: "My Borrow List", to: S.borrowList, capability: "STUDENT_AREA" },
       { label: "My requests", to: S.requests, capability: "STUDENT_AREA" },
       { label: "Reservations", to: S.reservations, capability: "STUDENT_AREA" },
       { label: "Renewals", to: S.renewals, capability: "STUDENT_AREA" },
@@ -168,6 +171,7 @@ const STAFF_SECTIONS: NavSection[] = [
       { label: "Categories", to: T.categories, capability: "CATALOG_MANAGE" },
       { label: "Authors", to: T.authors, capability: "CATALOG_MANAGE" },
       { label: "Maintenance copies", to: T.maintenance, capability: "CATALOG_MANAGE" },
+      { label: "Shelf locator", to: T.shelfLocator, capability: "CATALOG_MANAGE" },
     ],
   },
   {

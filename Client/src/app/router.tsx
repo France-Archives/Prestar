@@ -3,7 +3,8 @@ import { createBrowserRouter, Navigate, type RouteObject } from "react-router-do
 import type { Capability } from "@/utils/permissions";
 import { GuestOnly, PageLoading, RequireAuth, RequireCapability } from "./guards";
 import { ROUTES } from "./routeConfig";
-import PublicLayout from "@/layouts/PublicLayout";
+import LandingLayout from "@/layouts/LandingLayout";
+import PublicLayoutWithFooter from "@/layouts/PublicLayout";
 import StudentLayout from "@/layouts/StudentLayout";
 import StaffLayout from "@/layouts/StaffLayout";
 import AdminLayout from "@/layouts/AdminLayout";
@@ -35,6 +36,7 @@ const P = {
   StudentDashboard: page(() => import("@/features/student/pages/StudentDashboardPage")),
   MyInterests: page(() => import("@/features/student/pages/MyInterestsPage")),
   MyBorrowings: page(() => import("@/features/student/pages/MyBorrowingsPage")),
+  MyBorrowList: page(() => import("@/features/student/pages/MyBorrowListPage")),
   MyRequests: page(() => import("@/features/student/pages/MyRequestsPage")),
   MyReservations: page(() => import("@/features/student/pages/MyReservationsPage")),
   RenewalRequests: page(() => import("@/features/student/pages/RenewalRequestsPage")),
@@ -59,6 +61,7 @@ const P = {
   ManageCategories: page(() => import("@/features/librarian/pages/ManageCategoriesPage")),
   ManageAuthors: page(() => import("@/features/librarian/pages/ManageAuthorsPage")),
   MaintenanceCopies: page(() => import("@/features/librarian/pages/MaintenanceCopiesPage")),
+  ShelfLocator: page(() => import("@/features/librarian/pages/ShelfLocatorPage")),
   // admin
   AdminDashboard: page(() => import("@/features/admin/pages/AdminDashboardPage")),
   UserManagement: page(() => import("@/features/admin/pages/UserManagementPage")),
@@ -97,6 +100,7 @@ const studentRoutes: RouteObject[] = [
   { path: "books/:bookId", element: el(P.BookDetails) },
   { path: "interests", element: el(P.MyInterests) },
   { path: "borrowing", element: el(P.MyBorrowings) },
+  { path: "borrow-list", element: el(P.MyBorrowList) },
   { path: "requests", element: el(P.MyRequests) },
   { path: "reservations", element: el(P.MyReservations) },
   { path: "renewals", element: el(P.RenewalRequests) },
@@ -127,6 +131,7 @@ const staffRoutes: RouteObject[] = [
     { path: "categories", element: el(P.ManageCategories) },
     { path: "authors", element: el(P.ManageAuthors) },
     { path: "maintenance", element: el(P.MaintenanceCopies) },
+    { path: "shelf-locator", element: el(P.ShelfLocator) },
   ]),
 ];
 
@@ -149,16 +154,21 @@ const adminRoutes: RouteObject[] = [
 ];
 
 export const router = createBrowserRouter([
-  // Public site
+  // Landing page — no footer (footer lives inside the final CTA snap screen)
   {
-    element: <PublicLayout />,
+    element: <LandingLayout />,
+    children: [{ path: ROUTES.home, element: el(P.Landing) }],
+  },
+  // Other public pages (Contact, Terms, Privacy) — full layout with footer
+  {
+    element: <PublicLayoutWithFooter />,
     children: [
-      { path: ROUTES.home, element: el(P.Landing) },
       { path: ROUTES.contact, element: el(P.Contact) },
       { path: ROUTES.terms, element: el(P.Terms) },
       { path: ROUTES.privacy, element: el(P.Privacy) },
     ],
   },
+
   // Signed-out only
   {
     element: <GuestOnly />,

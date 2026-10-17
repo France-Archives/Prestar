@@ -5,7 +5,6 @@ import { COR_UPLOAD, LIMITS, PASSWORD_POLICY } from "@/utils/constants";
 // Every validator returns an error message, or null when the value is fine.
 
 export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-export const WMSU_EMAIL_REGEX = /^[^\s@]+@wmsu\.edu\.ph$/i;
 const NAME_REGEX = /^\p{L}[\p{L}\s'.-]*$/u;
 const STUDENT_NUMBER_REGEX = /^[A-Za-z0-9-]+$/; // format is TO CONFIRM
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -16,13 +15,6 @@ export function validateEmail(value: string): string | null {
   const v = value.trim();
   if (!v) return "Email is required.";
   return EMAIL_REGEX.test(v) ? null : "Enter a valid email address.";
-}
-
-export function validateSchoolEmail(value: string): string | null {
-  const v = value.trim();
-  if (!v) return "School email is required.";
-  if (!EMAIL_REGEX.test(v)) return "Enter a valid email address.";
-  return WMSU_EMAIL_REGEX.test(v) ? null : "Email must be a valid WMSU email address (@wmsu.edu.ph).";
 }
 
 export function validateRequired(value: string, label: string, maxLength?: number): string | null {

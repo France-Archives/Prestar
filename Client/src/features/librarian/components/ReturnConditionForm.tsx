@@ -53,7 +53,7 @@ export default function ReturnConditionForm({ loan, onClose, onDone }: ReturnCon
       <div>
         <strong>{loan.bookTitle}</strong>
         <p className="subtle">
-          Copy {loan.copyBarcode} · {loan.student.firstName} {loan.student.lastName} · due {formatDate(loan.dueAt)}
+          Copy {loan.copyBarcode} · {loan.student.firstName} {loan.student.lastName} ({loan.student.studentNumber}) · due {formatDate(loan.dueAt)}
         </p>
       </div>
       <SelectField label="Condition of the returned copy" value={condition} onChange={(e) => setCondition(e.target.value as CopyCondition)}>

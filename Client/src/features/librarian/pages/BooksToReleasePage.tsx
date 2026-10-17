@@ -16,7 +16,7 @@ export default function BooksToReleasePage() {
 
   return (
     <div className="page">
-      <PageHeader eyebrow="Circulation" title="Books to Release" description="Approved requests and held pickups. Open one to check penalties and confirm the handover. A request is not a loan until you confirm." />
+      <PageHeader eyebrow="Circulation" title="Books to Release" description="Approved borrowing requests and reservation offers are released here. Verify the student and copy; a loan starts only when you confirm handover." />
       <div className="toolbar" style={{ marginTop: 0 }}>
         <SearchInput value={search} onChange={setSearch} placeholder="Search student, number, book or barcode…" />
       </div>

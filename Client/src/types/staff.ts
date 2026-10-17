@@ -11,6 +11,7 @@ import type {
 } from "./enums";
 import type { EffectiveCorStatus } from "./verification";
 import type { Loan } from "./borrowing";
+import type { CopyLocation, CopyRef } from "./book";
 
 // Penalty check -> PenaltyCheck (computed by the server only).
 export interface PenaltyReason {
@@ -49,13 +50,14 @@ export interface PenaltyCheck {
 // Books to Release row -> BookToRelease (derived)
 export interface BookToRelease {
   requestId: UUID;
+  reservationId: UUID | null;
   student: { id: UUID; studentNumber: string; firstName: string; lastName: string };
   book: { id: UUID; title: string };
-  copy: { id: UUID; barcode: string };
+  copy: CopyRef & CopyLocation & { shelfLocation: string | null };
   requestedDurationDays: AllowedDurationDays;
   approvedAt: ISODateTime;
   pickupDeadline: ISODateTime;
-  status: Extract<BorrowingRequestStatus, "APPROVED" | "ON_HOLD">;
+  status: Extract<BorrowingRequestStatus, "APPROVED" | "ON_HOLD"> | "OFFERED";
 }
 
 /** One row of handover_attempts, shown on the handover details page. */
@@ -80,10 +82,6 @@ export interface HoldHandoverRequest {
 export interface RejectHandoverRequest {
   reasonCode: string;
   notes: string;
-}
-/** H5 POST /staff/borrowing-requests/:id/claim */
-export interface ClaimRequest {
-  copyBarcode: string;
 }
 /** H6 POST /staff/loans/:loanId/return */
 export interface ReturnRequest {

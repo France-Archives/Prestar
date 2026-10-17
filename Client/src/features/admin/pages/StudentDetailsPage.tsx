@@ -24,6 +24,7 @@ const LOAN_COLS: Column<Loan>[] = [
 ];
 const RES_COLS: Column<Reservation>[] = [
   { key: "bookTitle", header: "Book" },
+  { key: "requestedDurationDays", header: "Duration", render: (r) => `${r.requestedDurationDays} days` },
   { key: "reservedAt", header: "Reserved", render: (r) => formatDate(r.reservedAt) },
   { key: "status", header: "Status", render: (r) => <StatusBadge status={r.status} /> },
 ];

@@ -2,6 +2,7 @@ import Button from "@/components/common/Button";
 import DataTable, { type Column } from "@/components/data-display/DataTable";
 import StatusBadge from "@/components/data-display/StatusBadge";
 import type { BookCopy } from "@/types";
+import BarcodeLabelButton from "./BarcodeLabelButton";
 
 type Row = BookCopy & { bookTitle?: string };
 
@@ -17,6 +18,7 @@ export default function CopyStatusTable({ rows, showBook = false, onEdit, empty 
   if (showBook) columns.push({ key: "bookTitle", header: "Book" });
   columns.push(
     { key: "barcode", header: "Barcode" },
+    { key: "printLabel", header: "", render: (copy) => <BarcodeLabelButton barcode={copy.barcode} bookTitle={copy.bookTitle} /> },
     { key: "status", header: "Status", render: (c) => <StatusBadge status={c.status} /> },
     { key: "condition", header: "Condition", render: (c) => <StatusBadge status={c.condition} /> },
     { key: "shelfLocation", header: "Shelf", render: (c) => c.shelfLocation ?? "—" },

@@ -54,6 +54,9 @@ function Forbidden() {
 /** Requires a capability (Admin passes every staff capability). Wrap routes with <RequireCapability capability="..." />. */
 export function RequireCapability({ capability }: { capability: Capability }) {
   const { user } = useAuth();
+  if (user?.role === "STUDENT" && capability === "STUDENT_AREA" && (!user.emailVerifiedAt || user.accountStatus === "PENDING_VERIFICATION")) {
+    return <Navigate to={ROUTES.verificationPending} replace state={{ email: user.email }} />;
+  }
   if (!user || !can(user, capability)) return <Forbidden />;
   return <Outlet />;
 }

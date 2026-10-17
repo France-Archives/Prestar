@@ -3,6 +3,7 @@ import type { LoginRequest, SessionUser } from "@/types";
 import * as authService from "@/services/authService";
 import { UNAUTHENTICATED_EVENT } from "@/services/apiClient";
 import { subscribeStore } from "@/services/mockStore";
+import { normalizeUserRole } from "@/utils/permissions";
 
 // Holds the signed-in user for the UI. This is a UX convenience only: the backend decides what a user may do.
 // TEMPORARY MOCK IMPLEMENTATION: authService.getCurrentUser/login/logout run on the in-memory mock.
@@ -29,9 +30,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const seq = useRef(0);
 
   const apply = useCallback((next: SessionUser | null) => {
+    const normalized = next && normalizeUserRole(next.role) ? { ...next, role: normalizeUserRole(next.role)! } : null;
     // Keep the same object when nothing changed, so consumers do not re-render on every mock commit.
-    setUser((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
-    setStatus(next ? "authenticated" : "unauthenticated");
+    setUser((prev) => (JSON.stringify(prev) === JSON.stringify(normalized) ? prev : normalized));
+    setStatus(normalized ? "authenticated" : "unauthenticated");
   }, []);
 
   const refresh = useCallback(async () => {

@@ -41,13 +41,21 @@ export interface CopyRef {
   barcode: string;
 }
 
+export interface CopyLocation {
+  section: string | null;
+  shelfCode: string | null;
+  levelOrRow: string | null;
+  locationNotes: string | null;
+}
+
 // book_copies -> BookCopy (derived, staff)
-export interface BookCopy {
+export interface BookCopy extends CopyLocation {
   id: UUID;
   bookId: UUID;
   barcode: string;
   status: BookCopyStatus;
   condition: CopyCondition;
+  /** Legacy single-field value kept for compatibility with older mock records and search views. */
   shelfLocation: string | null;
   acquisitionDate: ISODate | null;
   notes: string | null;
@@ -84,9 +92,12 @@ export type UpdateBookRequest = Partial<CreateBookRequest> & { isArchived?: bool
 
 /** C6 POST /books/:bookId/copies */
 export interface CreateCopyRequest {
-  barcode: string;
   condition: CopyCondition;
   shelfLocation?: string | null;
+  section?: string | null;
+  shelfCode?: string | null;
+  levelOrRow?: string | null;
+  locationNotes?: string | null;
   acquisitionDate?: ISODate | null;
   notes?: string | null;
 }
@@ -96,6 +107,10 @@ export interface UpdateCopyRequest {
   status?: BookCopyStatus;
   condition?: CopyCondition;
   shelfLocation?: string | null;
+  section?: string | null;
+  shelfCode?: string | null;
+  levelOrRow?: string | null;
+  locationNotes?: string | null;
   notes?: string | null;
 }
 

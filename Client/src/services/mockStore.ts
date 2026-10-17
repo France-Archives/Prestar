@@ -122,6 +122,39 @@ export const db: MockDb = {
   audit: seedAudit(),
 };
 
+function nextCopyBarcode(usedBarcodes: Set<string>): string {
+  let sequence = 1;
+  let candidate = "";
+  do {
+    candidate = `PR-${String(sequence).padStart(8, "0")}`;
+    sequence += 1;
+  } while (usedBarcodes.has(candidate.toUpperCase()));
+  usedBarcodes.add(candidate.toUpperCase());
+  return candidate;
+}
+
+export function assignMissingCopyBarcodes(
+  copies: Array<BookCopy | (Omit<BookCopy, "barcode"> & { barcode?: string | null })>,
+): void {
+  const usedBarcodes = new Set(
+    copies
+      .map((copy) => copy.barcode?.trim())
+      .filter((barcode): barcode is string => Boolean(barcode))
+      .map((barcode) => barcode.toUpperCase()),
+  );
+  for (const copy of copies) {
+    if (!copy.barcode?.trim()) copy.barcode = nextCopyBarcode(usedBarcodes);
+  }
+}
+
+assignMissingCopyBarcodes(db.copies);
+
+export function generateCopyBarcode(): string {
+  return nextCopyBarcode(
+    new Set(db.copies.map((copy) => copy.barcode.trim().toUpperCase()).filter(Boolean)),
+  );
+}
+
 // ---------- plumbing ----------
 export const newId = (): UUID => crypto.randomUUID();
 export const nowIso = (): string => new Date().toISOString();
@@ -204,13 +237,20 @@ export function issueToken(userId: UUID, purpose: MockEmailToken["purpose"], hou
   db.tokens.forEach((t) => {
     if (t.userId === userId && t.purpose === purpose && !t.usedAt) t.usedAt = nowIso(); // older unused tokens are invalidated
   });
-  const token = `mock-${newId()}`;
+  let token: string;
+  if (purpose === "VERIFY_EMAIL") {
+    do {
+      token = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1_000_000).padStart(6, "0");
+    } while (db.tokens.some((entry) => entry.token === token && entry.purpose === purpose && !entry.usedAt));
+  } else {
+    token = `mock-${newId()}`;
+  }
   db.tokens.push({ token, userId, purpose, expiresAt: addDaysIso(new Date(), hours / 24), usedAt: null });
   return token;
 }
 
-export function consumeToken(token: string, purpose: MockEmailToken["purpose"]): MockEmailToken {
-  const t = db.tokens.find((x) => x.token === token && x.purpose === purpose);
+export function consumeToken(token: string, purpose: MockEmailToken["purpose"], userId?: UUID): MockEmailToken {
+  const t = db.tokens.find((x) => x.token === token && x.purpose === purpose && (!userId || x.userId === userId));
   if (!t || t.usedAt || new Date(t.expiresAt).getTime() < Date.now()) fail("TOKEN_INVALID_OR_EXPIRED");
   t.usedAt = nowIso();
   return t;

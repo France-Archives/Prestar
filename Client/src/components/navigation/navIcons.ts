@@ -1,5 +1,5 @@
     import {
-    ArrowLeftRight, Banknote, Bell, BookMarked, BookOpen, CalendarClock, CalendarDays, ChartColumn,
+    ArrowLeftRight, Banknote, Bell, BookCopy, BookMarked, BookOpen, CalendarClock, CalendarDays, ChartColumn,
     Circle, ClipboardList, FileCheck, History, LayoutDashboard, Library, Megaphone, PackageCheck,
     PenLine, Receipt, RefreshCw, Scale, ScrollText, Settings, ShieldAlert, Sparkles, Tags, Undo2,
     User, UserCog, Users, Wrench,
@@ -24,6 +24,7 @@
     [S.history]: History,
     [S.cor]: FileCheck,
     [S.interests]: Sparkles,
+    [S.borrowList]: BookCopy,
     [S.profile]: User,
     [S.notifications]: Bell,
     // librarian / staff

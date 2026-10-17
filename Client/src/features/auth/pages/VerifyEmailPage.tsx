@@ -1,60 +1,56 @@
-import { useEffect, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useState, type FormEvent } from "react";
+import { Link, useLocation } from "react-router-dom";
 import Alert from "@/components/feedback/Alert";
-import Spinner from "@/components/ui/Spinner";
+import Button from "@/components/common/Button";
+import { InputField } from "@/components/forms/FormField";
 import { ROUTES } from "@/app/routeConfig";
 import { useAuth } from "@/hooks/useAuth";
 import AuthLayout from "@/layouts/AuthLayout";
 import * as authService from "@/services/authService";
 import { describeError } from "@/utils/errors";
 
-type State = { kind: "working" } | { kind: "ok" } | { kind: "error"; message: string };
+type VerifyState = { kind: "ready" } | { kind: "working" } | { kind: "ok" } | { kind: "error"; message: string };
 
-// A4: the token is single-use, so the call is guarded against React StrictMode running the effect twice.
 export default function VerifyEmailPage() {
-  const token = useSearchParams()[0].get("token");
+  const initial = (useLocation().state ?? {}) as { email?: string; mockCode?: string };
   const { refresh } = useAuth();
-  const [state, setState] = useState<State>(token ? { kind: "working" } : { kind: "error", message: "This link is missing its token." });
-  const started = useRef(false);
+  const [email, setEmail] = useState(initial.email ?? "");
+  const [code, setCode] = useState(initial.mockCode ?? "");
+  const [state, setState] = useState<VerifyState>({ kind: "ready" });
 
-  useEffect(() => {
-    if (!token || started.current) return;
-    started.current = true;
-    authService
-      .verifyEmail({ token })
-      .then(() => {
-        setState({ kind: "ok" });
-        void refresh();
-      })
-      .catch((e) => setState({ kind: "error", message: describeError(e) }));
-  }, [token, refresh]);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setState({ kind: "working" });
+    try {
+      await authService.verifyEmail({ email: email.trim(), code: code.trim() });
+      setState({ kind: "ok" });
+      await refresh();
+    } catch (error) {
+      setState({ kind: "error", message: describeError(error) });
+    }
+  };
 
   return (
     <AuthLayout title="Email verification">
       <div className="stack" style={{ alignItems: "center", textAlign: "center" }}>
-        {state.kind === "working" && (
-          <>
-            <Spinner size={28} />
-            <p>Verifying your email…</p>
-          </>
-        )}
         {state.kind === "ok" && (
           <>
             <Alert kind="ok">Your email has been verified.</Alert>
-            <p>Next, submit an approved COR for the current term before borrowing.</p>
+            <p>You can now browse your dashboard and catalog. An approved COR for the current term is required before borrowing, reserving, or renewing.</p>
             <Link to={ROUTES.login} className="btn btn-primary" style={{ textDecoration: "none", color: "#fff" }}>
               Log in
             </Link>
           </>
         )}
-        {state.kind === "error" && (
-          <>
-            <Alert kind="error">{state.message}</Alert>
-            <p className="subtle">Verification links are single-use and expire. Log in to request a new one.</p>
-            <Link to={ROUTES.login} className="btn btn-ghost" style={{ textDecoration: "none" }}>
-              Back to log in
-            </Link>
-          </>
+        {state.kind !== "ok" && (
+          <form className="stack" onSubmit={submit}>
+            {state.kind === "error" && <Alert kind="error">{state.message}</Alert>}
+            <InputField label="School email" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
+            <InputField label="One-time code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} required value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} />
+            <Button type="submit" loading={state.kind === "working"} disabled={state.kind === "working" || code.length !== 6}>Verify email</Button>
+            <p className="subtle">Codes are single-use and expire. <Link to={ROUTES.verificationPending} state={{ email }}>Request another code</Link>.</p>
+            <Link to={ROUTES.login} className="btn btn-ghost" style={{ textDecoration: "none" }}>Back to log in</Link>
+          </form>
         )}
       </div>
     </AuthLayout>

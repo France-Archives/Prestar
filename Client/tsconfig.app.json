@@ -16,7 +16,11 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "paths": { "@/*": ["./src/*"] }
+    "paths": {
+      "@/*": ["./src/*"],
+      "motion/react": ["./node_modules/motion/react.d.ts"],
+      "motion": ["./node_modules/motion/dist/index.d.ts"]
+    }
   },
   "include": ["src"]
 }

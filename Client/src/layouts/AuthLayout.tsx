@@ -12,7 +12,7 @@ interface AuthLayoutProps {
 
 type Variant = "login" | "signup" | "plain";
 
-/** Auth pages: one compact rounded card. The form is white; a soft panel sits beside it on large screens. */
+/** Auth pages: one cream rounded card with a soft raised shadow. A matching panel sits beside it on large screens. */
 export default function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProps) {
   const { pathname } = useLocation();
   const variant: Variant = pathname === ROUTES.login ? "login" : pathname === ROUTES.signup ? "signup" : "plain";
@@ -25,7 +25,7 @@ export default function AuthLayout({ title, subtitle, children, footer }: AuthLa
             <img src={logoSrc} alt="" />
           </span>
         </Link>
-        <Link to={ROUTES.home} className="link-btn">← Back to home</Link>
+        <Link to={ROUTES.home} className="link-btn">Home</Link>
       </header>
 
       <main className="auth-body">

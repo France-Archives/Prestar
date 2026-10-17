@@ -4,11 +4,12 @@ import Alert from "@/components/feedback/Alert";
 import Button from "@/components/common/Button";
 import Card from "@/components/ui/Card";
 import ErrorState from "@/components/feedback/ErrorState";
-import { InputField } from "@/components/forms/FormField";
+import { InputField, SelectField } from "@/components/forms/FormField";
 import LoadingState from "@/components/feedback/LoadingState";
 import StatusBadge from "@/components/data-display/StatusBadge";
 import PageHeader from "@/components/layout/PageHeader";
 import { ROUTES } from "@/app/routeConfig";
+import { MOCK_COLLEGES } from "@/data";
 import { useAsync } from "@/hooks/useAsync";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
@@ -21,19 +22,34 @@ export default function StudentProfilePage() {
   const { user } = useAuth();
   const toast = useToast();
   const profile = useAsync(() => authService.getMyProfile(), []);
-  const [v, setV] = useState({ firstName: "", middleName: "", lastName: "", suffix: "", program: "", yearLevel: "" });
+  const [v, setV] = useState({ firstName: "", middleName: "", lastName: "", suffix: "", college: "", program: "", yearLevel: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     const p = profile.data;
-    if (p) setV({ firstName: p.firstName, middleName: p.middleName ?? "", lastName: p.lastName, suffix: p.suffix ?? "", program: p.program ?? "", yearLevel: p.yearLevel ? String(p.yearLevel) : "" });
+    if (p) {
+      // Older records have a course but no college, so find the college that owns the course.
+      const college =
+        p.college ?? MOCK_COLLEGES.find((c) => c.courses.some((x) => x.name === p.program))?.name ?? "";
+      setV({
+        firstName: p.firstName,
+        middleName: p.middleName ?? "",
+        lastName: p.lastName,
+        suffix: p.suffix ?? "",
+        college,
+        program: p.program ?? "",
+        yearLevel: p.yearLevel ? String(p.yearLevel) : "",
+      });
+    }
   }, [profile.data]);
 
   if (profile.loading) return <div className="page"><LoadingState rows={4} /></div>;
   if (profile.error || !profile.data) return <div className="page"><ErrorState message={profile.error ?? "Could not load your profile."} onRetry={() => void profile.reload()} /></div>;
   const p = profile.data;
+
+  const courses = MOCK_COLLEGES.find((c) => c.name === v.college)?.courses ?? [];
 
   const text = (key: keyof typeof v) => ({ value: v[key], error: errors[key], onChange: (e: React.ChangeEvent<HTMLInputElement>) => setV({ ...v, [key]: e.target.value }) });
 
@@ -43,7 +59,9 @@ export default function StudentProfilePage() {
     const checks: [string, string | null][] = [
       ["firstName", validateName(v.firstName, "First name")],
       ["lastName", validateName(v.lastName, "Last name")],
-      ["yearLevel", validateYearLevel(v.yearLevel)],
+      ["college", v.college ? null : "Select your college."],
+      ["program", v.program ? null : "Select your course."],
+      ["yearLevel", v.yearLevel.trim() ? validateYearLevel(v.yearLevel) : "Year level is required."],
     ];
     checks.forEach(([k, m]) => m && (found[k] = m));
     if (v.middleName.trim()) {
@@ -60,8 +78,9 @@ export default function StudentProfilePage() {
         middleName: v.middleName.trim() || null,
         lastName: v.lastName,
         suffix: v.suffix.trim() || null,
-        program: v.program.trim() || null,
-        yearLevel: v.yearLevel.trim() ? Number(v.yearLevel) : null,
+        college: v.college,
+        program: v.program,
+        yearLevel: Number(v.yearLevel),
       });
       toast.success("Profile updated.");
       await profile.reload();
@@ -95,8 +114,34 @@ export default function StudentProfilePage() {
               <InputField label="Suffix" {...text("suffix")} />
             </div>
             <div className="form-row">
-              <InputField label="Program" {...text("program")} />
-              <InputField label="Year level" type="number" min={1} max={10} {...text("yearLevel")} />
+              <SelectField
+                label="College"
+                required
+                value={v.college}
+                error={errors.college}
+                onChange={(e) => setV({ ...v, college: e.target.value, program: "" })}
+              >
+                <option value="">Select your college</option>
+                {MOCK_COLLEGES.map((c) => (
+                  <option key={c.id} value={c.name}>{c.name}</option>
+                ))}
+              </SelectField>
+              <SelectField
+                label="Course"
+                required
+                value={v.program}
+                error={errors.program}
+                disabled={!v.college}
+                onChange={(e) => setV({ ...v, program: e.target.value })}
+              >
+                <option value="">{v.college ? "Select your course" : "Select a college first"}</option>
+                {courses.map((c) => (
+                  <option key={c.id} value={c.name}>{c.name}</option>
+                ))}
+              </SelectField>
+            </div>
+            <div className="form-row">
+              <InputField label="Year level" required type="number" min={1} max={10} {...text("yearLevel")} />
             </div>
             {formError && <Alert kind="error">{formError}</Alert>}
             <div><Button type="submit" loading={busy}>Save changes</Button></div>

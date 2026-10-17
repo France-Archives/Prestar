@@ -21,7 +21,7 @@ import { fail } from "@/utils/errors";
 import { can } from "@/utils/permissions";
 import { validateRequired } from "@/utils/validators";
 import { authorsOf, availabilityOf, begin, fillQueues, toBookDetail, toBookSummary } from "./mockEngine";
-import { commit, db, matches, newId, out, paginate, requireAccount, requireCapability, sessionUserOf } from "./mockStore";
+import { commit, db, generateCopyBarcode, matches, newId, out, paginate, requireAccount, requireCapability, sessionUserOf } from "./mockStore";
 
 // TEMPORARY MOCK IMPLEMENTATION: Replace with the real Books API (C1 to C7).
 // Category and author management endpoints are NOT in the source: those functions are mock-only (TO CONFIRM).
@@ -162,7 +162,10 @@ export async function listAllCopies(params: { search?: string; status?: BookCopy
   const rows = db.copies
     .map((c): StaffCopyRow => ({ ...c, bookTitle: db.books.find((b) => b.id === c.bookId)?.title ?? "Unknown title" }))
     .filter((c) => !params.status || c.status === params.status)
-    .filter((c) => matches(params.search, c.barcode, c.bookTitle))
+    .filter((c) => {
+      const book = db.books.find((b) => b.id === c.bookId);
+      return matches(params.search, c.barcode, c.id, c.bookTitle, c.shelfLocation, c.section, c.shelfCode, c.levelOrRow, c.locationNotes, book?.isbn, ...(book ? authorsOf(book).map((author) => author.name) : []));
+    })
     .sort((a, b) => a.bookTitle.localeCompare(b.bookTitle) || a.barcode.localeCompare(b.barcode));
   return out(rows);
 }
@@ -172,16 +175,23 @@ export async function createCopy(bookId: UUID, req: CreateCopyRequest): Promise<
   await begin();
   requireCapability("CATALOG_MANAGE");
   if (!db.books.some((b) => b.id === bookId)) fail("NOT_FOUND", "We could not find that book.");
-  check(validateRequired(req.barcode, "Barcode", 100));
-  const barcode = req.barcode.trim();
-  if (db.copies.some((c) => c.barcode === barcode)) fail("CONFLICT", "A copy with this barcode already exists.");
+  const barcode = generateCopyBarcode();
+  const section = req.section?.trim() || null;
+  const shelfCode = req.shelfCode?.trim() || null;
+  const levelOrRow = req.levelOrRow?.trim() || null;
+  const locationNotes = req.locationNotes?.trim() || null;
+  const legacyLocation = req.shelfLocation?.trim() || [section, shelfCode, levelOrRow].filter(Boolean).join(" / ") || null;
   const copy: BookCopy = {
     id: newId(),
     bookId,
     barcode,
     status: req.condition === "UNUSABLE" ? "WITHDRAWN" : req.condition === "DAMAGED" ? "MAINTENANCE" : "AVAILABLE",
     condition: req.condition,
-    shelfLocation: req.shelfLocation?.trim() || null,
+    section,
+    shelfCode,
+    levelOrRow,
+    locationNotes,
+    shelfLocation: legacyLocation,
     acquisitionDate: req.acquisitionDate ?? null,
     notes: req.notes?.trim() || null,
   };
@@ -205,7 +215,18 @@ export async function updateCopy(copyId: UUID, req: UpdateCopyRequest): Promise<
     copy.status = req.status;
   }
   if (req.condition) copy.condition = req.condition;
-  if (req.shelfLocation !== undefined) copy.shelfLocation = req.shelfLocation?.trim() || null;
+  if (req.shelfLocation !== undefined || req.section !== undefined || req.shelfCode !== undefined || req.levelOrRow !== undefined || req.locationNotes !== undefined) {
+    const section = req.section !== undefined ? req.section?.trim() || null : copy.section;
+    const shelfCode = req.shelfCode !== undefined ? req.shelfCode?.trim() || null : copy.shelfCode;
+    const levelOrRow = req.levelOrRow !== undefined ? req.levelOrRow?.trim() || null : copy.levelOrRow;
+    const locationNotes = req.locationNotes !== undefined ? req.locationNotes?.trim() || null : copy.locationNotes;
+    const legacyLocation = req.shelfLocation !== undefined ? req.shelfLocation?.trim() || null : copy.shelfLocation;
+    copy.section = section;
+    copy.shelfCode = shelfCode;
+    copy.levelOrRow = levelOrRow;
+    copy.locationNotes = locationNotes;
+    copy.shelfLocation = legacyLocation !== null ? legacyLocation : [section, shelfCode, levelOrRow].filter(Boolean).join(" / ") || null;
+  }
   if (req.notes !== undefined) copy.notes = req.notes?.trim() || null;
   fillQueues();
   commit();

@@ -3,13 +3,12 @@ import type { BorrowingRequest } from "@/types";
 import { formatDate } from "@/utils/formatDate";
 
 const NOTE: Record<string, string> = {
-  APPROVED: "A copy is held for you. Pick it up at the library before the deadline. This is not a loan yet.",
+  APPROVED: "A copy is held for you. Please bring your school ID and pick it up at the library before the deadline. This is not a loan yet.",
   ON_HOLD: "Staff placed your pickup on hold. Contact the library to resolve the issue.",
   RELEASE_REJECTED: "The library could not release this copy. You may request the book again.",
   CLAIMED: "Handed over. See it under My loans.",
   EXPIRED: "The pickup deadline passed and the copy was released.",
   CANCELLED: "This request was cancelled.",
-  PENDING: "Waiting for a decision.",
 };
 
 interface Props {
@@ -18,7 +17,7 @@ interface Props {
 }
 
 export default function RequestStatusCard({ request: r, onCancel }: Props) {
-  const cancellable = r.status === "APPROVED" || r.status === "ON_HOLD" || r.status === "PENDING";
+  const cancellable = r.status === "APPROVED" || r.status === "ON_HOLD";
   return (
     <article className="card card-pad" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>

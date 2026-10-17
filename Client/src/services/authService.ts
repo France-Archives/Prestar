@@ -48,6 +48,7 @@ import {
 
 /** MOCK ONLY: the real API never returns a token. It is returned so the demo can offer an "Open link (demo)" button. */
 export interface MockTokenResult {
+  mockCode?: string;
   mockToken?: string;
 }
 
@@ -86,7 +87,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
 }
 
 /** A1 POST /auth/register. The role is never read from the request: public signup always creates a STUDENT. */
-export async function register(req: RegisterStudentRequest): Promise<{ email: string } & { mockVerificationToken: string }> {
+export async function register(req: RegisterStudentRequest): Promise<{ email: string } & { mockVerificationCode: string }> {
   await latency();
   check(validateEmail(req.email));
   check(validatePassword(req.password));
@@ -94,7 +95,11 @@ export async function register(req: RegisterStudentRequest): Promise<{ email: st
   check(validateName(req.firstName, "First name"));
   check(validateName(req.lastName, "Last name"));
   check(validateName(req.middleName ?? "", "Middle name", false));
-  check(validateYearLevel(req.yearLevel ? String(req.yearLevel) : ""));
+  // College, course and year level are required on signup.
+  if (!req.college?.trim()) fail("VALIDATION_ERROR", "Select your college.", 422);
+  if (!req.program?.trim()) fail("VALIDATION_ERROR", "Select your course.", 422);
+  if (!req.yearLevel) fail("VALIDATION_ERROR", "Year level is required.", 422);
+  check(validateYearLevel(String(req.yearLevel)));
   if (accountByEmail(req.email)) fail("CONFLICT", "An account already exists for this email. Try logging in or resetting your password.");
   if (db.accounts.some((a) => a.student?.studentNumber === req.studentNumber.trim())) fail("CONFLICT", "An account already exists for this student number.");
 
@@ -113,8 +118,9 @@ export async function register(req: RegisterStudentRequest): Promise<{ email: st
       middleName: req.middleName?.trim() || null,
       lastName: last,
       suffix: req.suffix?.trim() || null,
-      program: req.program?.trim() || null,
-      yearLevel: req.yearLevel ?? null,
+      college: req.college.trim(),
+      program: req.program.trim(), // the selected course
+      yearLevel: req.yearLevel,
       registryStatus: "UNKNOWN", // the mock does no university-registry matching
     },
     librarian: null,
@@ -122,17 +128,17 @@ export async function register(req: RegisterStudentRequest): Promise<{ email: st
     invitation: null,
   });
   notify(userId, "EMAIL_VERIFICATION_REQUIRED", "Verify your email", "Verify your email to activate your account.", ["USER", userId]);
-  const mockVerificationToken = issueToken(userId, "VERIFY_EMAIL", 24);
+  const mockVerificationCode = issueToken(userId, "VERIFY_EMAIL", 24);
   commit();
-  return { email: req.email.trim().toLowerCase(), mockVerificationToken };
+  return { email: req.email.trim().toLowerCase(), mockVerificationCode };
 }
 
-/** A4 POST /auth/verify-email. Single-use, expiring token. */
+/** A4 POST /auth/verify-email. Single-use, expiring one-time code. */
 export async function verifyEmail(req: VerifyEmailRequest): Promise<void> {
   await latency();
-  const t = consumeToken(req.token, "VERIFY_EMAIL");
-  const account = accountById(t.userId);
+  const account = accountByEmail(req.email);
   if (!account) fail("TOKEN_INVALID_OR_EXPIRED");
+  consumeToken(req.code, "VERIFY_EMAIL", account.user.id);
   account.user.emailVerifiedAt = nowIso();
   if (account.user.accountStatus === "PENDING_VERIFICATION") account.user.accountStatus = "ACTIVE";
   notify(account.user.id, "EMAIL_VERIFIED", "Email verified", "Your email has been verified. Submit an approved COR for the current term before borrowing.", ["USER", account.user.id]);
@@ -144,7 +150,7 @@ export async function resendVerification(req: ResendVerificationRequest): Promis
   await latency();
   const account = accountByEmail(req.email);
   if (account && account.user.role === "STUDENT" && !account.user.emailVerifiedAt) {
-    return { mockToken: issueToken(account.user.id, "VERIFY_EMAIL", 24) };
+    return { mockCode: issueToken(account.user.id, "VERIFY_EMAIL", 24) };
   }
   return {};
 }
@@ -211,11 +217,15 @@ export async function updateMyProfile(req: UpdateProfileRequest): Promise<Studen
   if (req.firstName !== undefined) check(validateName(req.firstName, "First name"));
   if (req.lastName !== undefined) check(validateName(req.lastName, "Last name"));
   if (req.middleName) check(validateName(req.middleName, "Middle name", false));
-  if (req.yearLevel !== undefined && req.yearLevel !== null) check(validateYearLevel(String(req.yearLevel)));
+  if (req.yearLevel !== undefined) {
+    if (!req.yearLevel) fail("VALIDATION_ERROR", "Year level is required.", 422);
+    check(validateYearLevel(String(req.yearLevel)));
+  }
   if (req.firstName !== undefined) student.firstName = req.firstName.trim();
   if (req.lastName !== undefined) student.lastName = req.lastName.trim();
   if (req.middleName !== undefined) student.middleName = req.middleName?.trim() || null;
   if (req.suffix !== undefined) student.suffix = req.suffix?.trim() || null;
+  if (req.college !== undefined) student.college = req.college?.trim() || null;
   if (req.program !== undefined) student.program = req.program?.trim() || null;
   if (req.yearLevel !== undefined) student.yearLevel = req.yearLevel;
   account.displayName = `${student.firstName} ${student.lastName}`;
