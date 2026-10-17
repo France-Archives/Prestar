@@ -61,14 +61,14 @@ export default function HandoverChecklist({ item, onChanged }: HandoverChecklist
       <div className="stack">
         <div>
           <Button variant="ghost" onClick={runCheck} loading={busy === "check"}>
-            Check Penalties
+            Review / Check
           </Button>
         </div>
         {check && <PenaltySummary check={check} />}
 
         <hr style={{ border: 0, borderTop: "1px solid var(--color-line)" }} />
 
-        <CheckboxField label="I checked the student's ID against the name on this request." checked={idOk} onChange={(e) => setIdOk(e.target.checked)} />
+        <CheckboxField label="I checked the student's school ID against the name and student number on this request." checked={idOk} onChange={(e) => setIdOk(e.target.checked)} />
         <CheckboxField label="The copy in my hand is in usable condition." checked={copyOk} onChange={(e) => setCopyOk(e.target.checked)} />
         <InputField
           label="Copy barcode"
@@ -92,7 +92,7 @@ export default function HandoverChecklist({ item, onChanged }: HandoverChecklist
             Reject Handover
           </Button>
         </div>
-        {!check && <p className="subtle">Confirm Handover unlocks after Check Penalties finds the student eligible.</p>}
+        {!check && <p className="subtle">Confirm Handover unlocks after Review / Check finds the student eligible.</p>}
       </div>
 
       {dialog === "hold" && (

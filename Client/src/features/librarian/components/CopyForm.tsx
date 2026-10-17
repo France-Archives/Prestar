@@ -20,7 +20,10 @@ export default function CopyForm({ bookId, copy, onClose, onDone }: CopyFormProp
   const [barcode, setBarcode] = useState("");
   const [status, setStatus] = useState<BookCopyStatus>(copy?.status ?? "AVAILABLE");
   const [condition, setCondition] = useState<CopyCondition>(copy?.condition ?? "GOOD");
-  const [shelf, setShelf] = useState(copy?.shelfLocation ?? "");
+  const [section, setSection] = useState(copy?.section ?? "");
+  const [shelfCode, setShelfCode] = useState(copy?.shelfCode ?? "");
+  const [levelOrRow, setLevelOrRow] = useState(copy?.levelOrRow ?? "");
+  const [locationNotes, setLocationNotes] = useState(copy?.locationNotes ?? "");
   const [acquired, setAcquired] = useState(copy?.acquisitionDate ?? "");
   const [notes, setNotes] = useState(copy?.notes ?? "");
   const [busy, setBusy] = useState(false);
@@ -31,14 +34,33 @@ export default function CopyForm({ bookId, copy, onClose, onDone }: CopyFormProp
     setBusy(true);
     setError(null);
     try {
+      const legacyLocation = [section.trim(), shelfCode.trim(), levelOrRow.trim()].filter(Boolean).join(" / ") || null;
       if (copy) {
-        const body: UpdateCopyRequest = { condition, shelfLocation: shelf.trim() || null, notes: notes.trim() || null };
+        const body: UpdateCopyRequest = {
+          condition,
+          section: section.trim() || null,
+          shelfCode: shelfCode.trim() || null,
+          levelOrRow: levelOrRow.trim() || null,
+          locationNotes: locationNotes.trim() || null,
+          shelfLocation: legacyLocation,
+          notes: notes.trim() || null,
+        };
         if (!locked && status !== copy.status) body.status = status;
         await booksService.updateCopy(copy.id, body);
         toast.success("Copy updated.");
       } else {
-        const body = { barcode: barcode.trim(), condition, shelfLocation: shelf.trim() || null, acquisitionDate: acquired || null, notes: notes.trim() || null };
-        await booksService.createCopy(bookId, body as unknown as CreateCopyRequest);
+        const body: CreateCopyRequest = {
+          barcode: barcode.trim(),
+          condition,
+          section: section.trim() || null,
+          shelfCode: shelfCode.trim() || null,
+          levelOrRow: levelOrRow.trim() || null,
+          locationNotes: locationNotes.trim() || null,
+          shelfLocation: legacyLocation,
+          acquisitionDate: acquired || null,
+          notes: notes.trim() || null,
+        };
+        await booksService.createCopy(bookId, body);
         toast.success("Copy added.");
       }
       onDone();
@@ -89,10 +111,15 @@ export default function CopyForm({ bookId, copy, onClose, onDone }: CopyFormProp
         ))}
       </SelectField>
       <div className="form-row">
-        <InputField label="Shelf location" value={shelf} onChange={(e) => setShelf(e.target.value)} />
+        <InputField label="Section" value={section} onChange={(e) => setSection(e.target.value)} />
+        <InputField label="Shelf code" value={shelfCode} onChange={(e) => setShelfCode(e.target.value)} />
+      </div>
+      <div className="form-row">
+        <InputField label="Level / row" value={levelOrRow} onChange={(e) => setLevelOrRow(e.target.value)} />
         {!copy && <InputField label="Acquisition date" type="date" value={acquired} onChange={(e) => setAcquired(e.target.value)} />}
       </div>
-      <TextareaField label="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
+      <TextareaField label="Location notes" value={locationNotes} onChange={(e) => setLocationNotes(e.target.value)} />
+      <TextareaField label="Copy notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
       {error && <Alert kind="error">{error}</Alert>}
     </Modal>
   );

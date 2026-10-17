@@ -16,7 +16,7 @@ import type { BorrowingRequestStatus, StaffBorrowingRequest } from "@/types";
 import { statusLabel } from "@/utils/constants";
 import { formatDate } from "@/utils/formatDate";
 
-const STATUSES: BorrowingRequestStatus[] = ["PENDING", "APPROVED", "ON_HOLD", "RELEASE_REJECTED", "CLAIMED", "EXPIRED", "CANCELLED"];
+const STATUSES: BorrowingRequestStatus[] = ["APPROVED", "ON_HOLD", "RELEASE_REJECTED", "CLAIMED", "EXPIRED", "CANCELLED"];
 type Action = { kind: "cancel" | "expire"; row: StaffBorrowingRequest };
 
 // Hold, Reject Handover, Cancel Request and Expire Request are four DISTINCT actions. Hold and Reject live on the handover page.
@@ -48,7 +48,7 @@ export default function BorrowingRequestsPage() {
                 Handover
               </Button>
             )}
-            {(open || r.status === "PENDING") && (
+            {open && (
               <Button variant="ghost" size="sm" onClick={() => setAction({ kind: "cancel", row: r })}>
                 Cancel
               </Button>

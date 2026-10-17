@@ -1,10 +1,11 @@
 import { useState, type CSSProperties, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, Search } from "lucide-react";
+import { BookCopy, Menu, Search } from "lucide-react";
 import logoSrc from "@/assets/images/prestar-logo.png";
 import SearchInput from "@/components/forms/SearchInput";
 import { ROUTES, homePathFor } from "@/app/routeConfig";
 import { useAuth } from "@/hooks/useAuth";
+import { useBorrowList } from "@/context/BorrowListContext";
 import { useSearchTerm } from "@/hooks/useSearchTerm";
 import NotificationBell from "./NotificationBell";
 import UserMenu from "./UserMenu";
@@ -58,6 +59,7 @@ function CatalogSearch() {
 export default function AppNavbar({ areaLabel, collapsed, drawerOpen, isDesktop, onToggleMenu }: AppNavbarProps) {
   const { user } = useAuth();
   const { pathname } = useLocation();
+  const { items: borrowListItems } = useBorrowList();
 
   if (!user) return null;
   const isStudent = user.role === "STUDENT";
@@ -65,6 +67,7 @@ export default function AppNavbar({ areaLabel, collapsed, drawerOpen, isDesktop,
   const path = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
   const livePlaceholder = isStudent ? LIVE_SEARCH[path] : undefined;
   const catalogSearch = isStudent && !livePlaceholder && (path === ROUTES.student.dashboard || path.startsWith(`${ROUTES.student.books}/`));
+  const borrowListCount = borrowListItems.length;
 
   const menuLabel = !isDesktop ? (drawerOpen ? "Close menu" : "Open menu") : collapsed ? "Expand sidebar" : "Collapse sidebar";
 
@@ -101,6 +104,22 @@ export default function AppNavbar({ areaLabel, collapsed, drawerOpen, isDesktop,
 
         <div className="app-header__end">
           <NotificationBell />
+          {isStudent && (
+            <Link
+              to={ROUTES.student.borrowList}
+              aria-label={borrowListCount > 0 ? `My Borrow List, ${borrowListCount} item${borrowListCount === 1 ? "" : "s"}` : "My Borrow List"}
+              title="My Borrow List"
+              className="relative grid h-10 w-10 place-items-center rounded-lg text-forest hover:bg-mist"
+              style={{ textDecoration: "none" }}
+            >
+              <BookCopy size={20} strokeWidth={1.8} aria-hidden="true" />
+              {borrowListCount > 0 && (
+                <b className="absolute -right-0.5 -top-0.5 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-amber px-1 text-[10px] font-bold leading-none text-forest-deep">
+                  {borrowListCount > 99 ? "99+" : borrowListCount}
+                </b>
+              )}
+            </Link>
+          )}
           <UserMenu />
         </div>
       </div>

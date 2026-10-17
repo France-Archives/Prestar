@@ -99,13 +99,18 @@ let copySeq = 0;
 export const MOCK_COPIES: BookCopy[] = ROWS.flatMap((r, i) =>
   Array.from({ length: r.copies }, (_, k): BookCopy => {
     const code = barcode(i + 1, k + 1);
+    const shelfCode = `S-${String(i + 1).padStart(2, "0")}`;
     return {
       id: uid(NS.copy, ++copySeq),
       bookId: bookId(i + 1),
       barcode: code,
       status: "AVAILABLE",
       condition: "GOOD",
-      shelfLocation: `S-${String(i + 1).padStart(2, "0")}`,
+      section: "A",
+      shelfCode,
+      levelOrRow: `Row ${k + 1}`,
+      locationNotes: null,
+      shelfLocation: shelfCode,
       acquisitionDate: "2024-06-15",
       notes: null,
       ...COPY_OVERRIDES[code],

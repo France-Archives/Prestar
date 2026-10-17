@@ -48,6 +48,7 @@ import {
 
 /** MOCK ONLY: the real API never returns a token. It is returned so the demo can offer an "Open link (demo)" button. */
 export interface MockTokenResult {
+  mockCode?: string;
   mockToken?: string;
 }
 
@@ -86,7 +87,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
 }
 
 /** A1 POST /auth/register. The role is never read from the request: public signup always creates a STUDENT. */
-export async function register(req: RegisterStudentRequest): Promise<{ email: string } & { mockVerificationToken: string }> {
+export async function register(req: RegisterStudentRequest): Promise<{ email: string } & { mockVerificationCode: string }> {
   await latency();
   check(validateEmail(req.email));
   check(validatePassword(req.password));
@@ -127,17 +128,17 @@ export async function register(req: RegisterStudentRequest): Promise<{ email: st
     invitation: null,
   });
   notify(userId, "EMAIL_VERIFICATION_REQUIRED", "Verify your email", "Verify your email to activate your account.", ["USER", userId]);
-  const mockVerificationToken = issueToken(userId, "VERIFY_EMAIL", 24);
+  const mockVerificationCode = issueToken(userId, "VERIFY_EMAIL", 24);
   commit();
-  return { email: req.email.trim().toLowerCase(), mockVerificationToken };
+  return { email: req.email.trim().toLowerCase(), mockVerificationCode };
 }
 
-/** A4 POST /auth/verify-email. Single-use, expiring token. */
+/** A4 POST /auth/verify-email. Single-use, expiring one-time code. */
 export async function verifyEmail(req: VerifyEmailRequest): Promise<void> {
   await latency();
-  const t = consumeToken(req.token, "VERIFY_EMAIL");
-  const account = accountById(t.userId);
+  const account = accountByEmail(req.email);
   if (!account) fail("TOKEN_INVALID_OR_EXPIRED");
+  consumeToken(req.code, "VERIFY_EMAIL", account.user.id);
   account.user.emailVerifiedAt = nowIso();
   if (account.user.accountStatus === "PENDING_VERIFICATION") account.user.accountStatus = "ACTIVE";
   notify(account.user.id, "EMAIL_VERIFIED", "Email verified", "Your email has been verified. Submit an approved COR for the current term before borrowing.", ["USER", account.user.id]);
@@ -149,7 +150,7 @@ export async function resendVerification(req: ResendVerificationRequest): Promis
   await latency();
   const account = accountByEmail(req.email);
   if (account && account.user.role === "STUDENT" && !account.user.emailVerifiedAt) {
-    return { mockToken: issueToken(account.user.id, "VERIFY_EMAIL", 24) };
+    return { mockCode: issueToken(account.user.id, "VERIFY_EMAIL", 24) };
   }
   return {};
 }

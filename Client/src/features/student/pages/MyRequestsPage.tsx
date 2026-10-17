@@ -16,7 +16,7 @@ import { statusLabel } from "@/utils/constants";
 import RequestStatusCard from "../components/RequestStatusCard";
 
 type Tab = "open" | "closed";
-const OPEN = ["PENDING", "APPROVED", "ON_HOLD"];
+const OPEN = ["APPROVED", "ON_HOLD"];
 
 export default function MyRequestsPage() {
   const toast = useToast();

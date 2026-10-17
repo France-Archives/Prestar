@@ -193,7 +193,7 @@ export async function cancelBorrowingRequestAsStaff(requestId: UUID, reason: str
   const staff = requireCapability("STAFF_AREA");
   const why = need(reason, "A reason is required to cancel a request.");
   const request = findRequest(requestId);
-  if (request.status !== "APPROVED" && request.status !== "ON_HOLD" && request.status !== "PENDING") fail("INVALID_STATE", "This request can no longer be cancelled.", 409);
+  if (request.status !== "APPROVED" && request.status !== "ON_HOLD") fail("INVALID_STATE", "This request can no longer be cancelled.", 409);
   request.status = "CANCELLED";
   request.decisionReason = why;
   const copy = request.assignedCopyId ? copyById(request.assignedCopyId) : undefined;

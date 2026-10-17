@@ -1,4 +1,5 @@
 import type { LibrarianPermission, SessionUser, UserRole } from "@/types";
+import { USER_ROLES } from "@/types";
 import { HOME_BY_ROLE } from "@/utils/constants";
 
 // UI role/permission helpers. They only decide what to SHOW. The backend enforces every rule.
@@ -8,6 +9,11 @@ import { HOME_BY_ROLE } from "@/utils/constants";
 // capabilities always pass for ADMIN.
 
 export const STAFF_ROLES: readonly UserRole[] = ["LIBRARIAN", "ADMIN"];
+
+export const normalizeUserRole = (role: string | null | undefined): UserRole | null => {
+  const normalized = typeof role === "string" ? role.trim().toUpperCase() : "";
+  return USER_ROLES.includes(normalized as UserRole) ? (normalized as UserRole) : null;
+};
 
 export type Capability =
   | "STUDENT_AREA" // own-data student features (borrow, reserve, renew, upload COR)
@@ -25,22 +31,30 @@ const GATED: Partial<Record<Capability, LibrarianPermission>> = {
   FINE_MANAGE: "FINE_PAYMENT",
 };
 
-export const isStaffRole = (role: UserRole | null | undefined): boolean => !!role && STAFF_ROLES.includes(role);
-export const isAdminRole = (role: UserRole | null | undefined): boolean => role === "ADMIN";
+export const isStaffRole = (role: UserRole | null | undefined): boolean => {
+  const normalized = normalizeUserRole(role ?? undefined);
+  return !!normalized && STAFF_ROLES.includes(normalized);
+};
+export const isAdminRole = (role: UserRole | null | undefined): boolean => normalizeUserRole(role ?? undefined) === "ADMIN";
 
 export function can(user: SessionUser | null | undefined, capability: Capability): boolean {
   if (!user) return false;
-  const { role } = user;
+  const role = normalizeUserRole(user.role);
+  if (!role) return false;
+
   if (role === "ADMIN") return capability !== "STUDENT_AREA"; // Admin = Librarian + Admin-only
   if (role === "STUDENT") return capability === "STUDENT_AREA";
-  // LIBRARIAN
+  if (role !== "LIBRARIAN") return false;
+
   if (capability === "STAFF_AREA") return true;
   const needed = GATED[capability];
   return needed ? (user.librarian?.permissions ?? []).includes(needed) : false;
 }
 
 /** For route guards: is the user's role one of the allowed roles? */
-export const roleAllowed = (role: UserRole | undefined, allowed: readonly UserRole[]): boolean =>
-  !!role && allowed.includes(role);
+export const roleAllowed = (role: UserRole | undefined, allowed: readonly UserRole[]): boolean => {
+  const normalized = normalizeUserRole(role ?? undefined);
+  return !!normalized && allowed.includes(normalized);
+};
 
-export const homeForRole = (role: UserRole): string => HOME_BY_ROLE[role];
+export const homeForRole = (role: UserRole): string => HOME_BY_ROLE[role] ?? HOME_BY_ROLE.STUDENT;

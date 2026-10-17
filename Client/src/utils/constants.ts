@@ -129,6 +129,7 @@ export const ROUTES = {
     fines: "/staff/fines",
     payments: "/staff/payments",
     maintenance: "/staff/maintenance",
+    shelfLocator: "/staff/shelf-locator",
     notifications: "/staff/notifications",
   },
   admin: {

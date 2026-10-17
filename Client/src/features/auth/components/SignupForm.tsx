@@ -64,8 +64,8 @@ export default function SignupForm() {
         program: v.program, // the selected course
         yearLevel: Number(v.yearLevel),
       });
-      // mockVerificationToken is demo-only: a real backend emails the link and never returns the token.
-      navigate(ROUTES.verificationPending, { state: { email: res.email, mockToken: res.mockVerificationToken } });
+      // The mock displays this code; the real backend sends it to the student's email.
+      navigate(ROUTES.verificationPending, { state: { email: res.email, mockCode: res.mockVerificationCode } });
     } catch (err) {
       setFormError(describeError(err));
       setBusy(false);

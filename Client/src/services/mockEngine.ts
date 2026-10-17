@@ -167,15 +167,15 @@ export function corSummaryOf(studentId: UUID): CorSummary {
 
 // ---------- commitments, overdue loans, fines ----------
 // TC-13 baseline: ON_HOLD requests keep their copy, so they count toward the commitment limits. TO CONFIRM.
-const OPEN_REQUEST: BorrowingRequestStatus[] = ["PENDING", "APPROVED", "ON_HOLD"];
+const OPEN_REQUEST: BorrowingRequestStatus[] = ["APPROVED", "ON_HOLD"];
 
-/** Active commitment = active loan + approved/held request awaiting pickup + WAITING/OFFERED reservation. */
+/** Active commitment = active loan + approved/held request awaiting pickup + an OFFERED reservation with a physically held copy. WAITING reservations are queued, not yet allocated. */
 export function commitmentsOf(studentId: UUID, bookId?: UUID): number {
   const same = (id: UUID) => !bookId || id === bookId;
   return (
     db.loans.filter((l) => l.studentId === studentId && l.status === "ACTIVE" && same(l.bookId)).length +
     db.requests.filter((r) => r.studentId === studentId && OPEN_REQUEST.includes(r.status) && same(r.bookId)).length +
-    db.reservations.filter((r) => r.studentId === studentId && (r.status === "WAITING" || r.status === "OFFERED") && same(r.bookId)).length
+    db.reservations.filter((r) => r.studentId === studentId && r.status === "OFFERED" && same(r.bookId)).length
   );
 }
 
@@ -291,11 +291,11 @@ export function queuePosition(r: MockReservation): number {
   return waiting.findIndex((x) => x.id === r.id) + 1;
 }
 
-/** Offer a free copy to the first ELIGIBLE waiting student. Ineligible students are skipped and keep their place (TO CONFIRM). */
+/** Offer a free copy to the first ELIGIBLE waiting student. The offer check must include the student’s current commitments so a queue member with a full limit is not advanced. */
 export function offerCopyToQueue(copy: BookCopy): boolean {
   const queue = db.reservations.filter((r) => r.bookId === copy.bookId && r.status === "WAITING").sort(byFifo);
   for (const r of queue) {
-    if (!checkEligibility(r.studentId).eligible) continue;
+    if (!checkEligibility(r.studentId, { includeLimits: true, bookId: r.bookId }).eligible) continue;
     r.status = "OFFERED";
     r.offeredCopyId = copy.id;
     r.pickupDeadline = addDaysIso(new Date(), setting("RESERVATION_HOLD_DAYS"));

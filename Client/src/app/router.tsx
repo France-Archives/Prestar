@@ -35,6 +35,7 @@ const P = {
   StudentDashboard: page(() => import("@/features/student/pages/StudentDashboardPage")),
   MyInterests: page(() => import("@/features/student/pages/MyInterestsPage")),
   MyBorrowings: page(() => import("@/features/student/pages/MyBorrowingsPage")),
+  MyBorrowList: page(() => import("@/features/student/pages/MyBorrowListPage")),
   MyRequests: page(() => import("@/features/student/pages/MyRequestsPage")),
   MyReservations: page(() => import("@/features/student/pages/MyReservationsPage")),
   RenewalRequests: page(() => import("@/features/student/pages/RenewalRequestsPage")),
@@ -59,6 +60,7 @@ const P = {
   ManageCategories: page(() => import("@/features/librarian/pages/ManageCategoriesPage")),
   ManageAuthors: page(() => import("@/features/librarian/pages/ManageAuthorsPage")),
   MaintenanceCopies: page(() => import("@/features/librarian/pages/MaintenanceCopiesPage")),
+  ShelfLocator: page(() => import("@/features/librarian/pages/ShelfLocatorPage")),
   // admin
   AdminDashboard: page(() => import("@/features/admin/pages/AdminDashboardPage")),
   UserManagement: page(() => import("@/features/admin/pages/UserManagementPage")),
@@ -97,6 +99,7 @@ const studentRoutes: RouteObject[] = [
   { path: "books/:bookId", element: el(P.BookDetails) },
   { path: "interests", element: el(P.MyInterests) },
   { path: "borrowing", element: el(P.MyBorrowings) },
+  { path: "borrow-list", element: el(P.MyBorrowList) },
   { path: "requests", element: el(P.MyRequests) },
   { path: "reservations", element: el(P.MyReservations) },
   { path: "renewals", element: el(P.RenewalRequests) },
@@ -127,6 +130,7 @@ const staffRoutes: RouteObject[] = [
     { path: "categories", element: el(P.ManageCategories) },
     { path: "authors", element: el(P.ManageAuthors) },
     { path: "maintenance", element: el(P.MaintenanceCopies) },
+    { path: "shelf-locator", element: el(P.ShelfLocator) },
   ]),
 ];
 

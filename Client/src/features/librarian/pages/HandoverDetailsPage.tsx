@@ -27,6 +27,7 @@ export default function HandoverDetailsPage() {
       <Breadcrumbs items={[{ label: "Books to Release", to: ROUTES.staff.booksToRelease }, { label: "Handover" }]} />
       <PageHeader eyebrow="Circulation" title={request.bookTitle} description={`Requested by ${request.student.firstName} ${request.student.lastName} (${request.student.studentNumber})`} />
       <div className="stack">
+        <Alert kind="info">Please ask the student to present their school ID before handover.</Alert>
         <Card title="Request">
           <dl className="kv">
             <div><dt>Status</dt><dd><StatusBadge status={request.status} /></dd></div>

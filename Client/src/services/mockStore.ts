@@ -204,13 +204,20 @@ export function issueToken(userId: UUID, purpose: MockEmailToken["purpose"], hou
   db.tokens.forEach((t) => {
     if (t.userId === userId && t.purpose === purpose && !t.usedAt) t.usedAt = nowIso(); // older unused tokens are invalidated
   });
-  const token = `mock-${newId()}`;
+  let token: string;
+  if (purpose === "VERIFY_EMAIL") {
+    do {
+      token = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1_000_000).padStart(6, "0");
+    } while (db.tokens.some((entry) => entry.token === token && entry.purpose === purpose && !entry.usedAt));
+  } else {
+    token = `mock-${newId()}`;
+  }
   db.tokens.push({ token, userId, purpose, expiresAt: addDaysIso(new Date(), hours / 24), usedAt: null });
   return token;
 }
 
-export function consumeToken(token: string, purpose: MockEmailToken["purpose"]): MockEmailToken {
-  const t = db.tokens.find((x) => x.token === token && x.purpose === purpose);
+export function consumeToken(token: string, purpose: MockEmailToken["purpose"], userId?: UUID): MockEmailToken {
+  const t = db.tokens.find((x) => x.token === token && x.purpose === purpose && (!userId || x.userId === userId));
   if (!t || t.usedAt || new Date(t.expiresAt).getTime() < Date.now()) fail("TOKEN_INVALID_OR_EXPIRED");
   t.usedAt = nowIso();
   return t;

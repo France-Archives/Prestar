@@ -10,13 +10,13 @@ import { describeError } from "@/utils/errors";
 
 interface PendingState {
   email?: string;
-  mockToken?: string;
+  mockCode?: string;
 }
 
 // The response to "resend" is always generic (no account enumeration).
 export default function VerificationPendingPage() {
   const state = (useLocation().state ?? {}) as PendingState;
-  const [token, setToken] = useState<string | undefined>(state.mockToken);
+  const [code, setCode] = useState<string | undefined>(state.mockCode);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -27,8 +27,8 @@ export default function VerificationPendingPage() {
     setError(null);
     try {
       const res = await authService.resendVerification({ email: state.email });
-      if (res.mockToken) setToken(res.mockToken);
-      setMessage("If that account still needs verification, a new link was sent.");
+      if (res.mockCode) setCode(res.mockCode);
+      setMessage("If that account still needs verification, a new code was sent.");
     } catch (e) {
       setError(describeError(e));
     } finally {
@@ -37,13 +37,13 @@ export default function VerificationPendingPage() {
   };
 
   return (
-    <AuthLayout title="Check your email" subtitle={state.email ? `We sent a verification link to ${state.email}.` : "We sent you a verification link."}>
+    <AuthLayout title="Check your email" subtitle={state.email ? `We sent a verification code to ${state.email}.` : "We sent you a verification code."}>
       <div className="stack">
-        <p>Open the link to activate your account. After that, submit your Certificate of Registration (COR) for the current term before borrowing.</p>
-        {USE_MOCKS && token && (
+        <p>Enter the one-time code to activate your account. An approved COR for the current term is required only when borrowing, reserving, or renewing.</p>
+        {USE_MOCKS && code && (
           <Alert kind="warn">
-            <MockTag>Simulated</MockTag> No email was sent. For this demo, open the link yourself:{" "}
-            <Link to={`${ROUTES.verifyEmail}?token=${encodeURIComponent(token)}`}>Open verification link (demo)</Link>
+            <MockTag>Simulated</MockTag> No email was sent. Demo verification code: <strong>{code}</strong>{" "}
+            <Link to={ROUTES.verifyEmail} state={{ email: state.email, mockCode: code }}>Enter code</Link>
           </Alert>
         )}
         {message && <Alert kind="ok">{message}</Alert>}

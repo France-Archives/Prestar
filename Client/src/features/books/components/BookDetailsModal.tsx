@@ -4,9 +4,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { X } from "lucide-react";
 import Alert from "@/components/feedback/Alert";
 import Button from "@/components/common/Button";
+import { CheckboxField, SelectField } from "@/components/forms/FormField";
 import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
-import { SelectField } from "@/components/forms/FormField";
 import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import { useAuth } from "@/hooks/useAuth";
@@ -15,12 +15,12 @@ import * as booksService from "@/services/booksService";
 import * as borrowingService from "@/services/borrowingService";
 import * as reservationsService from "@/services/reservationsService";
 import type { AllowedDurationDays, BookDetail } from "@/types";
+import { DURATION_OPTIONS } from "@/utils/constants";
 import { describeError } from "@/utils/errors";
 import { can } from "@/utils/permissions";
+import { useBorrowList } from "@/context/BorrowListContext";
 import AvailabilityBadge from "./AvailabilityBadge";
 import BookCover from "./BookCover";
-
-const DURATIONS: AllowedDurationDays[] = [3, 7, 14, 21, 30, 60];
 
 interface ContentProps {
   book: BookDetail;
@@ -38,8 +38,11 @@ export function BookDetailsContent({ book, reload, onNavigate, large = false, mo
   const { user } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
-  const [duration, setDuration] = useState<AllowedDurationDays>(7);
+  const { addBook } = useBorrowList();
   const [busy, setBusy] = useState(false);
+  const [added, setAdded] = useState(false);
+  const [selectedDuration, setSelectedDuration] = useState<AllowedDurationDays>(14);
+  const [reserveInstead, setReserveInstead] = useState(false);
   const [problem, setProblem] = useState<{ message: string; code?: string } | null>(null);
 
   const isStudent = user?.role === "STUDENT";
@@ -51,20 +54,57 @@ export function BookDetailsContent({ book, reload, onNavigate, large = false, mo
     navigate(to);
   };
 
-  // The backend decides eligibility and copy assignment. Errors such as COR_REQUIRED come back and are shown here.
+  const addToBorrowList = () => {
+    if (addBook(book)) {
+      setAdded(true);
+      toast.success(`${book.title} added to My Borrow List.`);
+    } else {
+      toast.info(`${book.title} is already in My Borrow List.`);
+    }
+  };
+
+  const borrowNow = async () => {
+    setBusy(true);
+    setProblem(null);
+    try {
+      if (availableCopies <= 0) {
+        if (!reserveInstead) {
+          setProblem({ message: "No copies are available right now. Confirm the reservation to continue." });
+          setBusy(false);
+          return;
+        }
+        await reservationsService.createReservation({ bookId: book.id });
+        toast.success("You joined the reservation queue.");
+        go(ROUTES.student.reservations);
+        return;
+      }
+
+      const response = await borrowingService.createBorrowingRequest({
+        bookId: book.id,
+        requestedDurationDays: selectedDuration,
+      });
+      toast.success(response.message || "Your borrowing request was approved.");
+      go(ROUTES.student.requests);
+    } catch (e) {
+      const code = (e as { code?: string }).code;
+      if (code === "NO_COPY_AVAILABLE") {
+        setProblem({ message: "No copies are available right now. Confirm that you want to reserve this title instead.", code });
+      } else {
+        setProblem({ message: describeError(e), code });
+      }
+      reload();
+      setBusy(false);
+    }
+  };
+
+  // Reservation creation remains an explicit student action when no copy is available.
   const act = async () => {
     setBusy(true);
     setProblem(null);
     try {
-      if (mode === "request") {
-        const res = await borrowingService.createBorrowingRequest({ bookId: book.id, requestedDurationDays: duration });
-        toast.success(res.message);
-        go(ROUTES.student.requests);
-      } else {
-        await reservationsService.createReservation({ bookId: book.id });
-        toast.success("You joined the reservation queue.");
-        go(ROUTES.student.reservations);
-      }
+      await reservationsService.createReservation({ bookId: book.id });
+      toast.success("You joined the reservation queue.");
+      go(ROUTES.student.reservations);
     } catch (e) {
       setProblem({ message: describeError(e), code: (e as { code?: string }).code });
       reload(); // availability may have changed (409 conflicts)
@@ -114,16 +154,7 @@ export function BookDetailsContent({ book, reload, onNavigate, large = false, mo
 
         {isStudent && (
           <section className="bk-action" aria-label={mode === "reserve" ? "Reserve this book" : "Borrow this book"}>
-            {mode === "request" && (
-              <>
-                <SelectField label="Loan duration" value={duration} onChange={(e) => setDuration(Number(e.target.value) as AllowedDurationDays)}>
-                  {DURATIONS.map((d) => (
-                    <option key={d} value={d}>{d} days</option>
-                  ))}
-                </SelectField>
-                <p className="subtle">If approved, a copy is held for you for 3 days. The loan starts only when staff hand over the book at the library.</p>
-              </>
-            )}
+            {mode === "request" && <p className="subtle">Choose a borrow duration, then request a single copy. You can also add this title to My Borrow List for a multi-copy review.</p>}
             {mode === "reserve" && <p className="subtle">All copies are out. You join a first-in, first-out queue. When a copy is free it is held for you for 3 days.</p>}
             {mode === "none" && <Alert kind="info">There are no copies in circulation right now.</Alert>}
             {problem && (
@@ -137,12 +168,31 @@ export function BookDetailsContent({ book, reload, onNavigate, large = false, mo
                 )}
               </Alert>
             )}
+            {mode === "request" && (
+              <div className="stack">
+                <SelectField label="Borrowing duration" value={selectedDuration} onChange={(event) => setSelectedDuration(Number(event.target.value) as AllowedDurationDays)}>
+                  {DURATION_OPTIONS.map((days) => (
+                    <option key={days} value={days}>{days} days</option>
+                  ))}
+                </SelectField>
+                {availableCopies <= 0 && (
+                  <CheckboxField
+                    label="I want to reserve this title instead if no copy is available right now."
+                    checked={reserveInstead}
+                    onChange={(event) => setReserveInstead(event.target.checked)}
+                  />
+                )}
+              </div>
+            )}
             <div className="bk-action__buttons">
-              {mode !== "none" && (
-                <Button onClick={act} loading={busy}>
-                  {mode === "request" ? "Borrow now" : "Join the queue"}
-                </Button>
+              {mode === "request" && (
+                <>
+                  <Button onClick={borrowNow} loading={busy}>Borrow now</Button>
+                  <Button variant="ghost" onClick={addToBorrowList}>{added ? "Added to My Borrow List" : "Add to My Borrow List"}</Button>
+                </>
               )}
+              {mode === "reserve" && <Button onClick={act} loading={busy}>Join the reservation queue</Button>}
+              {added && <Link to={ROUTES.student.borrowList} onClick={onNavigate}>Review My Borrow List</Link>}
               {modal && (
                 <Link to={ROUTES.student.bookDetails(book.id)} className="btn btn-ghost" onClick={onNavigate}>
                   More info

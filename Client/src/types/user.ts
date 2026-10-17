@@ -90,7 +90,8 @@ export interface LoginResponse {
 }
 
 export interface VerifyEmailRequest {
-  token: string;
+  email: string;
+  code: string;
 }
 export interface ResendVerificationRequest {
   email: string;
