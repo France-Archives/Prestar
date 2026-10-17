@@ -49,13 +49,14 @@ export interface PenaltyCheck {
 // Books to Release row -> BookToRelease (derived)
 export interface BookToRelease {
   requestId: UUID;
+  reservationId: UUID | null;
   student: { id: UUID; studentNumber: string; firstName: string; lastName: string };
   book: { id: UUID; title: string };
   copy: { id: UUID; barcode: string };
   requestedDurationDays: AllowedDurationDays;
   approvedAt: ISODateTime;
   pickupDeadline: ISODateTime;
-  status: Extract<BorrowingRequestStatus, "APPROVED" | "ON_HOLD">;
+  status: Extract<BorrowingRequestStatus, "APPROVED" | "ON_HOLD"> | "OFFERED";
 }
 
 /** One row of handover_attempts, shown on the handover details page. */

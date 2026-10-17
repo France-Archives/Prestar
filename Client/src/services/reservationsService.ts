@@ -1,4 +1,4 @@
-import type { CreateReservationRequest, Loan, Reservation, ReservationStatus, StaffReservation, UUID, AllowedDurationDays, ClaimRequest } from "@/types";
+import type { CreateReservationRequest, Loan, Reservation, ReservationStatus, StaffReservation, UUID } from "@/types";
 import { fail } from "@/utils/errors";
 import { isPast } from "@/utils/formatDate";
 import { validateDuration } from "@/utils/validators";
@@ -10,6 +10,7 @@ import {
   copyRef,
   createLoan,
   queuePosition,
+  recordAttempt,
   releaseCopy,
   studentName,
   studentRef,
@@ -29,6 +30,8 @@ export async function createReservation(req: CreateReservationRequest): Promise<
   const { account, student } = requireStudent();
   const book = db.books.find((b) => b.id === req.bookId && !b.isArchived);
   if (!book) fail("NOT_FOUND", "We could not find that book.");
+  const durationError = validateDuration(req.requestedDurationDays);
+  if (durationError) fail("INVALID_DURATION", durationError, 422);
   assertEligible(student.id, { includeLimits: true, bookId: book.id });
   if (db.copies.some((c) => c.bookId === book.id && c.status === "AVAILABLE")) fail("COPY_AVAILABLE", undefined, 409);
   if (db.reservations.some((r) => r.studentId === student.id && r.bookId === book.id && (r.status === "WAITING" || r.status === "OFFERED"))) {
@@ -39,6 +42,7 @@ export async function createReservation(req: CreateReservationRequest): Promise<
     studentId: student.id,
     bookId: book.id,
     bookTitle: book.title,
+    requestedDurationDays: req.requestedDurationDays,
     status: "WAITING" as const,
     reservedAt: nowIso(),
     pickupDeadline: null,
@@ -95,19 +99,23 @@ export async function listStaffReservations(params: { status?: ReservationStatus
 }
 
 /**
- * P6 POST /staff/reservations/:id/claim (proposed): hand over an OFFERED reservation.
- * The loan duration source is TO CONFIRM (TC-12; reservations have no duration column), so staff choose it here.
+ * P6 POST /staff/reservations/:id/claim (proposed): issue an OFFERED reservation from Books to Release.
+ * The selected duration is stored with the reservation and starts on the actual issuance date.
  */
-export async function claimReservation(reservationId: UUID, req: ClaimRequest & { durationDays: AllowedDurationDays }): Promise<Loan> {
+export async function claimReservation(reservationId: UUID, req: { copyBarcode: string }): Promise<Loan> {
   await begin();
   const staff = requireCapability("STAFF_AREA");
   const reservation = db.reservations.find((r) => r.id === reservationId);
   if (!reservation) fail("NOT_FOUND", "We could not find that reservation.");
   if (reservation.status !== "OFFERED" || isPast(reservation.pickupDeadline)) fail("INVALID_STATE", "This offer is no longer available.", 409);
-  const durationError = validateDuration(req.durationDays);
-  if (durationError) fail("INVALID_DURATION", durationError, 422);
   const copy = reservation.offeredCopyId ? copyById(reservation.offeredCopyId) : undefined;
   if (!copy) fail("INVALID_STATE", "The offered copy could not be found.", 409);
+  const competingAssignment =
+    db.requests.some((r) => r.assignedCopyId === copy.id && (r.status === "APPROVED" || r.status === "ON_HOLD")) ||
+    db.reservations.some((r) => r.id !== reservation.id && r.offeredCopyId === copy.id && r.status === "OFFERED");
+  if (copy.status !== "RESERVED" || competingAssignment || copy.condition === "DAMAGED" || copy.condition === "UNUSABLE") {
+    fail("INVALID_STATE", "The offered copy is no longer available for this reservation.", 409);
+  }
   if (copy.barcode !== req.copyBarcode.trim()) fail("VALIDATION_ERROR", "The barcode does not match the offered copy.", 422);
   const check = checkEligibility(reservation.studentId);
   if (!check.eligible) {
@@ -115,8 +123,9 @@ export async function claimReservation(reservationId: UUID, req: ClaimRequest & 
     commit();
     fail("ELIGIBILITY_FAILED", check.reasons[0].message, 403, { reasons: check.reasons });
   }
-  const loan = createLoan(reservation.studentId, copy, reservation.bookTitle, req.durationDays);
+  const loan = createLoan(reservation.studentId, copy, reservation.bookTitle, reservation.requestedDurationDays);
   reservation.status = "COLLECTED";
+  recordAttempt(reservation.id, "CLAIMED", staff, null, null);
   notify(studentUserId(reservation.studentId), "LOAN_ISSUED", "Book issued", `You borrowed ${reservation.bookTitle}.`, ["LOAN", loan.id]);
   audit(staff, "RESERVATION_CLAIMED", "RESERVATION", reservation.id, `Handed over ${reservation.bookTitle} to ${studentName(reservation.studentId)} from a reservation.`);
   commit();

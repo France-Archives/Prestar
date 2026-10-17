@@ -16,7 +16,7 @@ export default function RequestQueueTable({ rows, onOpen, pageSize }: RequestQue
     { key: "book", header: "Book", render: (request) => request.book.title },
     { key: "copy", header: "Copy", render: (request) => request.copy.barcode },
     { key: "requestedDurationDays", header: "Duration", render: (request) => `${request.requestedDurationDays} days` },
-    { key: "approvedAt", header: "Approved", render: (request) => formatDate(request.approvedAt) },
+    { key: "approvedAt", header: "Approved / reserved", render: (request) => formatDate(request.approvedAt) },
     { key: "pickupDeadline", header: "Pickup deadline", render: (request) => formatDate(request.pickupDeadline) },
     { key: "status", header: "Status", render: (request) => <StatusBadge status={request.status} /> },
     {

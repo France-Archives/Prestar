@@ -15,6 +15,7 @@ const make = (
   n: number,
   student: UUID,
   book: number,
+  requestedDurationDays: Reservation["requestedDurationDays"],
   status: Reservation["status"],
   reservedDays: number,
   pickupDeadlineDays: number | null,
@@ -24,6 +25,7 @@ const make = (
   studentId: student,
   bookId: bookId(book),
   bookTitle: bookTitle(bookId(book)),
+  requestedDurationDays,
   status,
   reservedAt: at(reservedDays),
   pickupDeadline: pickupDeadlineDays === null ? null : at(pickupDeadlineDays),
@@ -32,11 +34,11 @@ const make = (
 
 export const MOCK_RESERVATIONS: MockReservation[] = [
   // Queue for "The Design of Everyday Things" (its only copy is on loan). Felix is first but suspended, so he is skipped.
-  make(1, STUDENT_ID.felix, 4, "WAITING", -3, null, null),
-  make(2, STUDENT_ID.ben, 4, "WAITING", -2, null, null),
+  make(1, STUDENT_ID.felix, 4, 14, "WAITING", -3, null, null),
+  make(2, STUDENT_ID.ben, 4, 7, "WAITING", -2, null, null),
   // A copy of "Thinking, Fast and Slow" is held for Ana
-  make(3, STUDENT_ID.ana, 7, "OFFERED", -6, 2, [7, 1]),
+  make(3, STUDENT_ID.ana, 7, 14, "OFFERED", -6, 2, [7, 1]),
   // History
-  make(4, STUDENT_ID.ana, 6, "EXPIRED", -34, -27, null),
-  make(5, STUDENT_ID.ben, 3, "CANCELLED", -20, null, null),
+  make(4, STUDENT_ID.ana, 6, 7, "EXPIRED", -34, -27, null),
+  make(5, STUDENT_ID.ben, 3, 30, "CANCELLED", -20, null, null),
 ];

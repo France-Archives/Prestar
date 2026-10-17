@@ -132,7 +132,7 @@ export async function submitBorrowBatchItem(item: BorrowBatchItemRequest): Promi
   const remainder = item.requestedQuantity - requests.length;
   if (remainder > 0 && item.reserveRemainder) {
     try {
-      await createReservation({ bookId: item.bookId });
+      await createReservation({ bookId: item.bookId, requestedDurationDays: item.requestedDurationDays });
       reservationCreated = true;
     } catch (error) {
       messages.push(describeError(error));

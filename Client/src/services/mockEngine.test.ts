@@ -2,19 +2,24 @@ import { afterEach, describe, expect, it } from "vitest";
 import { ROUTES, homePathFor } from "@/app/routeConfig";
 import { bookId } from "@/data";
 import { db } from "@/services/mockStore";
-import { commitmentsOf } from "@/services/mockEngine";
+import { checkEligibility, commitmentsOf, offerCopyToQueue } from "@/services/mockEngine";
+import type { BookCopy } from "@/types";
 import { can, normalizeUserRole, roleAllowed } from "@/utils/permissions";
 
 const original = {
   loans: structuredClone(db.loans),
   requests: structuredClone(db.requests),
   reservations: structuredClone(db.reservations),
+  copies: structuredClone(db.copies),
+  notifications: structuredClone(db.notifications),
 };
 
 afterEach(() => {
   db.loans = structuredClone(original.loans);
   db.requests = structuredClone(original.requests);
   db.reservations = structuredClone(original.reservations);
+  db.copies = structuredClone(original.copies);
+  db.notifications = structuredClone(original.notifications);
 });
 
 describe("permission and role normalization", () => {
@@ -83,6 +88,7 @@ describe("borrowing commitments", () => {
         studentId,
         bookId: titleId,
         bookTitle: "Atomic Habits",
+        requestedDurationDays: 14,
         status: "WAITING",
         reservedAt: now,
         pickupDeadline: null,
@@ -93,6 +99,7 @@ describe("borrowing commitments", () => {
         studentId,
         bookId: titleId,
         bookTitle: "Atomic Habits",
+        requestedDurationDays: 7,
         status: "OFFERED",
         reservedAt: now,
         pickupDeadline: plusSeven,
@@ -101,5 +108,74 @@ describe("borrowing commitments", () => {
     );
 
     expect(commitmentsOf(studentId, titleId)).toBe(3);
+  });
+});
+
+describe("reservation copy offers", () => {
+  it("assigns a usable copy once and never offers damaged copies", () => {
+    const book = bookId(99);
+    const studentId = db.accounts.find(
+      (account) => account.student && checkEligibility(account.student.id, { includeLimits: true, bookId: book }).eligible,
+    )?.student?.id;
+    if (!studentId) throw new Error("No eligible student fixture is available.");
+    const ineligibleStudentId = db.accounts.find(
+      (account) => account.student && !checkEligibility(account.student.id, { includeLimits: true, bookId: book }).eligible,
+    )?.student?.id;
+    if (!ineligibleStudentId) throw new Error("No ineligible student fixture is available.");
+    const offeredCopyId = crypto.randomUUID();
+    const waitingReservation = {
+      id: crypto.randomUUID(),
+      studentId,
+      bookId: book,
+      bookTitle: "Queue test",
+      requestedDurationDays: 14 as const,
+      status: "WAITING" as const,
+      reservedAt: new Date().toISOString(),
+      pickupDeadline: null,
+      offeredCopyId: null,
+    };
+    const skippedReservation = {
+      ...waitingReservation,
+      id: crypto.randomUUID(),
+      studentId: ineligibleStudentId,
+      reservedAt: new Date(Date.now() - 60_000).toISOString(),
+    };
+    const makeCopy = (condition: BookCopy["condition"]): BookCopy => ({
+      id: offeredCopyId,
+      bookId: book,
+      barcode: "PR-0099-1",
+      status: "AVAILABLE",
+      condition,
+      shelfLocation: null,
+      section: null,
+      shelfCode: null,
+      levelOrRow: null,
+      locationNotes: null,
+      acquisitionDate: null,
+      notes: null,
+    });
+    const copy = makeCopy("GOOD");
+    db.reservations.push(skippedReservation, waitingReservation);
+    db.copies.push(copy);
+
+    expect(offerCopyToQueue(copy)).toBe(true);
+    expect(skippedReservation.status).toBe("WAITING");
+    expect(waitingReservation.status).toBe("OFFERED");
+    expect(copy.status).toBe("RESERVED");
+    expect(db.notifications.filter((notification) => notification.relatedEntityId === waitingReservation.id)).toHaveLength(1);
+    expect(offerCopyToQueue(copy)).toBe(false);
+    expect(db.notifications.filter((notification) => notification.relatedEntityId === waitingReservation.id)).toHaveLength(1);
+
+    const damagedCopy = makeCopy("DAMAGED");
+    damagedCopy.id = crypto.randomUUID();
+    damagedCopy.barcode = "PR-0099-2";
+    damagedCopy.bookId = bookId(100);
+    const damagedReservation = { ...waitingReservation, id: crypto.randomUUID(), bookId: damagedCopy.bookId, status: "WAITING" as const, offeredCopyId: null };
+    db.reservations.push(damagedReservation);
+    db.copies.push(damagedCopy);
+
+    expect(offerCopyToQueue(damagedCopy)).toBe(false);
+    expect(damagedReservation.status).toBe("WAITING");
+    expect(damagedCopy.status).toBe("AVAILABLE");
   });
 });

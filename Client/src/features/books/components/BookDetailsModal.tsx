@@ -73,7 +73,7 @@ export function BookDetailsContent({ book, reload, onNavigate, large = false, mo
           setBusy(false);
           return;
         }
-        await reservationsService.createReservation({ bookId: book.id });
+        await reservationsService.createReservation({ bookId: book.id, requestedDurationDays: selectedDuration });
         toast.success("You joined the reservation queue.");
         go(ROUTES.student.reservations);
         return;
@@ -102,7 +102,7 @@ export function BookDetailsContent({ book, reload, onNavigate, large = false, mo
     setBusy(true);
     setProblem(null);
     try {
-      await reservationsService.createReservation({ bookId: book.id });
+      await reservationsService.createReservation({ bookId: book.id, requestedDurationDays: selectedDuration });
       toast.success("You joined the reservation queue.");
       go(ROUTES.student.reservations);
     } catch (e) {
@@ -168,14 +168,14 @@ export function BookDetailsContent({ book, reload, onNavigate, large = false, mo
                 )}
               </Alert>
             )}
-            {mode === "request" && (
+            {mode !== "none" && (
               <div className="stack">
                 <SelectField label="Borrowing duration" value={selectedDuration} onChange={(event) => setSelectedDuration(Number(event.target.value) as AllowedDurationDays)}>
                   {DURATION_OPTIONS.map((days) => (
                     <option key={days} value={days}>{days} days</option>
                   ))}
                 </SelectField>
-                {availableCopies <= 0 && (
+                {mode === "request" && availableCopies <= 0 && (
                   <CheckboxField
                     label="I want to reserve this title instead if no copy is available right now."
                     checked={reserveInstead}

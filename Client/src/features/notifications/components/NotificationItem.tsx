@@ -10,7 +10,7 @@ export function notificationLink(n: Item, role: UserRole): string | null {
     switch (type) {
       case "BORROWING_REQUEST": return ROUTES.student.requests;
       case "LOAN": return ROUTES.student.borrowings;
-      case "RESERVATION": return ROUTES.student.reservations;
+      case "RESERVATION": return `${ROUTES.student.reservations}?reservationId=${encodeURIComponent(n.relatedEntityId ?? "")}`;
       case "STUDENT_VERIFICATION": return ROUTES.student.cor;
       case "USER": return ROUTES.student.profile;
       default: return null;

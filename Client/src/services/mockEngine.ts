@@ -293,6 +293,11 @@ export function queuePosition(r: MockReservation): number {
 
 /** Offer a free copy to the first ELIGIBLE waiting student. The offer check must include the student’s current commitments so a queue member with a full limit is not advanced. */
 export function offerCopyToQueue(copy: BookCopy): boolean {
+  if (copy.status !== "AVAILABLE" || copy.condition === "DAMAGED" || copy.condition === "UNUSABLE") return false;
+  if (
+    db.requests.some((r) => r.assignedCopyId === copy.id && (r.status === "APPROVED" || r.status === "ON_HOLD")) ||
+    db.reservations.some((r) => r.offeredCopyId === copy.id && r.status === "OFFERED")
+  ) return false;
   const queue = db.reservations.filter((r) => r.bookId === copy.bookId && r.status === "WAITING").sort(byFifo);
   for (const r of queue) {
     if (!checkEligibility(r.studentId, { includeLimits: true, bookId: r.bookId }).eligible) continue;
@@ -300,7 +305,12 @@ export function offerCopyToQueue(copy: BookCopy): boolean {
     r.offeredCopyId = copy.id;
     r.pickupDeadline = addDaysIso(new Date(), setting("RESERVATION_HOLD_DAYS"));
     copy.status = "RESERVED";
-    notify(studentUserId(r.studentId), "RESERVATION_OFFERED", "A copy is ready", `A copy of ${r.bookTitle} is held for you until ${formatDate(r.pickupDeadline)}.`, ["RESERVATION", r.id]);
+    const alreadyNotified = db.notifications.some(
+      (n) => n.type === "RESERVATION_OFFERED" && n.relatedEntityType === "RESERVATION" && n.relatedEntityId === r.id,
+    );
+    if (!alreadyNotified) {
+      notify(studentUserId(r.studentId), "RESERVATION_OFFERED", "A copy is ready", `A copy of ${r.bookTitle} is held for you until ${formatDate(r.pickupDeadline)}.`, ["RESERVATION", r.id]);
+    }
     return true;
   }
   return false;
@@ -308,6 +318,14 @@ export function offerCopyToQueue(copy: BookCopy): boolean {
 
 /** A held copy is freed (cancel, expiry, rejected handover): offer it to the queue or make it AVAILABLE. */
 export function releaseCopy(copy: BookCopy): void {
+  if (copy.condition === "DAMAGED") {
+    copy.status = "MAINTENANCE";
+    return;
+  }
+  if (copy.condition === "UNUSABLE") {
+    copy.status = "WITHDRAWN";
+    return;
+  }
   copy.status = "AVAILABLE";
   offerCopyToQueue(copy);
 }
@@ -404,6 +422,7 @@ export function toBookToRelease(r: MockBorrowingRequest): BookToRelease {
   if (!copy || !r.approvedAt || !r.pickupDeadline) fail("INVALID_STATE", "This request has no assigned copy.");
   return {
     requestId: r.id,
+    reservationId: null,
     student: studentRef(r.studentId),
     book: { id: r.bookId, title: r.bookTitle },
     copy: copyRef(copy),
@@ -411,6 +430,22 @@ export function toBookToRelease(r: MockBorrowingRequest): BookToRelease {
     approvedAt: r.approvedAt,
     pickupDeadline: r.pickupDeadline,
     status: r.status as "APPROVED" | "ON_HOLD",
+  };
+}
+
+export function toReservationBookToRelease(r: MockReservation): BookToRelease {
+  const copy = r.offeredCopyId ? copyById(r.offeredCopyId) : undefined;
+  if (r.status !== "OFFERED" || !copy || !r.pickupDeadline) fail("INVALID_STATE", "This reservation has no offered copy.");
+  return {
+    requestId: r.id,
+    reservationId: r.id,
+    student: studentRef(r.studentId),
+    book: { id: r.bookId, title: r.bookTitle },
+    copy: copyRef(copy),
+    requestedDurationDays: r.requestedDurationDays,
+    approvedAt: r.reservedAt,
+    pickupDeadline: r.pickupDeadline,
+    status: "OFFERED",
   };
 }
 

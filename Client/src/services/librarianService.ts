@@ -11,6 +11,7 @@ import type {
   RejectHandoverRequest,
   ReturnRequest,
   ReturnResult,
+  StaffReservation,
   StaffBorrowingRequest,
   StaffFine,
   StaffLoan,
@@ -24,7 +25,9 @@ import {
   begin,
   checkEligibility,
   copyById,
+  copyRef,
   createLoan,
+  queuePosition,
   recordAttempt,
   recordFine,
   releaseCopy,
@@ -33,6 +36,7 @@ import {
   studentUserId,
   toBookToRelease,
   toLoan,
+  toReservationBookToRelease,
   toStaffFine,
   toStaffLoan,
   toStaffRequest,
@@ -56,16 +60,31 @@ function findRequest(id: UUID) {
   return request;
 }
 
+function toStaffReservation(r: (typeof db.reservations)[number]): StaffReservation {
+  const copy = r.offeredCopyId ? copyById(r.offeredCopyId) : undefined;
+  const { studentId: _studentId, ...base } = r;
+  return {
+    ...base,
+    student: studentRef(r.studentId),
+    queuePosition: r.status === "WAITING" ? queuePosition(r) : 0,
+    offeredCopy: copy ? copyRef(copy) : null,
+  };
+}
+
 // ---------- Books to Release and handover ----------
 
 /** H1 GET /staff/books-to-release: APPROVED and ON_HOLD requests, earliest pickup deadline first. */
 export async function listBooksToRelease(params: { search?: string } = {}): Promise<BookToRelease[]> {
   await begin();
   requireCapability("STAFF_AREA");
+  const requests = db.requests
+    .filter((r) => r.status === "APPROVED" || r.status === "ON_HOLD")
+    .map(toBookToRelease);
+  const reservations = db.reservations
+    .filter((r) => r.status === "OFFERED")
+    .map(toReservationBookToRelease);
   return out(
-    db.requests
-      .filter((r) => r.status === "APPROVED" || r.status === "ON_HOLD")
-      .map(toBookToRelease)
+    [...requests, ...reservations]
       .filter((b) => matches(params.search, b.student.firstName, b.student.lastName, b.student.studentNumber, b.book.title, b.copy.barcode))
       .sort((a, b) => a.pickupDeadline.localeCompare(b.pickupDeadline)),
   );
@@ -74,7 +93,8 @@ export async function listBooksToRelease(params: { search?: string } = {}): Prom
 export interface HandoverDetails {
   /** null once the request is no longer awaiting release (CLAIMED, EXPIRED, ...). */
   item: BookToRelease | null;
-  request: StaffBorrowingRequest;
+  request: StaffBorrowingRequest | null;
+  reservation: StaffReservation | null;
   attempts: HandoverAttempt[];
 }
 
@@ -82,11 +102,22 @@ export interface HandoverDetails {
 export async function getHandoverDetails(requestId: UUID): Promise<HandoverDetails> {
   await begin();
   requireCapability("STAFF_AREA");
-  const request = findRequest(requestId);
-  const awaiting = request.status === "APPROVED" || request.status === "ON_HOLD";
+  const request = db.requests.find((r) => r.id === requestId);
+  if (request) {
+    const awaiting = request.status === "APPROVED" || request.status === "ON_HOLD";
+    return out({
+      item: awaiting ? toBookToRelease(request) : null,
+      request: toStaffRequest(request),
+      reservation: null,
+      attempts: db.attempts.filter((a) => a.requestId === requestId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    });
+  }
+  const reservation = db.reservations.find((r) => r.id === requestId);
+  if (!reservation) fail("NOT_FOUND", "We could not find that handover.");
   return out({
-    item: awaiting ? toBookToRelease(request) : null,
-    request: toStaffRequest(request),
+    item: reservation.status === "OFFERED" ? toReservationBookToRelease(reservation) : null,
+    request: null,
+    reservation: toStaffReservation(reservation),
     attempts: db.attempts.filter((a) => a.requestId === requestId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
   });
 }
@@ -95,10 +126,19 @@ export async function getHandoverDetails(requestId: UUID): Promise<HandoverDetai
 export async function checkHandoverEligibility(requestId: UUID): Promise<PenaltyCheck> {
   await begin();
   const staff = requireCapability("STAFF_AREA");
-  const request = findRequest(requestId);
-  if (request.status !== "APPROVED" && request.status !== "ON_HOLD") fail("INVALID_STATE", "This request is no longer awaiting release.", 409);
-  const check = checkEligibility(request.studentId);
-  recordAttempt(request.id, "CHECKED", staff, null, null);
+  const request = db.requests.find((r) => r.id === requestId);
+  if (request) {
+    if (request.status !== "APPROVED" && request.status !== "ON_HOLD") fail("INVALID_STATE", "This request is no longer awaiting release.", 409);
+    const check = checkEligibility(request.studentId);
+    recordAttempt(request.id, "CHECKED", staff, null, null);
+    commit();
+    return out(check);
+  }
+  const reservation = db.reservations.find((r) => r.id === requestId);
+  if (!reservation) fail("NOT_FOUND", "We could not find that handover.");
+  if (reservation.status !== "OFFERED" || isPast(reservation.pickupDeadline)) fail("INVALID_STATE", "This reservation offer is no longer awaiting release.", 409);
+  const check = checkEligibility(reservation.studentId);
+  recordAttempt(reservation.id, "CHECKED", staff, null, null);
   commit();
   return out(check);
 }

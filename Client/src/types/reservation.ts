@@ -1,5 +1,5 @@
 import type { ISODateTime, UUID } from "./api";
-import type { ReservationStatus } from "./enums";
+import type { AllowedDurationDays, ReservationStatus } from "./enums";
 import type { CopyRef } from "./book";
 import type { StudentRef } from "./user";
 
@@ -8,6 +8,7 @@ export interface Reservation {
   id: UUID;
   bookId: UUID;
   bookTitle: string;
+  requestedDurationDays: AllowedDurationDays;
   status: ReservationStatus;
   reservedAt: ISODateTime;
   pickupDeadline: ISODateTime | null; // set when OFFERED
@@ -25,4 +26,5 @@ export interface StaffReservation extends Reservation {
 /** B4 POST /reservations. Allowed only when no copy is available (else 409 COPY_AVAILABLE). */
 export interface CreateReservationRequest {
   bookId: UUID;
+  requestedDurationDays: AllowedDurationDays;
 }

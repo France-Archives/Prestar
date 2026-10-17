@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import ConfirmDialog from "@/components/feedback/ConfirmDialog";
 import EmptyState from "@/components/feedback/EmptyState";
 import ErrorState from "@/components/feedback/ErrorState";
@@ -21,11 +21,23 @@ export default function MyReservationsPage() {
   const toast = useToast();
   const list = useAsync(() => reservationsService.listMyReservations(), []);
   const [q] = useSearchTerm(); // from the navbar search box (?q=)
+  const [searchParams] = useSearchParams();
   const [tab, setTab] = useState<Tab>("active");
   const [target, setTarget] = useState<Reservation | null>(null);
+  const reservationId = searchParams.get("reservationId");
+
+  useEffect(() => {
+    const reservation = list.data?.find((r) => r.id === reservationId);
+    if (!reservation) return;
+    setTab(reservation.status === "WAITING" || reservation.status === "OFFERED" ? "active" : "closed");
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById(`reservation-${reservation.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [reservationId, list.data]);
 
   // Search runs on the loaded reservations; the tab counts follow the search.
-  const rows = (list.data ?? []).filter((r) => matchesSearch(q, r.bookTitle, statusLabel(r.status)));
+  const rows = (list.data ?? []).filter((r) => r.id === reservationId || matchesSearch(q, r.bookTitle, statusLabel(r.status)));
   const active = rows.filter((r) => r.status === "WAITING" || r.status === "OFFERED");
   const closed = rows.filter((r) => r.status !== "WAITING" && r.status !== "OFFERED");
   const shown = tab === "active" ? active : closed;
@@ -53,7 +65,7 @@ export default function MyReservationsPage() {
           action={<Link to={ROUTES.student.books} className="btn btn-primary" style={{ textDecoration: "none", color: "#fff" }}>Browse books</Link>}
         />
       ) : (
-        <div className="stack">{shown.map((r) => <ReservationStatus key={r.id} reservation={r} onCancel={setTarget} />)}</div>
+        <div className="stack">{shown.map((r) => <ReservationStatus key={r.id} reservation={r} onCancel={setTarget} highlighted={r.id === reservationId} />)}</div>
       )}
       {target && (
         <ConfirmDialog title="Cancel this reservation?" danger confirmLabel="Cancel reservation" onConfirm={cancel} onClose={() => setTarget(null)}>

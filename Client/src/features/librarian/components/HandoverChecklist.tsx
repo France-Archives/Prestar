@@ -5,6 +5,7 @@ import Card from "@/components/ui/Card";
 import { CheckboxField, InputField } from "@/components/forms/FormField";
 import { useToast } from "@/hooks/useToast";
 import * as librarianService from "@/services/librarianService";
+import * as reservationsService from "@/services/reservationsService";
 import type { BookToRelease, PenaltyCheck } from "@/types";
 import { describeError } from "@/utils/errors";
 import ActionReasonDialog, { HOLD_REASONS, REJECT_REASONS } from "./ActionReasonDialog";
@@ -43,7 +44,11 @@ export default function HandoverChecklist({ item, onChanged }: HandoverChecklist
     setBusy("claim");
     setError(null);
     try {
-      await librarianService.claimHandover(item.requestId, { copyBarcode: barcode.trim() });
+      if (item.reservationId) {
+        await reservationsService.claimReservation(item.reservationId, { copyBarcode: barcode.trim() });
+      } else {
+        await librarianService.claimHandover(item.requestId, { copyBarcode: barcode.trim() });
+      }
       toast.success("Handover confirmed. The loan has started.");
       onChanged();
     } catch (e) {
@@ -83,14 +88,12 @@ export default function HandoverChecklist({ item, onChanged }: HandoverChecklist
           <Button onClick={confirm} loading={busy === "claim"} disabled={!canConfirm}>
             Confirm Handover
           </Button>
-          {item.status === "APPROVED" && (
+          {!item.reservationId && item.status === "APPROVED" && (
             <Button variant="ghost" onClick={() => setDialog("hold")}>
               Place on Hold
             </Button>
           )}
-          <Button variant="danger" onClick={() => setDialog("reject")}>
-            Reject Handover
-          </Button>
+          {!item.reservationId && <Button variant="danger" onClick={() => setDialog("reject")}>Reject Handover</Button>}
         </div>
         {!check && <p className="subtle">Confirm Handover unlocks after Review / Check finds the student eligible.</p>}
       </div>
