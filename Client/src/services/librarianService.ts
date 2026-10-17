@@ -1,7 +1,6 @@
 import type {
   AccountStatus,
   BookToRelease,
-  ClaimRequest,
   HandoverAttempt,
   HoldHandoverRequest,
   Loan,
@@ -181,17 +180,20 @@ export async function rejectHandover(requestId: UUID, req: RejectHandoverRequest
 }
 
 /** H5 POST /staff/borrowing-requests/:id/claim ("Confirm Handover"). The ONLY place a loan is created from a request. */
-export async function claimHandover(requestId: UUID, req: ClaimRequest): Promise<Loan> {
+export async function claimHandover(requestId: UUID): Promise<Loan> {
   await begin();
   const staff = requireCapability("STAFF_AREA");
   const request = findRequest(requestId);
   if (request.status !== "APPROVED" && request.status !== "ON_HOLD") fail("INVALID_STATE", "This request is no longer awaiting release.", 409);
-  need(req.copyBarcode, "Scan or enter the copy barcode.");
   if (isPast(request.pickupDeadline)) fail("INVALID_STATE", "The pickup deadline has passed.", 409);
   const copy = request.assignedCopyId ? copyById(request.assignedCopyId) : undefined;
   if (!copy) fail("INVALID_STATE", "The assigned copy could not be found.", 409);
-  if (copy.barcode !== req.copyBarcode.trim()) {
-    fail("VALIDATION_ERROR", "The barcode does not match the assigned copy. If the copy cannot be released, use Reject Handover.", 422);
+  const competingAssignment =
+    db.requests.some((r) => r.id !== request.id && r.assignedCopyId === copy.id && (r.status === "APPROVED" || r.status === "ON_HOLD")) ||
+    db.reservations.some((r) => r.offeredCopyId === copy.id && r.status === "OFFERED");
+  const activeLoan = db.loans.some((loan) => loan.copyId === copy.id && loan.status === "ACTIVE");
+  if (copy.status !== "RESERVED" || competingAssignment || activeLoan || copy.condition === "DAMAGED" || copy.condition === "UNUSABLE") {
+    fail("INVALID_STATE", "The assigned copy is no longer available for handover.", 409);
   }
 
   // Eligibility is re-checked at the moment of handover (inside the transaction in the real backend).
@@ -285,6 +287,7 @@ export async function returnLoan(loanId: UUID, req: ReturnRequest): Promise<Retu
   if (!COPY_CONDITIONS.includes(req.condition)) fail("VALIDATION_ERROR", "Choose the condition of the returned copy.", 422);
   const copy = copyById(loan.copyId);
   if (!copy) fail("INVALID_STATE", "The copy of this loan could not be found.", 409);
+  if (copy.status !== "ON_LOAN") fail("INVALID_STATE", "This loan's copy is no longer marked as on loan.", 409);
 
   loan.status = "RETURNED";
   loan.returnedAt = nowIso();

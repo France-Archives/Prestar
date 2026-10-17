@@ -10,15 +10,8 @@ import PageHeader from "@/components/layout/PageHeader";
 import { useAsync } from "@/hooks/useAsync";
 import * as booksService from "@/services/booksService";
 import type { StaffCopyRow } from "@/types";
+import { formatCopyLocation } from "@/utils/formatCopyLocation";
 import CopyForm from "../components/CopyForm";
-
-const formattedLocation = (copy: StaffCopyRow) => {
-  const fields = [copy.section, copy.shelfCode, copy.levelOrRow].filter(Boolean);
-  const primary = copy.shelfLocation || (fields.length ? fields.join(" / ") : null);
-  const note = copy.locationNotes || copy.notes || null;
-  if (!primary && !note) return "Not set";
-  return note ? `${primary ?? "Location"} — ${note}` : primary ?? "Not set";
-};
 
 export default function ShelfLocatorPage() {
   const [search, setSearch] = useState("");
@@ -30,7 +23,7 @@ export default function ShelfLocatorPage() {
     { key: "barcode", header: "Barcode" },
     { key: "id", header: "Copy ID" },
     { key: "status", header: "Copy status", render: (copy) => <StatusBadge status={copy.status} /> },
-    { key: "shelfLocation", header: "Physical location", render: (copy) => formattedLocation(copy) },
+    { key: "shelfLocation", header: "Physical location", render: (copy) => formatCopyLocation(copy) },
     { key: "locationNotes", header: "Location notes", render: (copy) => copy.locationNotes || copy.notes || "—" },
     { key: "actions", header: "", render: (copy) => <Button variant="ghost" size="sm" onClick={() => setEditing(copy)}>Update location</Button> },
   ];

@@ -2,7 +2,7 @@ import { useState } from "react";
 import Alert from "@/components/feedback/Alert";
 import Button from "@/components/common/Button";
 import Card from "@/components/ui/Card";
-import { CheckboxField, InputField } from "@/components/forms/FormField";
+import { CheckboxField } from "@/components/forms/FormField";
 import { useToast } from "@/hooks/useToast";
 import * as librarianService from "@/services/librarianService";
 import * as reservationsService from "@/services/reservationsService";
@@ -21,7 +21,6 @@ interface HandoverChecklistProps {
 export default function HandoverChecklist({ item, onChanged }: HandoverChecklistProps) {
   const toast = useToast();
   const [check, setCheck] = useState<PenaltyCheck | null>(null);
-  const [barcode, setBarcode] = useState("");
   const [idOk, setIdOk] = useState(false);
   const [copyOk, setCopyOk] = useState(false);
   const [busy, setBusy] = useState<"check" | "claim" | null>(null);
@@ -45,9 +44,9 @@ export default function HandoverChecklist({ item, onChanged }: HandoverChecklist
     setError(null);
     try {
       if (item.reservationId) {
-        await reservationsService.claimReservation(item.reservationId, { copyBarcode: barcode.trim() });
+        await reservationsService.claimReservation(item.reservationId);
       } else {
-        await librarianService.claimHandover(item.requestId, { copyBarcode: barcode.trim() });
+        await librarianService.claimHandover(item.requestId);
       }
       toast.success("Handover confirmed. The loan has started.");
       onChanged();
@@ -59,11 +58,16 @@ export default function HandoverChecklist({ item, onChanged }: HandoverChecklist
     }
   };
 
-  const canConfirm = Boolean(check?.eligible) && idOk && copyOk && barcode.trim().length > 0;
+  const canConfirm = Boolean(check?.eligible) && idOk && copyOk;
 
   return (
-    <Card title="Handover" note="Step 1: Check Penalties. Step 2: verify the student and the copy. Step 3: Confirm Handover.">
+    <Card title="Handover" note="Step 1: Check Penalties. Step 2: verify the student and inspect the assigned copy. Step 3: Confirm Handover.">
       <div className="stack">
+        <dl className="kv">
+          <div><dt>Student</dt><dd>{item.student.firstName} {item.student.lastName} ({item.student.studentNumber})</dd></div>
+          <div><dt>Book</dt><dd>{item.book.title}</dd></div>
+          <div><dt>Assigned copy barcode</dt><dd>{item.copy.barcode}</dd></div>
+        </dl>
         <div>
           <Button variant="ghost" onClick={runCheck} loading={busy === "check"}>
             Review / Check
@@ -75,12 +79,6 @@ export default function HandoverChecklist({ item, onChanged }: HandoverChecklist
 
         <CheckboxField label="I checked the student's school ID against the name and student number on this request." checked={idOk} onChange={(e) => setIdOk(e.target.checked)} />
         <CheckboxField label="The copy in my hand is in usable condition." checked={copyOk} onChange={(e) => setCopyOk(e.target.checked)} />
-        <InputField
-          label="Copy barcode"
-          hint={`Scan or type the barcode of the assigned copy (${item.copy.barcode}).`}
-          value={barcode}
-          onChange={(e) => setBarcode(e.target.value)}
-        />
 
         {error && <Alert kind="error">{error}</Alert>}
 

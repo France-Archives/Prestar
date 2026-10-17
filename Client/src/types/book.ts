@@ -92,7 +92,6 @@ export type UpdateBookRequest = Partial<CreateBookRequest> & { isArchived?: bool
 
 /** C6 POST /books/:bookId/copies */
 export interface CreateCopyRequest {
-  barcode: string;
   condition: CopyCondition;
   shelfLocation?: string | null;
   section?: string | null;

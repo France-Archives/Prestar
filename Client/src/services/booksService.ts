@@ -21,7 +21,7 @@ import { fail } from "@/utils/errors";
 import { can } from "@/utils/permissions";
 import { validateRequired } from "@/utils/validators";
 import { authorsOf, availabilityOf, begin, fillQueues, toBookDetail, toBookSummary } from "./mockEngine";
-import { commit, db, matches, newId, out, paginate, requireAccount, requireCapability, sessionUserOf } from "./mockStore";
+import { commit, db, generateCopyBarcode, matches, newId, out, paginate, requireAccount, requireCapability, sessionUserOf } from "./mockStore";
 
 // TEMPORARY MOCK IMPLEMENTATION: Replace with the real Books API (C1 to C7).
 // Category and author management endpoints are NOT in the source: those functions are mock-only (TO CONFIRM).
@@ -175,9 +175,7 @@ export async function createCopy(bookId: UUID, req: CreateCopyRequest): Promise<
   await begin();
   requireCapability("CATALOG_MANAGE");
   if (!db.books.some((b) => b.id === bookId)) fail("NOT_FOUND", "We could not find that book.");
-  check(validateRequired(req.barcode, "Barcode", 100));
-  const barcode = req.barcode.trim();
-  if (db.copies.some((c) => c.barcode === barcode)) fail("CONFLICT", "A copy with this barcode already exists.");
+  const barcode = generateCopyBarcode();
   const section = req.section?.trim() || null;
   const shelfCode = req.shelfCode?.trim() || null;
   const levelOrRow = req.levelOrRow?.trim() || null;

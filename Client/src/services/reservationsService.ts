@@ -102,7 +102,7 @@ export async function listStaffReservations(params: { status?: ReservationStatus
  * P6 POST /staff/reservations/:id/claim (proposed): issue an OFFERED reservation from Books to Release.
  * The selected duration is stored with the reservation and starts on the actual issuance date.
  */
-export async function claimReservation(reservationId: UUID, req: { copyBarcode: string }): Promise<Loan> {
+export async function claimReservation(reservationId: UUID): Promise<Loan> {
   await begin();
   const staff = requireCapability("STAFF_AREA");
   const reservation = db.reservations.find((r) => r.id === reservationId);
@@ -116,7 +116,6 @@ export async function claimReservation(reservationId: UUID, req: { copyBarcode: 
   if (copy.status !== "RESERVED" || competingAssignment || copy.condition === "DAMAGED" || copy.condition === "UNUSABLE") {
     fail("INVALID_STATE", "The offered copy is no longer available for this reservation.", 409);
   }
-  if (copy.barcode !== req.copyBarcode.trim()) fail("VALIDATION_ERROR", "The barcode does not match the offered copy.", 422);
   const check = checkEligibility(reservation.studentId);
   if (!check.eligible) {
     audit(staff, "HANDOVER_CLAIM_FAILED", "RESERVATION", reservation.id, `Handover of ${reservation.bookTitle} to ${studentName(reservation.studentId)} failed: ${check.reasons[0].message}`);

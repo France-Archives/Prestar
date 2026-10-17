@@ -17,7 +17,6 @@ const EDITABLE: BookCopyStatus[] = ["AVAILABLE", "MAINTENANCE", "LOST", "WITHDRA
 export default function CopyForm({ bookId, copy, onClose, onDone }: CopyFormProps) {
   const toast = useToast();
   const locked = copy ? copy.status === "ON_LOAN" || copy.status === "RESERVED" : false;
-  const [barcode, setBarcode] = useState("");
   const [status, setStatus] = useState<BookCopyStatus>(copy?.status ?? "AVAILABLE");
   const [condition, setCondition] = useState<CopyCondition>(copy?.condition ?? "GOOD");
   const [section, setSection] = useState(copy?.section ?? "");
@@ -30,7 +29,6 @@ export default function CopyForm({ bookId, copy, onClose, onDone }: CopyFormProp
   const [error, setError] = useState<string | null>(null);
 
   const submit = async () => {
-    if (!copy && !barcode.trim()) return setError("Barcode is required.");
     setBusy(true);
     setError(null);
     try {
@@ -50,7 +48,6 @@ export default function CopyForm({ bookId, copy, onClose, onDone }: CopyFormProp
         toast.success("Copy updated.");
       } else {
         const body: CreateCopyRequest = {
-          barcode: barcode.trim(),
           condition,
           section: section.trim() || null,
           shelfCode: shelfCode.trim() || null,
@@ -86,7 +83,7 @@ export default function CopyForm({ bookId, copy, onClose, onDone }: CopyFormProp
         </>
       }
     >
-      {!copy && <InputField label="Barcode" required value={barcode} onChange={(e) => setBarcode(e.target.value)} />}
+      {!copy && <p className="subtle">A unique barcode will be generated automatically when this copy is saved.</p>}
       {copy && (
         <SelectField
           label="Status"

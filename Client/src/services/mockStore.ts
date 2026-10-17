@@ -122,6 +122,39 @@ export const db: MockDb = {
   audit: seedAudit(),
 };
 
+function nextCopyBarcode(usedBarcodes: Set<string>): string {
+  let sequence = 1;
+  let candidate = "";
+  do {
+    candidate = `PR-${String(sequence).padStart(8, "0")}`;
+    sequence += 1;
+  } while (usedBarcodes.has(candidate.toUpperCase()));
+  usedBarcodes.add(candidate.toUpperCase());
+  return candidate;
+}
+
+export function assignMissingCopyBarcodes(
+  copies: Array<BookCopy | (Omit<BookCopy, "barcode"> & { barcode?: string | null })>,
+): void {
+  const usedBarcodes = new Set(
+    copies
+      .map((copy) => copy.barcode?.trim())
+      .filter((barcode): barcode is string => Boolean(barcode))
+      .map((barcode) => barcode.toUpperCase()),
+  );
+  for (const copy of copies) {
+    if (!copy.barcode?.trim()) copy.barcode = nextCopyBarcode(usedBarcodes);
+  }
+}
+
+assignMissingCopyBarcodes(db.copies);
+
+export function generateCopyBarcode(): string {
+  return nextCopyBarcode(
+    new Set(db.copies.map((copy) => copy.barcode.trim().toUpperCase()).filter(Boolean)),
+  );
+}
+
 // ---------- plumbing ----------
 export const newId = (): UUID => crypto.randomUUID();
 export const nowIso = (): string => new Date().toISOString();

@@ -12,6 +12,7 @@ import { useAsync } from "@/hooks/useAsync";
 import * as librarianService from "@/services/librarianService";
 import { statusLabel } from "@/utils/constants";
 import { formatDate } from "@/utils/formatDate";
+import { formatCopyLocation } from "@/utils/formatCopyLocation";
 import HandoverChecklist from "../components/HandoverChecklist";
 
 export default function HandoverDetailsPage() {
@@ -27,6 +28,7 @@ export default function HandoverDetailsPage() {
   const status = request?.status ?? reservation?.status;
   const duration = request?.requestedDurationDays ?? reservation?.requestedDurationDays;
   const copyBarcode = request?.copy?.barcode ?? reservation?.offeredCopy?.barcode;
+  const copyLocation = item ? formatCopyLocation(item.copy) : null;
   const requestedAt = request?.requestedAt ?? reservation?.reservedAt;
   const pickupDeadline = request?.pickupDeadline ?? reservation?.pickupDeadline;
   const note = request?.decisionReason;
@@ -42,6 +44,7 @@ export default function HandoverDetailsPage() {
             <div><dt>Status</dt><dd>{status ? <StatusBadge status={status} /> : "—"}</dd></div>
             <div><dt>Loan duration</dt><dd>{duration} days</dd></div>
             <div><dt>Assigned copy</dt><dd>{copyBarcode ?? "—"}</dd></div>
+            <div><dt>Shelf location</dt><dd>{copyLocation || "No shelf location recorded"}</dd></div>
             <div><dt>{reservation ? "Reserved" : "Requested"}</dt><dd>{requestedAt ? formatDate(requestedAt) : "—"}</dd></div>
             <div><dt>Pickup deadline</dt><dd>{pickupDeadline ? formatDate(pickupDeadline) : "—"}</dd></div>
             {note && <div><dt>Note</dt><dd>{note}</dd></div>}

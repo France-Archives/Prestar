@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { ROUTES, homePathFor } from "@/app/routeConfig";
 import { bookId } from "@/data";
-import { db } from "@/services/mockStore";
-import { checkEligibility, commitmentsOf, offerCopyToQueue } from "@/services/mockEngine";
+import { assignMissingCopyBarcodes, db } from "@/services/mockStore";
+import { checkEligibility, commitmentsOf, offerCopyToQueue, toReservationBookToRelease } from "@/services/mockEngine";
 import type { BookCopy } from "@/types";
 import { can, normalizeUserRole, roleAllowed } from "@/utils/permissions";
 
@@ -177,5 +177,67 @@ describe("reservation copy offers", () => {
     expect(offerCopyToQueue(damagedCopy)).toBe(false);
     expect(damagedReservation.status).toBe("WAITING");
     expect(damagedCopy.status).toBe("AVAILABLE");
+  });
+
+  it("preserves existing barcodes and assigns missing copies unique IDs", () => {
+    const copy = (id: string, barcode?: string): Omit<BookCopy, "barcode"> & { barcode?: string | null } => ({
+      id,
+      bookId: bookId(99),
+      barcode,
+      status: "AVAILABLE",
+      condition: "GOOD",
+      shelfLocation: null,
+      section: null,
+      shelfCode: null,
+      levelOrRow: null,
+      locationNotes: null,
+      acquisitionDate: null,
+      notes: null,
+    });
+    const copies = [copy("existing", "KEEP-THIS"), copy("missing-a"), copy("missing-b")];
+
+    assignMissingCopyBarcodes(copies);
+
+    expect(copies[0].barcode).toBe("KEEP-THIS");
+    expect(copies[1].barcode).toBeTruthy();
+    expect(copies[2].barcode).toBeTruthy();
+    expect(new Set(copies.map((entry) => entry.barcode)).size).toBe(copies.length);
+  });
+
+  it("uses the location fields of the exact copy assigned to a reservation", () => {
+    const copyId = crypto.randomUUID();
+    const studentId = db.accounts.find((account) => account.student)?.student?.id;
+    if (!studentId) throw new Error("No student fixture is available.");
+    const reservation = {
+      id: crypto.randomUUID(),
+      studentId,
+      bookId: bookId(99),
+      bookTitle: "Shelf location test",
+      requestedDurationDays: 14 as const,
+      status: "OFFERED" as const,
+      reservedAt: new Date().toISOString(),
+      pickupDeadline: new Date(Date.now() + 60_000).toISOString(),
+      offeredCopyId: copyId,
+    };
+    db.reservations.push(reservation);
+    db.copies.push({
+      id: copyId,
+      bookId: reservation.bookId,
+      barcode: "PR-TEST-99",
+      status: "RESERVED",
+      condition: "GOOD",
+      section: "B",
+      shelfCode: "S-99",
+      levelOrRow: "Row 4",
+      locationNotes: "Near the window",
+      shelfLocation: "Legacy shelf",
+      acquisitionDate: null,
+      notes: null,
+    });
+
+    const release = toReservationBookToRelease(reservation);
+    expect(release.copy.id).toBe(copyId);
+    expect(release.copy.shelfCode).toBe("S-99");
+    expect(release.copy.section).toBe("B");
   });
 });
