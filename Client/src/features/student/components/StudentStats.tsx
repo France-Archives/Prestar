@@ -26,7 +26,7 @@ export default function StudentStats({ data }: { data: StudentDashboardData }) {
     { label: "Waiting for pickup", value: data.pickupWaiting.length, to: S.requests, icon: PackageCheck },
     { label: "Reservations", value: data.reservations.length, to: S.reservations, icon: CalendarClock },
     { label: "Overdue loans", value: overdue, to: S.borrowings, icon: ShieldAlert, alert: overdue > 0 },
-    { label: "Unread notices", value: data.unreadCount, to: S.notifications, icon: Bell },
+    { label: "Unread notices", value: data.unreadCount ?? "—", to: S.notifications, icon: Bell },
   ];
 
   return (

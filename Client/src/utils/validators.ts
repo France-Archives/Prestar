@@ -17,6 +17,15 @@ export function validateEmail(value: string): string | null {
   return EMAIL_REGEX.test(v) ? null : "Enter a valid email address.";
 }
 
+export function validateWmsuEmail(value: string): string | null {
+  const emailError = validateEmail(value);
+  if (emailError) return emailError;
+  if (value.trim().length > 255) return "Email must be 255 characters or fewer.";
+  return /^[^\s@]+@wmsu\.edu\.ph$/i.test(value.trim())
+    ? null
+    : "Use your WMSU email address ending in @wmsu.edu.ph.";
+}
+
 export function validateRequired(value: string, label: string, maxLength?: number): string | null {
   const v = value.trim();
   if (!v) return `${label} is required.`;
@@ -58,6 +67,7 @@ export function passwordChecks(password: string): PasswordCheck[] {
 }
 export function validatePassword(password: string): string | null {
   if (!password) return "Password is required.";
+  if (new TextEncoder().encode(password).length > 72) return "Password must not exceed 72 bytes.";
   return passwordChecks(password).every((c) => c.ok)
     ? null
     : `Use ${PASSWORD_POLICY.MIN_LENGTH}+ characters with a letter and a number.`;

@@ -1,6 +1,7 @@
 import type {
   AccountStatus,
   BookToRelease,
+  ClaimRequest,
   HandoverAttempt,
   HoldHandoverRequest,
   Loan,
@@ -10,7 +11,6 @@ import type {
   RejectHandoverRequest,
   ReturnRequest,
   ReturnResult,
-  StaffReservation,
   StaffBorrowingRequest,
   StaffFine,
   StaffLoan,
@@ -24,9 +24,7 @@ import {
   begin,
   checkEligibility,
   copyById,
-  copyRef,
   createLoan,
-  queuePosition,
   recordAttempt,
   recordFine,
   releaseCopy,
@@ -35,7 +33,6 @@ import {
   studentUserId,
   toBookToRelease,
   toLoan,
-  toReservationBookToRelease,
   toStaffFine,
   toStaffLoan,
   toStaffRequest,
@@ -59,31 +56,16 @@ function findRequest(id: UUID) {
   return request;
 }
 
-function toStaffReservation(r: (typeof db.reservations)[number]): StaffReservation {
-  const copy = r.offeredCopyId ? copyById(r.offeredCopyId) : undefined;
-  const { studentId: _studentId, ...base } = r;
-  return {
-    ...base,
-    student: studentRef(r.studentId),
-    queuePosition: r.status === "WAITING" ? queuePosition(r) : 0,
-    offeredCopy: copy ? copyRef(copy) : null,
-  };
-}
-
 // ---------- Books to Release and handover ----------
 
 /** H1 GET /staff/books-to-release: APPROVED and ON_HOLD requests, earliest pickup deadline first. */
 export async function listBooksToRelease(params: { search?: string } = {}): Promise<BookToRelease[]> {
   await begin();
   requireCapability("STAFF_AREA");
-  const requests = db.requests
-    .filter((r) => r.status === "APPROVED" || r.status === "ON_HOLD")
-    .map(toBookToRelease);
-  const reservations = db.reservations
-    .filter((r) => r.status === "OFFERED")
-    .map(toReservationBookToRelease);
   return out(
-    [...requests, ...reservations]
+    db.requests
+      .filter((r) => r.status === "APPROVED" || r.status === "ON_HOLD")
+      .map(toBookToRelease)
       .filter((b) => matches(params.search, b.student.firstName, b.student.lastName, b.student.studentNumber, b.book.title, b.copy.barcode))
       .sort((a, b) => a.pickupDeadline.localeCompare(b.pickupDeadline)),
   );
@@ -92,8 +74,7 @@ export async function listBooksToRelease(params: { search?: string } = {}): Prom
 export interface HandoverDetails {
   /** null once the request is no longer awaiting release (CLAIMED, EXPIRED, ...). */
   item: BookToRelease | null;
-  request: StaffBorrowingRequest | null;
-  reservation: StaffReservation | null;
+  request: StaffBorrowingRequest;
   attempts: HandoverAttempt[];
 }
 
@@ -101,22 +82,11 @@ export interface HandoverDetails {
 export async function getHandoverDetails(requestId: UUID): Promise<HandoverDetails> {
   await begin();
   requireCapability("STAFF_AREA");
-  const request = db.requests.find((r) => r.id === requestId);
-  if (request) {
-    const awaiting = request.status === "APPROVED" || request.status === "ON_HOLD";
-    return out({
-      item: awaiting ? toBookToRelease(request) : null,
-      request: toStaffRequest(request),
-      reservation: null,
-      attempts: db.attempts.filter((a) => a.requestId === requestId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-    });
-  }
-  const reservation = db.reservations.find((r) => r.id === requestId);
-  if (!reservation) fail("NOT_FOUND", "We could not find that handover.");
+  const request = findRequest(requestId);
+  const awaiting = request.status === "APPROVED" || request.status === "ON_HOLD";
   return out({
-    item: reservation.status === "OFFERED" ? toReservationBookToRelease(reservation) : null,
-    request: null,
-    reservation: toStaffReservation(reservation),
+    item: awaiting ? toBookToRelease(request) : null,
+    request: toStaffRequest(request),
     attempts: db.attempts.filter((a) => a.requestId === requestId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
   });
 }
@@ -125,19 +95,10 @@ export async function getHandoverDetails(requestId: UUID): Promise<HandoverDetai
 export async function checkHandoverEligibility(requestId: UUID): Promise<PenaltyCheck> {
   await begin();
   const staff = requireCapability("STAFF_AREA");
-  const request = db.requests.find((r) => r.id === requestId);
-  if (request) {
-    if (request.status !== "APPROVED" && request.status !== "ON_HOLD") fail("INVALID_STATE", "This request is no longer awaiting release.", 409);
-    const check = checkEligibility(request.studentId);
-    recordAttempt(request.id, "CHECKED", staff, null, null);
-    commit();
-    return out(check);
-  }
-  const reservation = db.reservations.find((r) => r.id === requestId);
-  if (!reservation) fail("NOT_FOUND", "We could not find that handover.");
-  if (reservation.status !== "OFFERED" || isPast(reservation.pickupDeadline)) fail("INVALID_STATE", "This reservation offer is no longer awaiting release.", 409);
-  const check = checkEligibility(reservation.studentId);
-  recordAttempt(reservation.id, "CHECKED", staff, null, null);
+  const request = findRequest(requestId);
+  if (request.status !== "APPROVED" && request.status !== "ON_HOLD") fail("INVALID_STATE", "This request is no longer awaiting release.", 409);
+  const check = checkEligibility(request.studentId);
+  recordAttempt(request.id, "CHECKED", staff, null, null);
   commit();
   return out(check);
 }
@@ -180,20 +141,17 @@ export async function rejectHandover(requestId: UUID, req: RejectHandoverRequest
 }
 
 /** H5 POST /staff/borrowing-requests/:id/claim ("Confirm Handover"). The ONLY place a loan is created from a request. */
-export async function claimHandover(requestId: UUID): Promise<Loan> {
+export async function claimHandover(requestId: UUID, req: ClaimRequest): Promise<Loan> {
   await begin();
   const staff = requireCapability("STAFF_AREA");
   const request = findRequest(requestId);
   if (request.status !== "APPROVED" && request.status !== "ON_HOLD") fail("INVALID_STATE", "This request is no longer awaiting release.", 409);
+  need(req.copyBarcode, "Scan or enter the copy barcode.");
   if (isPast(request.pickupDeadline)) fail("INVALID_STATE", "The pickup deadline has passed.", 409);
   const copy = request.assignedCopyId ? copyById(request.assignedCopyId) : undefined;
   if (!copy) fail("INVALID_STATE", "The assigned copy could not be found.", 409);
-  const competingAssignment =
-    db.requests.some((r) => r.id !== request.id && r.assignedCopyId === copy.id && (r.status === "APPROVED" || r.status === "ON_HOLD")) ||
-    db.reservations.some((r) => r.offeredCopyId === copy.id && r.status === "OFFERED");
-  const activeLoan = db.loans.some((loan) => loan.copyId === copy.id && loan.status === "ACTIVE");
-  if (copy.status !== "RESERVED" || competingAssignment || activeLoan || copy.condition === "DAMAGED" || copy.condition === "UNUSABLE") {
-    fail("INVALID_STATE", "The assigned copy is no longer available for handover.", 409);
+  if (copy.barcode !== req.copyBarcode.trim()) {
+    fail("VALIDATION_ERROR", "The barcode does not match the assigned copy. If the copy cannot be released, use Reject Handover.", 422);
   }
 
   // Eligibility is re-checked at the moment of handover (inside the transaction in the real backend).
@@ -287,7 +245,6 @@ export async function returnLoan(loanId: UUID, req: ReturnRequest): Promise<Retu
   if (!COPY_CONDITIONS.includes(req.condition)) fail("VALIDATION_ERROR", "Choose the condition of the returned copy.", 422);
   const copy = copyById(loan.copyId);
   if (!copy) fail("INVALID_STATE", "The copy of this loan could not be found.", 409);
-  if (copy.status !== "ON_LOAN") fail("INVALID_STATE", "This loan's copy is no longer marked as on loan.", 409);
 
   loan.status = "RETURNED";
   loan.returnedAt = nowIso();

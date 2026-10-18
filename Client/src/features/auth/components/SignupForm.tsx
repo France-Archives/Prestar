@@ -63,8 +63,9 @@ export default function SignupForm() {
         college: v.college,
         program: v.program, // the selected course
         yearLevel: Number(v.yearLevel),
+        termsAccepted: v.consent,
+        privacyPolicyAccepted: v.consent,
       });
-      // The mock displays this code; the real backend sends it to the student's email.
       navigate(ROUTES.verificationPending, { state: { email: res.email, mockCode: res.mockVerificationCode } });
     } catch (err) {
       setFormError(describeError(err));

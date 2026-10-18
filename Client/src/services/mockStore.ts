@@ -99,29 +99,6 @@ const seedAudit = (): AuditLog[] => [
   { id: uid(AUDIT_NS, 3), actorUserId: USER_ID.admin, actorName: "Mia Santos", actorRole: "ADMIN", action: "FINE_WAIVED", entityType: "FINE", entityId: null, summary: "Waived a ₱100.00 minor damage fine for Ana Reyes: the damage was already present.", createdAt: at(-34) },
 ];
 
-export const db: MockDb = {
-  accounts: structuredClone(MOCK_ACCOUNTS),
-  books: structuredClone(MOCK_BOOKS),
-  categories: structuredClone(MOCK_CATEGORIES),
-  authors: structuredClone(MOCK_AUTHORS),
-  copies: structuredClone(MOCK_COPIES),
-  requests: structuredClone(MOCK_BORROWING_REQUESTS),
-  loans: structuredClone(MOCK_LOANS),
-  attempts: structuredClone(MOCK_HANDOVER_ATTEMPTS),
-  reservations: structuredClone(MOCK_RESERVATIONS),
-  renewals: structuredClone(MOCK_RENEWALS),
-  cors: structuredClone(MOCK_COR_RECORDS),
-  fines: structuredClone(MOCK_FINES),
-  payments: structuredClone(MOCK_PAYMENTS),
-  notifications: structuredClone(MOCK_NOTIFICATIONS),
-  interests: structuredClone(MOCK_INTERESTS),
-  studentInterests: structuredClone(MOCK_STUDENT_INTERESTS),
-  terms: structuredClone(MOCK_ACADEMIC_TERMS),
-  tokens: structuredClone(MOCK_EMAIL_TOKENS),
-  settings: seedSettings(),
-  audit: seedAudit(),
-};
-
 function nextCopyBarcode(usedBarcodes: Set<string>): string {
   let sequence = 1;
   let candidate = "";
@@ -146,6 +123,29 @@ export function assignMissingCopyBarcodes(
     if (!copy.barcode?.trim()) copy.barcode = nextCopyBarcode(usedBarcodes);
   }
 }
+
+export const db: MockDb = {
+  accounts: structuredClone(MOCK_ACCOUNTS),
+  books: structuredClone(MOCK_BOOKS),
+  categories: structuredClone(MOCK_CATEGORIES),
+  authors: structuredClone(MOCK_AUTHORS),
+  copies: structuredClone(MOCK_COPIES),
+  requests: structuredClone(MOCK_BORROWING_REQUESTS),
+  loans: structuredClone(MOCK_LOANS),
+  attempts: structuredClone(MOCK_HANDOVER_ATTEMPTS),
+  reservations: structuredClone(MOCK_RESERVATIONS),
+  renewals: structuredClone(MOCK_RENEWALS),
+  cors: structuredClone(MOCK_COR_RECORDS),
+  fines: structuredClone(MOCK_FINES),
+  payments: structuredClone(MOCK_PAYMENTS),
+  notifications: structuredClone(MOCK_NOTIFICATIONS),
+  interests: structuredClone(MOCK_INTERESTS),
+  studentInterests: structuredClone(MOCK_STUDENT_INTERESTS),
+  terms: structuredClone(MOCK_ACADEMIC_TERMS),
+  tokens: structuredClone(MOCK_EMAIL_TOKENS),
+  settings: seedSettings(),
+  audit: seedAudit(),
+};
 
 assignMissingCopyBarcodes(db.copies);
 
@@ -209,7 +209,13 @@ export const accountByEmail = (email: string): MockAccount | undefined =>
 export const accountByStudentId = (studentId: UUID): MockAccount | undefined => db.accounts.find((a) => a.student?.id === studentId);
 
 export function sessionUserOf(a: MockAccount): SessionUser {
-  return { ...a.user, displayName: a.displayName, student: a.student, librarian: a.librarian };
+  return {
+    ...a.user,
+    emailVerified: a.user.emailVerifiedAt !== null,
+    displayName: a.displayName,
+    student: a.student,
+    librarian: a.librarian,
+  };
 }
 
 export function requireAccount(): MockAccount {

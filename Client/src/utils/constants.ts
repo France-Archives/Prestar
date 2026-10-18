@@ -2,8 +2,8 @@ import type { AllowedDurationDays, FineType, ErrorCode, UserRole } from "@/types
 import { ALLOWED_DURATION_DAYS } from "@/types";
 
 // ---------- Environment ----------
-export const API_BASE_URL: string = import.meta.env.VITE_API_BASE_URL ?? "/api/v1";
-// Mocks stay ON until the backend exists. Set VITE_USE_MOCKS=false to switch services to Axios.
+export const API_BASE_URL: string = import.meta.env.VITE_API_BASE_URL ?? "/api";
+// Mocks stay ON by default. Set VITE_USE_MOCKS=false to enable live auth endpoints.
 export const USE_MOCKS: boolean = import.meta.env.VITE_USE_MOCKS !== "false";
 
 export const TIME_ZONE = "Asia/Manila";

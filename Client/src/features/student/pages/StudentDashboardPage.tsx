@@ -6,6 +6,7 @@ import LoadingState from "@/components/feedback/LoadingState";
 import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import { useAuth } from "@/hooks/useAuth";
+import { USE_MOCKS } from "@/utils/constants";
 import * as booksService from "@/services/booksService";
 import * as reportsService from "@/services/reportsService";
 import BookGrid from "@/features/books/components/BookGrid";
@@ -38,8 +39,11 @@ function Section({ eyebrow, title, note, action, children }: { eyebrow: string; 
 export default function StudentDashboardPage() {
   const { user } = useAuth();
   const dash = useAsync(() => reportsService.getStudentDashboard(), []);
-  // The statistics carry no covers or authors, so look the popular titles up in the catalog.
-  const catalog = useAsync(() => booksService.listBooks({ pageSize: 100 }), []);
+  // Mock popular-book rows need catalog lookup; live rows include their book summaries.
+  const catalog = useAsync(
+    () => USE_MOCKS ? booksService.listBooks({ pageSize: 100 }) : Promise.resolve(null),
+    [],
+  );
 
   if (dash.loading) return <div className="page"><LoadingState rows={4} /></div>;
   if (dash.error || !dash.data) {
@@ -49,12 +53,12 @@ export default function StudentDashboardPage() {
   const d = dash.data;
   const firstName = user?.displayName.split(" ")[0] ?? "";
   const offered = d.reservations.filter((r) => r.status === "OFFERED").length;
-  // A pending COR is shown only on the COR page, and an approval arrives as a notification.
+  // A pending COR is shown only on the COR page.
   const needsCor = d.cor.status !== "APPROVED" && d.cor.status !== "PENDING";
 
   const byId = new Map((catalog.data?.data ?? []).map((b) => [b.id, b] as const));
   const popular = d.mostBorrowed.flatMap((p) => {
-    const book = byId.get(p.bookId);
+    const book = p.book ?? byId.get(p.bookId);
     return book ? [{ book, loans: p.loanCount }] : [];
   });
   const popularMeta = Object.fromEntries(popular.map(({ book, loans }) => [book.id, <span key={book.id} className="book-card__stat">{loans} loans</span>]));
@@ -104,7 +108,11 @@ export default function StudentDashboardPage() {
       )}
 
       <Section eyebrow="Chosen for you" title="Recommended For You">
-        <BookGrid books={d.recommended} emptyText="No recommendations yet." />
+        {d.recommended ? (
+          <BookGrid books={d.recommended} emptyText="No recommendations yet." />
+        ) : (
+          <p className="subtle">Personalized recommendations are not available yet.</p>
+        )}
       </Section>
     </div>
   );

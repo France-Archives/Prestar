@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { homePathFor } from "@/app/routeConfig";
+import Alert from "@/components/feedback/Alert";
 import AppNavbar from "@/components/navigation/AppNavbar";
 import BackButton from "@/components/navigation/BackButton";
 import Sidebar from "@/components/navigation/Sidebar";
@@ -87,6 +88,11 @@ export default function AppShell({ areaLabel }: { areaLabel: string }) {
       {drawerOpen && <div className="app-scrim" onClick={() => setDrawerOpen(false)} aria-hidden="true" />}
 
       <main className="app-main">
+        {user.role === "STUDENT" && !user.emailVerified && (
+          <Alert kind="warn">
+            Your email address is not verified. Borrowing is unavailable until verification is complete.
+          </Alert>
+        )}
         {pathname !== home && (
           <div className="backbar">
             <BackButton fallback={home} />

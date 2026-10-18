@@ -1,4 +1,4 @@
-import type { ApiErrorBody, ClientErrorCode, ErrorCode } from "@/types";
+import { ERROR_CODES, type ClientErrorCode, type ErrorCode } from "@/types";
 import { ERROR_ACTIONS } from "@/utils/constants";
 
 // One error type for the whole app. Services THROW ApiError; pages catch it and show describeError().
@@ -63,7 +63,34 @@ const FALLBACK: Partial<Record<ErrorCode | ClientErrorCode, string>> = {
 interface AxiosLike {
   isAxiosError?: boolean;
   message?: string;
-  response?: { status?: number; data?: Partial<ApiErrorBody> | undefined };
+  response?: { status?: number; data?: unknown };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isErrorCode(value: unknown): value is ErrorCode {
+  return typeof value === "string" && ERROR_CODES.some((code) => code === value);
+}
+
+function errorCodeForStatus(status: number): ErrorCode | ClientErrorCode {
+  switch (status) {
+    case 400:
+      return "VALIDATION_ERROR";
+    case 401:
+      return "UNAUTHENTICATED";
+    case 403:
+      return "FORBIDDEN";
+    case 404:
+      return "NOT_FOUND";
+    case 409:
+      return "CONFLICT";
+    case 429:
+      return "RATE_LIMITED";
+    default:
+      return status >= 500 ? "INTERNAL_ERROR" : "UNKNOWN";
+  }
 }
 
 /** Normalise anything thrown (ApiError, Axios error, Error, string) into an ApiError. */
@@ -72,10 +99,19 @@ export function toApiError(e: unknown): ApiError {
   if (typeof e === "object" && e !== null) {
     const ax = e as AxiosLike;
     if (ax.isAxiosError) {
-      const body = ax.response?.data?.error;
-      if (body) return new ApiError(body.code, body.message, ax.response?.status ?? 0, body.details, body.requestId);
+      const status = ax.response?.status ?? 0;
+      const data = ax.response?.data;
+      const body = isRecord(data) ? data.error : undefined;
+      if (typeof body === "string") return new ApiError(errorCodeForStatus(status), body, status);
+      if (isRecord(body)) {
+        const code = isErrorCode(body.code) ? body.code : errorCodeForStatus(status);
+        const message = typeof body.message === "string" ? body.message : FALLBACK[code] ?? FALLBACK.UNKNOWN!;
+        const details = isRecord(body.details) ? body.details : undefined;
+        const requestId = typeof body.requestId === "string" ? body.requestId : undefined;
+        return new ApiError(code, message, status, details, requestId);
+      }
       if (!ax.response) return new ApiError("NETWORK_ERROR", FALLBACK.NETWORK_ERROR!);
-      return new ApiError("UNKNOWN", ax.message ?? FALLBACK.UNKNOWN!, ax.response.status ?? 0);
+      return new ApiError(errorCodeForStatus(status), ax.message ?? FALLBACK.UNKNOWN!, status);
     }
   }
   if (e instanceof Error) return new ApiError("UNKNOWN", e.message || FALLBACK.UNKNOWN!);

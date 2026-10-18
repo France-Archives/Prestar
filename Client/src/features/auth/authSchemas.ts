@@ -4,6 +4,7 @@ import {
   validatePassword,
   validatePasswordMatch,
   validateStudentNumber,
+  validateWmsuEmail,
   validateYearLevel,
 } from "@/utils/validators";
 
@@ -66,12 +67,16 @@ export function validateSignup(v: SignupValues): FieldErrors {
     ["firstName", validateName(v.firstName, "First name")],
     ["lastName", validateName(v.lastName, "Last name")],
     ["middleName", validateName(v.middleName, "Middle name", false)],
+    ["suffix", validateName(v.suffix, "Suffix", false)],
     ["studentNumber", validateStudentNumber(v.studentNumber)],
+    ["studentNumber", v.studentNumber.trim().length > 50 ? "Student number must be 50 characters or fewer." : null],
     ["college", v.college ? null : "Select your college."],
+    ["college", v.college.length > 150 ? "College must be 150 characters or fewer." : null],
     ["program", v.program ? null : "Select your course."],
+    ["program", v.program.length > 150 ? "Course must be 150 characters or fewer." : null],
     // Year level is required on signup. The range check is done by the shared validator.
     ["yearLevel", v.yearLevel.trim() ? validateYearLevel(v.yearLevel) : "Year level is required."],
-    ["email", validateEmail(v.email)],
+    ["email", validateWmsuEmail(v.email)],
     ["password", validatePassword(v.password)],
     ["confirm", validatePasswordMatch(v.password, v.confirm)],
   ]);

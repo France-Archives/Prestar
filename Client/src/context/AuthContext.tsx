@@ -6,10 +6,8 @@ import { subscribeStore } from "@/services/mockStore";
 import { normalizeUserRole } from "@/utils/permissions";
 
 // Holds the signed-in user for the UI. This is a UX convenience only: the backend decides what a user may do.
-// TEMPORARY MOCK IMPLEMENTATION: authService.getCurrentUser/login/logout run on the in-memory mock.
-// Replace those service bodies with A8 / A2 / A3 when the backend exists; this file does not change.
-// subscribeStore re-reads the session after every mock mutation so profile or status changes show up.
-// Delete that one effect when the mocks are removed.
+// authService selects mock or live authentication based on VITE_USE_MOCKS.
+// subscribeStore re-reads the session after mock mutations so profile or status changes show up.
 
 export type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 
@@ -50,7 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void refresh();
   }, [refresh]);
 
-  // TEMPORARY MOCK: re-read the session after any mock mutation.
+  // Re-read the session after mock mutations.
   useEffect(() => subscribeStore(() => void refresh()), [refresh]);
 
   // The API client raises this on a 401 UNAUTHENTICATED response (real backend).

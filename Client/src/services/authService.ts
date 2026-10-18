@@ -1,5 +1,6 @@
 import type {
   AcceptInvitationRequest,
+  AccountStatus,
   ForgotPasswordRequest,
   Interest,
   LoginRequest,
@@ -8,17 +9,20 @@ import type {
   ResetPasswordRequest,
   SessionUser,
   StudentProfileDetail,
+  UserRole,
   UpdateInterestsRequest,
   UpdateProfileRequest,
   VerifyEmailRequest,
 } from "@/types";
-import { fail } from "@/utils/errors";
+import { apiClient, apiGet, apiPost } from "@/services/apiClient";
+import { USE_MOCKS } from "@/utils/constants";
+import { ApiError, fail, toApiError } from "@/utils/errors";
 import {
-  validateEmail,
   validateInterestSelection,
   validateName,
   validatePassword,
   validateStudentNumber,
+  validateWmsuEmail,
   validateYearLevel,
 } from "@/utils/validators";
 import { begin } from "./mockEngine";
@@ -41,10 +45,8 @@ import {
   setSessionUserId,
 } from "./mockStore";
 
-// TEMPORARY MOCK IMPLEMENTATION: Replace with the real authentication endpoints (A1 to A8, A9 acceptance P2) and
-// the student profile endpoints (S1 to S3, P1). Mock authentication, email verification and password reset are NOT
-// real: passwords are plain text in memory, no email is sent, and tokens are returned to the browser so the demo
-// can continue. A real backend hashes passwords, emails a link and never returns the token.
+// Password reset and profile endpoints remain mock-only. Mock passwords are plain text
+// in memory, no email is sent, and mock tokens are returned to the browser so the demo can continue.
 
 /** MOCK ONLY: the real API never returns a token. It is returned so the demo can offer an "Open link (demo)" button. */
 export interface MockTokenResult {
@@ -52,12 +54,108 @@ export interface MockTokenResult {
   mockToken?: string;
 }
 
+interface BackendSignupResponse {
+  message: string;
+  email: string;
+}
+
+interface BackendMessageResponse {
+  message: string;
+}
+
 const check = (message: string | null): void => {
   if (message) fail("VALIDATION_ERROR", message, 422);
 };
 
+interface BackendSessionUser {
+  id: number;
+  email: string;
+  role: string;
+  accountStatus: string;
+  emailVerified: boolean;
+  firstName: string;
+  lastName: string;
+  displayName: string;
+  student: {
+    id: number;
+    userId: number;
+    studentNumber: string;
+    middleName: string | null;
+    suffix: string | null;
+    college: string | null;
+    course: string | null;
+    program: string | null;
+    yearLevel: number | null;
+  } | null;
+  librarian: null;
+}
+
+function isAccountStatus(status: string): status is AccountStatus {
+  return ["ACTIVE", "SUSPENDED", "PENDING_VERIFICATION", "DISABLED"].some((value) => value === status);
+}
+
+function mapBackendSessionUser(user: BackendSessionUser): SessionUser {
+  const roleByBackendRole: Record<string, UserRole> = {
+    Student: "STUDENT",
+    Librarian: "LIBRARIAN",
+    Admin: "ADMIN",
+  };
+  const role = roleByBackendRole[user.role];
+  if (!role) {
+    throw new Error(`Unsupported backend user role: ${user.role}`);
+  }
+  if (!isAccountStatus(user.accountStatus)) {
+    throw new Error(`Unsupported backend account status: ${user.accountStatus}`);
+  }
+  const accountStatus = user.accountStatus;
+  return {
+    id: String(user.id),
+    email: user.email,
+    role,
+    accountStatus,
+    emailVerified: user.emailVerified,
+    // /auth/me provides a boolean, not the email verification timestamp.
+    emailVerifiedAt: null,
+    displayName: user.displayName,
+    student: user.student
+      ? {
+          id: String(user.student.id),
+          userId: String(user.student.userId),
+          studentNumber: user.student.studentNumber,
+          firstName: user.firstName,
+          middleName: user.student.middleName,
+          lastName: user.lastName,
+          suffix: user.student.suffix,
+          college: user.student.college,
+          program: user.student.program ?? user.student.course,
+          yearLevel: user.student.yearLevel,
+          registryStatus: "UNKNOWN",
+        }
+      : null,
+    librarian: null,
+  };
+}
+
 /** A2 POST /auth/login. TC-02 baseline: PENDING_VERIFICATION students may log in (limited); borrowing stays blocked. */
 export async function login(req: LoginRequest): Promise<SessionUser> {
+  if (!USE_MOCKS) {
+    try {
+      await apiClient.post<BackendMessageResponse>("/auth/login", req);
+    } catch (error) {
+      const apiError = toApiError(error);
+      if (apiError.status === 401) {
+        throw new ApiError("INVALID_CREDENTIALS", apiError.message, apiError.status, apiError.details, apiError.requestId);
+      }
+      throw apiError;
+    }
+    let backendUser: BackendSessionUser;
+    try {
+      backendUser = await apiGet<BackendSessionUser>("/auth/me");
+    } catch (error) {
+      throw toApiError(error);
+    }
+    return mapBackendSessionUser(backendUser);
+  }
   await latency();
   const account = accountByEmail(req.email);
   if (!account || !account.password || account.password !== req.password) fail("INVALID_CREDENTIALS");
@@ -69,6 +167,10 @@ export async function login(req: LoginRequest): Promise<SessionUser> {
 
 /** A3 POST /auth/logout */
 export async function logout(): Promise<void> {
+  if (!USE_MOCKS) {
+    await apiPost<void>("/auth/logout");
+    return;
+  }
   await latency(80);
   setSessionUserId(null);
   commit();
@@ -76,6 +178,15 @@ export async function logout(): Promise<void> {
 
 /** A8 GET /auth/me. Returns null (instead of a 401) when nobody is signed in, for the app start-up check. */
 export async function getCurrentUser(): Promise<SessionUser | null> {
+  if (!USE_MOCKS) {
+    try {
+      return mapBackendSessionUser(await apiGet<BackendSessionUser>("/auth/me"));
+    } catch (error) {
+      const apiError = toApiError(error);
+      if (apiError.status === 401) return null;
+      throw apiError;
+    }
+  }
   await latency(120);
   const id = getSessionUserId();
   const account = id ? accountById(id) : undefined;
@@ -87,14 +198,22 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
 }
 
 /** A1 POST /auth/register. The role is never read from the request: public signup always creates a STUDENT. */
-export async function register(req: RegisterStudentRequest): Promise<{ email: string } & { mockVerificationCode: string }> {
+export async function register(req: RegisterStudentRequest): Promise<{ email: string; mockVerificationCode?: string }> {
+  if (!USE_MOCKS) {
+    const response = await apiClient.post<BackendSignupResponse>("/auth/signup", req);
+    return { email: response.data.email };
+  }
   await latency();
-  check(validateEmail(req.email));
+  check(validateWmsuEmail(req.email));
   check(validatePassword(req.password));
   check(validateStudentNumber(req.studentNumber));
   check(validateName(req.firstName, "First name"));
-  check(validateName(req.lastName, "Last name"));
   check(validateName(req.middleName ?? "", "Middle name", false));
+  check(validateName(req.lastName, "Last name"));
+  check(validateName(req.suffix ?? "", "Suffix", false));
+  if (!req.termsAccepted || !req.privacyPolicyAccepted) {
+    fail("VALIDATION_ERROR", "You must agree to the Terms and the Privacy Policy.", 422);
+  }
   // College, course and year level are required on signup.
   if (!req.college?.trim()) fail("VALIDATION_ERROR", "Select your college.", 422);
   if (!req.program?.trim()) fail("VALIDATION_ERROR", "Select your course.", 422);
@@ -135,6 +254,13 @@ export async function register(req: RegisterStudentRequest): Promise<{ email: st
 
 /** A4 POST /auth/verify-email. Single-use, expiring one-time code. */
 export async function verifyEmail(req: VerifyEmailRequest): Promise<void> {
+  if (!USE_MOCKS) {
+    await apiClient.post<BackendMessageResponse>("/auth/signup/verify-otp", {
+      email: req.email,
+      otp: req.code,
+    });
+    return;
+  }
   await latency();
   const account = accountByEmail(req.email);
   if (!account) fail("TOKEN_INVALID_OR_EXPIRED");
@@ -147,6 +273,10 @@ export async function verifyEmail(req: VerifyEmailRequest): Promise<void> {
 
 /** A5 POST /auth/resend-verification. The response is always generic (no account enumeration). */
 export async function resendVerification(req: ResendVerificationRequest): Promise<MockTokenResult> {
+  if (!USE_MOCKS) {
+    await apiClient.post<BackendMessageResponse>("/auth/signup/resend-otp", req);
+    return {};
+  }
   await latency();
   const account = accountByEmail(req.email);
   if (account && account.user.role === "STUDENT" && !account.user.emailVerifiedAt) {

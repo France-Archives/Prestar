@@ -10,6 +10,8 @@ import type {
   StudentDashboardData,
 } from "@/types";
 import { BOOK_COPY_STATUSES } from "@/types";
+import { apiGet } from "@/services/apiClient";
+import { USE_MOCKS } from "@/utils/constants";
 import { MOCK_ACTIVITY_LAST_7_DAYS, MOCK_POPULAR_BOOKS, MOCK_RECOMMENDATIONS } from "@/data";
 import { LIMITS } from "@/utils/constants";
 import { dateKey, daysUntil, overdueDays } from "@/utils/formatDate";
@@ -18,13 +20,15 @@ import { can } from "@/utils/permissions";
 import { begin, corSummaryOf, currentTerm, setting, studentRef, toBookSummary, toBookToRelease, toReservationBookToRelease, toLoan, toRequest, toReservation, toStaffLoan, toFineSummary, toNotification, queuePosition, copyById, copyRef } from "./mockEngine";
 import { db, out, requireCapability, requireStudent, sessionUserOf } from "./mockStore";
 
-// TEMPORARY MOCK IMPLEMENTATION: Replace with backend statistics/reports (P13, D1 to D4).
+// Student dashboard uses the live endpoint when configured; staff/admin reports remain mock-only.
+// The source defines only GET /admin/dashboard and three Admin reports (TC-16). KPI definitions are TO CONFIRM (TC-16).
 // The source defines only GET /admin/dashboard and three Admin reports; KPI definitions are TO CONFIRM (TC-16).
 // Counts that can be derived from the other mock records are computed live; historical statistics and
 // recommendations come from data/mockDashboard.ts.
 
 /** P13 GET /me/dashboard (proposed), composed from S4/S6/B2/B5/B7. */
 export async function getStudentDashboard(): Promise<StudentDashboardData> {
+  if (!USE_MOCKS) return apiGet<StudentDashboardData>("/me/dashboard");
   await begin();
   const { account, student } = requireStudent();
   const notes = db.notifications.filter((n) => n.userId === account.user.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt));

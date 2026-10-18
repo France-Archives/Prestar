@@ -83,6 +83,10 @@ export interface RejectHandoverRequest {
   reasonCode: string;
   notes: string;
 }
+/** H5 POST /staff/borrowing-requests/:id/claim */
+export interface ClaimRequest {
+  copyBarcode: string;
+}
 /** H6 POST /staff/loans/:loanId/return */
 export interface ReturnRequest {
   condition: CopyCondition;

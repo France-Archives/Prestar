@@ -1,5 +1,5 @@
 import React, { useCallback, type CSSProperties } from "react";
-import { motion, useReducedMotion } from "motion/react";
+import { useReducedMotion } from "motion/react";
 import { useScreenEnter } from "@/hooks/useScreenEnter";
 import { staggerIn, fadeIn } from "@/lib/motion";
 import "../styles/landing.css";
