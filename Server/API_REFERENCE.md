@@ -14,6 +14,8 @@
 3. [Borrow Requests](#3-borrow-requests)
 4. [Borrowed Books](#4-borrowed-books)
 5. [Common Error Responses](#5-common-error-responses)
+6. [Academic Terms & COR Verification](#6-academic-terms--cor-verification)
+7. [Reservations (FIFO Queue System)](#7-reservations-fifo-queue-system)
 
 ---
 
@@ -409,12 +411,24 @@ All routes require authentication (cookie).
 ---
 
 ### 3.1 `POST /api/borrow-requests`
-Submit a new borrow request for an active book.
+Submit a new borrow request for an active book. The system automatically performs a comprehensive flag check, assigns an available copy, auto-approves the request, and creates the reservation loan record in `borrowed_books`.
 
 | Property | Value |
 |---|---|
 | **Auth required** | Yes |
 | **Role** | Student |
+
+**Automated System Flag Validation:**
+Before creating a request, the system checks all student eligibility flags:
+1. **Account Status**: Must be `Active` with role `Student`.
+2. **Academic Term & COR Verification**: Active term must exist, and student's COR for that term must be `Approved` (and not expired).
+3. **Account Suspensions**: Student must have no active suspensions.
+4. **Penalties**: Student must have no unpaid/active penalties.
+5. **Same-Book Limit**: Must not exceed max **2** concurrent copies for this title (`MAX_COPIES_PER_BOOK = 2`).
+6. **Total Loan Limit**: Must not exceed max **10** active library loans/reservations (`MAX_ACTIVE_BORROWS = 10`).
+7. **Copy Availability**: Book must have at least one copy in `Available` status with `condition_status = 'Good'`.
+
+> **Note on Rejections**: If any single flag is triggered or no copy is available, the request is rejected immediately. The response body is **strictly a message** stating why it was rejected based on the detected flag.
 
 **Request body**
 ```json
@@ -429,37 +443,40 @@ Submit a new borrow request for an active book.
 | `book_id` | integer | Yes | Positive integer ID of an Active book. |
 | `requested_days` | integer | Yes | Duration in days (1 to `MAX_REQUEST_DAYS`, default max 14). Selected via frontend dropdown. |
 
-**Success `201`**
+**Success `201`** (Copy auto-assigned and loan record created)
 ```json
 {
-  "message": "Borrow request created successfully.",
-  "data": {
-    "id": 101,
-    "userId": 9001,
-    "bookId": 5,
-    "requestedDurationDays": 7,
-    "status": "Pending",
-    "requestedAt": "2026-10-11T09:00:00.000Z"
-  },
+  "message": "Borrow request approved and copy reserved successfully.",
   "request": {
     "id": 101,
     "userId": 9001,
     "bookId": 5,
     "requestedDurationDays": 7,
-    "status": "Pending",
-    "requestedAt": "2026-10-11T09:00:00.000Z"
+    "status": "Approved",
+    "requestedAt": "2026-10-18T06:00:00.000Z",
+    "pickupDeadline": "2026-10-21T06:00:00.000Z",
+    "assignedCopyId": 42,
+    "loan": {
+      "borrowId": 80,
+      "copyId": 42,
+      "status": "Reserved"
+    }
   }
 }
 ```
 
-**Errors**
-| Code | Meaning |
-|---|---|
-| `400` | Malformed input, or `requested_days` not in range 1..14 |
-| `401` | Authentication required or expired session |
-| `403` | Student ineligible (account inactive, term missing, unapproved verification, or active penalties) |
-| `404` | Active book not found |
-| `409` | `DUPLICATE_REQUEST` (already have pending/approved request), `NO_COPY_AVAILABLE` (no good available copy), `MAX_COPIES_PER_BOOK_EXCEEDED` (max 2 per title reached), or `MAX_ACTIVE_BORROWS_EXCEEDED` (max 10 active borrows reached) |
+**Flag Rejection Error Responses (`400`, `403`, `409`)**
+When a request fails flag verification, the API returns a response containing only the explanatory message:
+```json
+{
+  "message": "Borrowing rejected: Student enrollment verification is required for the active academic term."
+}
+```
+*Other example messages:*
+- `"Borrowing rejected: You have reached the limit of 2 active copies for this title."`
+- `"Borrowing rejected: You have reached the maximum allowed limit of 10 active book loans/requests."`
+- `"Borrowing rejected: No available copies are currently in good condition for this book. Please join the reservation queue instead."`
+- `"Borrowing rejected: Student has 1 active penalty/penalties with total balance of 50.00."`
 
 ---
 
@@ -1109,5 +1126,217 @@ Submits a student COR proof document.
 
 ---
 
-*Generated: 2026-10-12 — Prestar Library Management System Backend v3*
+## 7. Reservations (FIFO Queue System)
+
+**Prefix**: `/api/reservations`  
+All routes require authentication (`auth_token` cookie).
+
+### Overview & Dual-Checkpoint Flag Architecture
+
+When a book has **0 available copies**, students can place a reservation to join the book's FIFO queue (`ORDER BY reservation_date ASC, reservation_id ASC`).
+
+The system implements a **Dual-Checkpoint Flag Enforcement Architecture**:
+
+```
+[Student joins queue]
+         │
+  (Checkpoint 1) ──► Check flags (COR, suspensions, penalties, limits)
+         │           • If any flag exists ──► Reject with message only
+         │           • Duplicate entry check ──► Reject if already waiting/ready
+         ▼
+[In FIFO Queue (status: 'Waiting')]
+         │
+         │  (A copy becomes 'Available' via Return, Cancellation, or Inventory Add)
+         ▼
+  (Checkpoint 2) ──► System Automated Queue Processor:
+                     1. Inspects queue front (`ORDER BY reservation_date ASC`).
+                     2. Re-evaluates student flags (COR, account status, limits).
+                     3. Flagged student? ──► Mark reservation 'Cancelled' with remarks:
+                                              "Skipped: <flagReason>",
+                                              and automatically advance to NEXT student.
+                     4. Eligible student? ──► Lock available copy ('Reserved'),
+                                              auto-create Approved BorrowRequest,
+                                              create 'Reserved' row in `borrowed_books`,
+                                              mark reservation 'Ready' with `expires_at`.
+```
+
+---
+
+### 7.1 `POST /api/reservations`
+Join the FIFO reservation queue for an out-of-stock book.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Student |
+
+**Request body**
+```json
+{
+  "book_id": 5,
+  "requested_days": 7
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `book_id` | integer | Yes | Positive integer ID of an Active book that has 0 available copies. |
+| `requested_days` | integer | No | Loan duration desired once ready (default: 7 days, max 14). |
+
+**Success `201`**
+```json
+{
+  "message": "You have joined the reservation queue successfully.",
+  "reservation": {
+    "id": 12,
+    "reservationId": 12,
+    "bookId": 5,
+    "bookTitle": "Clean Architecture",
+    "status": "Waiting",
+    "queuePosition": 1,
+    "reservedAt": "2026-10-18T06:15:00.000Z"
+  }
+}
+```
+
+**Rejection Errors (`400`, `403`, `409`)**
+Returns a message stating specifically why the reservation was rejected:
+```json
+{
+  "message": "Reservation rejected: This book currently has 2 copy/copies available to borrow directly."
+}
+```
+*Other common rejection messages:*
+- `"Reservation rejected: You are already in the reservation queue for this title."`
+- `"Reservation rejected: Student enrollment verification is required for the active academic term."`
+- `"Reservation rejected: Student account has active suspension(s)."`
+- `"Reservation rejected: Student has 1 active penalty/penalties with total balance of 50.00."`
+- `"Reservation rejected: You already have active loans, requests, or queue entries for this title, reaching the limit of 2 per title."`
+- `"Reservation rejected: You have reached the maximum allowed limit of 10 active book loans/requests/reservations."`
+
+---
+
+### 7.2 `GET /api/reservations/mine`
+List the authenticated student's own reservations, including dynamic real-time FIFO queue positions.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Student |
+
+**Query parameters**
+| Param | Type | Constraints | Description |
+|---|---|---|---|
+| `status` | string | `Waiting`, `Ready`, `Fulfilled`, `Cancelled`, `Expired` | Optional filter by status |
+
+**Success `200`**
+```json
+{
+  "reservations": [
+    {
+      "id": 12,
+      "reservationId": 12,
+      "bookId": 5,
+      "bookTitle": "Clean Architecture",
+      "isbn": "9780134494166",
+      "status": "Waiting",
+      "queuePosition": 1,
+      "reservedAt": "2026-10-18T06:15:00.000Z",
+      "pickupDeadline": null,
+      "closedAt": null,
+      "remarks": "Requested loan duration: 7 days"
+    },
+    {
+      "id": 8,
+      "reservationId": 8,
+      "bookId": 12,
+      "bookTitle": "Introduction to Algorithms",
+      "isbn": "9780262033848",
+      "status": "Ready",
+      "queuePosition": null,
+      "reservedAt": "2026-10-15T10:00:00.000Z",
+      "pickupDeadline": "2026-10-21T10:00:00.000Z",
+      "closedAt": null,
+      "remarks": "Copy assigned (145). Ready for pickup before deadline."
+    }
+  ]
+}
+```
+
+---
+
+### 7.3 `POST /api/reservations/:id/cancel`
+Cancel a waiting or ready reservation. If the reservation was in `Ready` status, its assigned copy is automatically released and immediately dispatched to the next eligible student in the FIFO queue.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Student |
+
+**URL Parameters**
+- `id`: The reservation ID.
+
+**Success `200`**
+```json
+{
+  "message": "Reservation cancelled successfully.",
+  "reservationId": 12,
+  "status": "Cancelled"
+}
+```
+
+**Errors**
+| Code | Meaning |
+|---|---|
+| `400` | Invalid reservation ID |
+| `404` | Reservation not found or does not belong to student |
+| `409` | Reservation status is not `Waiting` or `Ready` (e.g. already fulfilled or cancelled) |
+
+---
+
+### 7.4 `GET /api/reservations`
+Staff endpoint to monitor the global reservation queues across books.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Librarian, Admin |
+
+**Query parameters**
+| Param | Type | Description |
+|---|---|---|
+| `status` | string | Filter by status (`Waiting`, `Ready`, `Fulfilled`, `Cancelled`, `Expired`) |
+| `book_id` | integer | Filter by specific book ID |
+
+**Success `200`**
+```json
+{
+  "reservations": [
+    {
+      "reservation_id": 12,
+      "user_id": 9001,
+      "book_id": 5,
+      "status": "Waiting",
+      "reservation_date": "2026-10-18T06:15:00.000Z",
+      "expires_at": null,
+      "remarks": "Requested loan duration: 7 days",
+      "book": {
+        "book_id": 5,
+        "title": "Clean Architecture",
+        "isbn": "9780134494166"
+      },
+      "student": {
+        "user_id": 9001,
+        "first_name": "Juan",
+        "last_name": "Dela Cruz",
+        "email": "student@wmsu.edu.ph"
+      }
+    }
+  ]
+}
+```
+
+---
+
+*Generated: 2026-10-18 — Prestar Library Management System Backend v3*
 

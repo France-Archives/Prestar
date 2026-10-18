@@ -42,20 +42,17 @@ export async function createRequest(req, res) {
       requestedDays: req.validatedInput.requested_days,
     });
     return res.status(201).json({
-      message: "Borrow request created successfully.",
+      message: "Borrow request approved and copy reserved successfully.",
       request,
     });
   } catch (error) {
     if (error instanceof BorrowFlowError) {
-      return res.status(error.status).json({
-        code: error.code,
+      return res.status(error.status || 400).json({
         message: error.message,
-        error: error.message,
-        ...(error.reasons?.length ? { reasons: error.reasons } : {}),
       });
     }
     console.error("Create borrow request error:", error);
-    return res.status(500).json({ error: "Internal server error." });
+    return res.status(500).json({ message: "Internal server error." });
   }
 }
 

@@ -20,6 +20,7 @@ import {
 } from "../config/libraryRules.js";
 import withActor from "../utils/withActor.js";
 import { checkBorrowEligibility } from "./borrowEligibilityService.js";
+import { processNextInReservationQueue } from "./reservationService.js";
 
 export class BorrowFlowError extends Error {
   constructor(status, code, message, extra = {}) {
@@ -79,16 +80,49 @@ export async function expireStalePickups() {
 
 /**
  * Step 1: Student creates a borrow request.
+ * Automatically checks for flags:
+ * - Active book exists
+ * - Valid requested duration
+ * - Active good-condition copies available
+ * - User eligibility flags (Active account, Active suspension, Active term, COR verification, Unpaid penalties)
+ * - Additional flags:
+ *   - Max copies per title (MAX_COPIES_PER_BOOK)
+ *   - Max active borrows total (MAX_ACTIVE_BORROWS)
+ *
+ * If ANY flag is detected:
+ * - Throws BorrowFlowError with a specific message stating why it was rejected based on the flag.
+ *
+ * If NO flags are detected:
+ * - Automatically assigns an available copy (status: 'Reserved')
+ * - Creates the borrow_requests record with status 'Approved'
+ * - Creates the borrowed_books record with status 'Reserved'
  */
-export async function createBorrowRequest({ userId, bookId, requestedDays }) {
+export async function createBorrowRequest(arg1, arg2, arg3) {
+  let userId, bookId, requestedDays;
+  if (typeof arg1 === "object" && arg1 !== null && !Array.isArray(arg1)) {
+    userId = arg1.userId ?? arg1.user_id;
+    bookId = arg1.bookId ?? arg1.book_id;
+    requestedDays = arg1.requestedDays ?? arg1.requested_days ?? arg1.requestedDurationDays ?? 7;
+  } else {
+    userId = arg1;
+    bookId = arg2;
+    requestedDays = arg3 ?? 7;
+  }
+
+  // 1. Flag: Active book existence
   const book = await Book.findOne({
     where: { book_id: bookId, status: "Active" },
     attributes: ["book_id", "title", "status"],
   });
   if (!book) {
-    throw new BorrowFlowError(404, "BOOK_NOT_FOUND", "Active book not found.");
+    throw new BorrowFlowError(
+      404,
+      "BOOK_NOT_FOUND",
+      "Borrow request rejected: Active book not found.",
+    );
   }
 
+  // 2. Flag: Loan duration validity
   if (
     !Number.isInteger(requestedDays) ||
     requestedDays < 1 ||
@@ -97,10 +131,11 @@ export async function createBorrowRequest({ userId, bookId, requestedDays }) {
     throw new BorrowFlowError(
       400,
       "INVALID_REQUESTED_DAYS",
-      `requested_days must be an integer between 1 and ${MAX_REQUEST_DAYS}.`,
+      `Borrow request rejected: Requested loan duration must be an integer between 1 and ${MAX_REQUEST_DAYS} days.`,
     );
   }
 
+  // 3. Flag: Available good-condition copies in inventory
   const availableCount = await BookCopy.count({
     where: {
       book_id: bookId,
@@ -112,21 +147,24 @@ export async function createBorrowRequest({ userId, bookId, requestedDays }) {
     throw new BorrowFlowError(
       409,
       "NO_COPY_AVAILABLE",
-      "No copies are currently available for this book.",
+      "Borrow request rejected: No copies are currently available for this book.",
     );
   }
 
+  // 4. Flags: Account active, Active suspension, Active term, COR enrollment verification, Unpaid penalties
   const eligibility = await checkBorrowEligibility(userId);
   if (!eligibility.eligible) {
+    const primaryReason = eligibility.reasons[0];
+    const reasonMsg = primaryReason?.message || "Student is not eligible to borrow.";
     throw new BorrowFlowError(
       403,
-      "BORROW_INELIGIBLE",
-      "Student is not eligible to borrow.",
+      primaryReason?.code || "BORROW_INELIGIBLE",
+      `Borrow request rejected: ${reasonMsg}`,
       { reasons: eligibility.reasons },
     );
   }
 
-  // Same-book limit: max MAX_COPIES_PER_BOOK active loans or open requests
+  // 5. Additional Flag: Max copy borrowed / requested per title
   const openRequestsForBook = await BorrowRequest.count({
     where: {
       user_id: userId,
@@ -138,7 +176,7 @@ export async function createBorrowRequest({ userId, bookId, requestedDays }) {
   const activeLoansForBook = await BorrowedBook.count({
     where: {
       book_id: bookId,
-      status: "Borrowed",
+      status: { [Op.in]: ["Reserved", "Borrowed"] },
     },
     include: [
       {
@@ -154,11 +192,11 @@ export async function createBorrowRequest({ userId, bookId, requestedDays }) {
     throw new BorrowFlowError(
       409,
       "MAX_COPIES_PER_BOOK_EXCEEDED",
-      `You already have ${MAX_COPIES_PER_BOOK} active loan(s) or request(s) for this book, which is the maximum allowed per title.`,
+      `Borrow request rejected: You have reached the maximum allowed limit of ${MAX_COPIES_PER_BOOK} copy/copies for this title.`,
     );
   }
 
-  // Total active borrows limit: max MAX_ACTIVE_BORROWS
+  // 6. Additional Flag: Max active borrows total
   const totalOpenRequests = await BorrowRequest.count({
     where: {
       user_id: userId,
@@ -168,7 +206,7 @@ export async function createBorrowRequest({ userId, bookId, requestedDays }) {
 
   const totalActiveLoans = await BorrowedBook.count({
     where: {
-      status: "Borrowed",
+      status: { [Op.in]: ["Reserved", "Borrowed"] },
     },
     include: [
       {
@@ -184,19 +222,69 @@ export async function createBorrowRequest({ userId, bookId, requestedDays }) {
     throw new BorrowFlowError(
       409,
       "MAX_ACTIVE_BORROWS_EXCEEDED",
-      `You have reached the maximum allowed limit of ${MAX_ACTIVE_BORROWS} active book loans/requests.`,
+      `Borrow request rejected: You have reached the maximum allowed limit of ${MAX_ACTIVE_BORROWS} active book loans/requests.`,
     );
   }
 
+  // 7. All flags passed: System assigns available copy, auto-approves request, and creates borrowed_books row
   try {
     return await withActor(userId, async (transaction) => {
+      // Find and lock available good-condition copy
+      const copy = await BookCopy.findOne({
+        where: {
+          book_id: bookId,
+          status: "Available",
+          condition_status: "Good",
+        },
+        order: [["copy_id", "ASC"]],
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+        skipLocked: true,
+      });
+
+      if (!copy) {
+        throw new BorrowFlowError(
+          409,
+          "NO_COPY_AVAILABLE",
+          "Borrow request rejected: No copies are currently available for this book.",
+        );
+      }
+
+      // System assigns and reserves copy
+      await copy.update({ status: "Reserved" }, { transaction });
+
+      const pickupDeadline = new Date(
+        Date.now() + PICKUP_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+      );
+
+      // System creates Approved request row
       const created = await BorrowRequest.create(
         {
           user_id: userId,
           book_id: bookId,
           requested_days: requestedDays,
-          status: "Pending",
+          status: "Approved",
           request_date: new Date(),
+          reviewed_by: null,
+          reviewed_at: new Date(),
+          pickup_deadline: pickupDeadline,
+          remarks: "Auto-approved by system",
+        },
+        { transaction },
+      );
+
+      // System creates Reserved row in borrowed_books
+      const borrowedBook = await BorrowedBook.create(
+        {
+          request_id: created.request_id,
+          book_id: bookId,
+          copy_id: copy.copy_id,
+          status: "Reserved",
+          assigned_by: null,
+          assigned_at: new Date(),
+          due_date: null,
+          issued_by: null,
+          borrow_date: new Date(),
         },
         { transaction },
       );
@@ -210,10 +298,22 @@ export async function createBorrowRequest({ userId, bookId, requestedDays }) {
         requestedDurationDays: created.requested_days,
         status: created.status,
         requestedAt: created.request_date,
+        approvedAt: created.reviewed_at,
+        pickupDeadline: created.pickup_deadline,
+        assignedCopyId: copy.copy_id,
+        copyBarcode: copy.barcode || copy.accession_no || null,
+        loanId: borrowedBook.borrow_id,
+        borrowId: borrowedBook.borrow_id,
+        loan: {
+          borrowId: borrowedBook.borrow_id,
+          requestId: created.request_id,
+          bookId: created.book_id,
+          copyId: copy.copy_id,
+          status: borrowedBook.status,
+          assignedAt: borrowedBook.assigned_at,
+        },
         decisionReason: null,
-        remarks: null,
-        assignedCopyId: null,
-        pickupDeadline: null,
+        remarks: created.remarks,
       };
     });
   } catch (error) {
@@ -224,13 +324,18 @@ export async function createBorrowRequest({ userId, bookId, requestedDays }) {
       throw new BorrowFlowError(
         409,
         "DUPLICATE_REQUEST",
-        "You already have an active (pending or approved) request for this book.",
+        "Borrow request rejected: You already have an active request or loan for this book.",
       );
     }
     if (error?.original?.code === "P0001") {
-      throw new BorrowFlowError(403, "BORROW_INELIGIBLE", error.message, {
-        reasons: [{ code: "TRIGGER_REJECTED", message: error.message }],
-      });
+      throw new BorrowFlowError(
+        403,
+        "BORROW_INELIGIBLE",
+        `Borrow request rejected: ${error.message}`,
+        {
+          reasons: [{ code: "TRIGGER_REJECTED", message: error.message }],
+        },
+      );
     }
     throw error;
   }
@@ -288,6 +393,11 @@ export async function cancelBorrowRequest({ requestId, userId }) {
       { transaction },
     );
 
+    // Asynchronously dispatch any waiting reservations for this title
+    setImmediate(() => {
+      processNextInReservationQueue(request.book_id).catch(console.error);
+    });
+
     return {
       id: request.request_id,
       request_id: request.request_id,
@@ -318,11 +428,11 @@ export async function reviewBorrowRequest({
     if (!request) {
       throw new BorrowFlowError(404, "REQUEST_NOT_FOUND", "Borrow request not found.");
     }
-    if (request.status !== "Pending") {
+    if (request.status !== "Pending" && request.status !== "Approved") {
       throw new BorrowFlowError(
         409,
         "INVALID_STATUS",
-        "Only pending requests can be reviewed.",
+        "Only pending or approved requests can be reviewed.",
       );
     }
 
@@ -334,6 +444,23 @@ export async function reviewBorrowRequest({
           "Remarks are required when rejecting a request.",
         );
       }
+
+      // If already approved, cancel the reserved loan and release copy
+      if (request.status === "Approved") {
+        const loan = await BorrowedBook.findOne({
+          where: { request_id: requestId, status: "Reserved" },
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+        });
+        if (loan) {
+          await loan.update({ status: "Cancelled" }, { transaction });
+          await BookCopy.update(
+            { status: "Available" },
+            { where: { copy_id: loan.copy_id }, transaction },
+          );
+        }
+      }
+
       await BorrowRequest.update(
         {
           status: "Rejected",
@@ -348,6 +475,10 @@ export async function reviewBorrowRequest({
         },
       );
 
+      setImmediate(() => {
+        processNextInReservationQueue(request.book_id).catch(console.error);
+      });
+
       return {
         message: "Request rejected successfully.",
         request_id: requestId,
@@ -357,6 +488,37 @@ export async function reviewBorrowRequest({
     }
 
     // decision === 'approve'
+    // Check if there is already a reserved loan for this request
+    const existingLoan = await BorrowedBook.findOne({
+      where: { request_id: request.request_id, status: "Reserved" },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+
+    if (request.status === "Approved" && existingLoan && (!copyId || existingLoan.copy_id === copyId)) {
+      await BorrowRequest.update(
+        {
+          reviewed_by: reviewerId,
+          reviewed_at: new Date(),
+          remarks: remarks?.trim() || request.remarks,
+        },
+        {
+          where: { request_id: requestId },
+          fields: ["reviewed_by", "reviewed_at", "remarks"],
+          transaction,
+        },
+      );
+      return {
+        message: "Request approved and copy reserved.",
+        requestId,
+        status: "Approved",
+        borrowId: existingLoan.borrow_id,
+        loan: existingLoan,
+        copyId: existingLoan.copy_id,
+        pickupDeadline: request.pickup_deadline,
+      };
+    }
+
     const eligibility = await checkBorrowEligibility(request.user_id, {
       transaction,
     });
@@ -442,7 +604,7 @@ export async function reviewBorrowRequest({
       if (
         !copy ||
         String(copy.book_id) !== String(request.book_id) ||
-        copy.status !== "Available" ||
+        (copy.status !== "Available" && (!existingLoan || existingLoan.copy_id !== copy.copy_id)) ||
         copy.condition_status !== "Good"
       ) {
         throw new BorrowFlowError(
@@ -473,24 +635,42 @@ export async function reviewBorrowRequest({
       chosenCopyId = availableCopy.copy_id;
     }
 
-    const borrowedBook = await BorrowedBook.create(
-      {
-        request_id: request.request_id,
-        book_id: request.book_id,
-        copy_id: chosenCopyId,
-        status: "Reserved",
-        assigned_by: reviewerId,
-        assigned_at: new Date(),
-        due_date: null,
-        issued_by: null,
-      },
-      { transaction },
-    );
+    let borrowedBook = existingLoan;
+    if (borrowedBook) {
+      if (borrowedBook.copy_id !== chosenCopyId) {
+        await BookCopy.update(
+          { status: "Available" },
+          { where: { copy_id: borrowedBook.copy_id }, transaction },
+        );
+        await BookCopy.update(
+          { status: "Reserved" },
+          { where: { copy_id: chosenCopyId }, transaction },
+        );
+        await borrowedBook.update(
+          { copy_id: chosenCopyId, assigned_by: reviewerId, assigned_at: new Date() },
+          { transaction },
+        );
+      }
+    } else {
+      borrowedBook = await BorrowedBook.create(
+        {
+          request_id: request.request_id,
+          book_id: request.book_id,
+          copy_id: chosenCopyId,
+          status: "Reserved",
+          assigned_by: reviewerId,
+          assigned_at: new Date(),
+          due_date: null,
+          issued_by: null,
+        },
+        { transaction },
+      );
 
-    await BookCopy.update(
-      { status: "Reserved" },
-      { where: { copy_id: chosenCopyId }, transaction },
-    );
+      await BookCopy.update(
+        { status: "Reserved" },
+        { where: { copy_id: chosenCopyId }, transaction },
+      );
+    }
 
     const pickupDeadline = new Date(
       Date.now() + PICKUP_WINDOW_DAYS * 24 * 60 * 60 * 1000,
@@ -767,6 +947,11 @@ export async function rejectPickupBook({ borrowId, requestId, staffId, remarks, 
         transaction,
       },
     );
+
+    // Asynchronously dispatch any waiting reservations for this title
+    setImmediate(() => {
+      processNextInReservationQueue(request.book_id).catch(console.error);
+    });
 
     return {
       message: "Pickup request rejected successfully. The assigned copy has been released.",

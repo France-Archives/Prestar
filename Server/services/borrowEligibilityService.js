@@ -1,8 +1,8 @@
-// Server/services/borrowEligibilityService.js
-import { QueryTypes } from "sequelize";
+import { Op, QueryTypes } from "sequelize";
 import {
   AcademicTerm,
   StudentVerification,
+  Suspension,
   User,
   sequelize,
 } from "../models/index.js";
@@ -30,7 +30,30 @@ export async function checkBorrowEligibility(userId, options = {}) {
   if (!user || user.status !== "Active" || user.role !== "Student") {
     reasons.push({
       code: "USER_NOT_ACTIVE",
-      message: "User account is not active."
+      message: "User account is not active.",
+    });
+  }
+
+  // 1b. ACTIVE_SUSPENSION: check if student has an active suspension
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const activeSuspension = await Suspension.findOne({
+    where: {
+      user_id: userId,
+      status: "Active",
+      start_date: { [Op.lte]: todayStr },
+      [Op.or]: [
+        { end_date: null },
+        { end_date: { [Op.gte]: todayStr } },
+      ],
+    },
+    transaction,
+  });
+
+  if (activeSuspension) {
+    reasons.push({
+      code: "ACTIVE_SUSPENSION",
+      message: "Student has an active suspension.",
+      details: activeSuspension.reason_details,
     });
   }
 

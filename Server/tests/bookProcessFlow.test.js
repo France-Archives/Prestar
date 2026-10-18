@@ -156,12 +156,25 @@ describe("Book Process & Frontend Form Integration Test Suite", () => {
 
     assert.ok(requestRes);
     assert.equal(requestRes.requestedDurationDays, 14);
-    assert.equal(requestRes.status, "Pending");
+    assert.equal(requestRes.status, "Approved");
+    assert.ok(requestRes.loan);
+    assert.equal(requestRes.loan.status, "Reserved");
+    assert.equal(requestRes.assignedCopyId, testCopy.copy_id);
 
     // Verify stored in DB borrow_requests table
     const dbReq = await BorrowRequest.findByPk(requestRes.id);
     assert.ok(dbReq);
     assert.equal(dbReq.requested_days, 14);
+    assert.equal(dbReq.status, "Approved");
+
+    // Copy status is Reserved
+    const copy = await BookCopy.findByPk(testCopy.copy_id);
+    assert.equal(copy.status, "Reserved");
+
+    // Verify row created in borrowed_books
+    const loan = await BorrowedBook.findOne({ where: { request_id: requestRes.id } });
+    assert.ok(loan);
+    assert.equal(loan.status, "Reserved");
   });
 
   it("3. Student lists own requests and receives clean camelCase properties", async () => {
@@ -171,26 +184,15 @@ describe("Book Process & Frontend Form Integration Test Suite", () => {
     const first = listRes.requests[0];
     assert.equal(first.requestedDurationDays, 14);
     assert.equal(first.bookId, testBook.book_id);
-    assert.equal(first.status, "Pending");
+    assert.equal(first.status, "Approved");
   });
 
-  it("4. Staff reviews and approves request, creating Reserved loan record with assigned copy", async () => {
-    const dbReq = await BorrowRequest.findOne({
-      where: { user_id: testUser.id, status: "Pending" },
+  it("4. System assigns copy and creates Reserved loan record upon borrow request", async () => {
+    const loan = await BorrowedBook.findOne({
+      where: { book_id: testBook.book_id, status: "Reserved" },
     });
-    assert.ok(dbReq);
-
-    const reviewRes = await reviewBorrowRequest({
-      requestId: dbReq.request_id,
-      reviewerId: staffUser.id,
-      decision: "approve",
-      remarks: "Approved for pickup",
-      copyId: testCopy.copy_id,
-    });
-
-    assert.equal(reviewRes.status, "Approved");
-    assert.ok(reviewRes.loan);
-    assert.equal(reviewRes.loan.status, "Reserved");
+    assert.ok(loan);
+    assert.equal(loan.status, "Reserved");
 
     // Copy status is Reserved
     const copy = await BookCopy.findByPk(testCopy.copy_id);
@@ -288,6 +290,7 @@ describe("Book Process & Frontend Form Integration Test Suite", () => {
     assert.equal(inDb.remarks, "Title undergoing inventory audit");
 
     // Clean up
+    await BorrowedBook.destroy({ where: { request_id: rejectReq.id } });
     await BorrowRequest.destroy({ where: { request_id: rejectReq.id } });
     await rejectCopy.destroy();
   });
@@ -418,6 +421,115 @@ describe("Book Process & Frontend Form Integration Test Suite", () => {
       assert.ok(top.title !== undefined);
       assert.ok(top.loanCount !== undefined);
       assert.ok(top.availability !== undefined);
+    }
+  });
+
+  it("10. Rejection flag: blocks request with message when no copies are available", async () => {
+    const emptyBook = await Book.create({
+      title: `Empty Book ${uniqueSuffix}`,
+      author_id: testBook.author_id,
+      category_id: testBook.category_id,
+      isbn: `EMPTY-${Date.now()}`,
+      status: "Active",
+    });
+
+    try {
+      await assert.rejects(
+        () => createBorrowRequest({
+          userId: testUser.id,
+          bookId: emptyBook.book_id,
+          requestedDays: 7,
+        }),
+        (err) => {
+          assert.equal(err.code, "NO_COPY_AVAILABLE");
+          assert.equal(err.message, "Borrow request rejected: No copies are currently available for this book.");
+          return true;
+        }
+      );
+    } finally {
+      await emptyBook.destroy();
+    }
+  });
+
+  it("11. Rejection flag: blocks request with message when max copies per title is reached", async () => {
+    // Current testUser has 1 borrowed book of testBook.
+    // Create copy and request to reach limit of 2
+    const secondCopy = await BookCopy.create({
+      book_id: testBook.book_id,
+      accession_no: `ACC-${uniqueSuffix}-LIMIT-2`,
+      status: "Available",
+      condition_status: "Good",
+    });
+
+    const secondReq = await createBorrowRequest({
+      userId: testUser.id,
+      bookId: testBook.book_id,
+      requestedDays: 7,
+    });
+
+    // Create a 3rd copy in inventory
+    const thirdCopy = await BookCopy.create({
+      book_id: testBook.book_id,
+      accession_no: `ACC-${uniqueSuffix}-LIMIT-3`,
+      status: "Available",
+      condition_status: "Good",
+    });
+
+    try {
+      // 3rd request should fail because MAX_COPIES_PER_BOOK (2) is reached
+      await assert.rejects(
+        () => createBorrowRequest({
+          userId: testUser.id,
+          bookId: testBook.book_id,
+          requestedDays: 7,
+        }),
+        (err) => {
+          assert.equal(err.code, "MAX_COPIES_PER_BOOK_EXCEEDED");
+          assert.ok(err.message.includes("maximum allowed limit of 2 copy/copies for this title"));
+          return true;
+        }
+      );
+    } finally {
+      await BorrowedBook.destroy({ where: { request_id: secondReq.id } });
+      await BorrowRequest.destroy({ where: { request_id: secondReq.id } });
+      await secondCopy.destroy();
+      await thirdCopy.destroy();
+    }
+  });
+
+  it("12. Rejection flag: blocks request with message when student account or COR is not eligible", async () => {
+    const unverifiedUser = await User.create({
+      email: `unverified_${uniqueSuffix}@wmsu.edu.ph`,
+      password_hash: "hash",
+      role: "Student",
+      status: "Active",
+      first_name: "Unverified",
+      last_name: "Student",
+    });
+
+    const tempCopy = await BookCopy.create({
+      book_id: testBook.book_id,
+      accession_no: `ACC-${uniqueSuffix}-TEMP-COR`,
+      status: "Available",
+      condition_status: "Good",
+    });
+
+    try {
+      await assert.rejects(
+        () => createBorrowRequest({
+          userId: unverifiedUser.id,
+          bookId: testBook.book_id,
+          requestedDays: 7,
+        }),
+        (err) => {
+          assert.equal(err.code, "VERIFICATION_REQUIRED");
+          assert.ok(err.message.startsWith("Borrow request rejected:"));
+          return true;
+        }
+      );
+    } finally {
+      await tempCopy.destroy();
+      await unverifiedUser.destroy();
     }
   });
 
