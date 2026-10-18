@@ -8,6 +8,14 @@ import {
 } from "../models/index.js";
 import { expireOverdueVerifications } from "./academicTermService.js";
 
+export function emailVerificationEligibilityReason(user) {
+  if (user?.role !== "Student" || user.email_verified === true) return null;
+  return {
+    code: "EMAIL_NOT_VERIFIED",
+    message: "Student email address must be verified before borrowing.",
+  };
+}
+
 /**
  * Checks borrow eligibility for a given user.
  * Single source of truth used at request creation, review/approval, and pickup.
@@ -23,7 +31,7 @@ export async function checkBorrowEligibility(userId, options = {}) {
 
   // 1. USER_NOT_ACTIVE: user must exist, status = 'Active', role = 'Student'
   const user = await User.unscoped().findByPk(userId, {
-    attributes: ["user_id", "status", "role"],
+    attributes: ["user_id", "status", "role", "email_verified"],
     transaction,
   });
 
@@ -33,6 +41,8 @@ export async function checkBorrowEligibility(userId, options = {}) {
       message: "User account is not active.",
     });
   }
+  const emailVerificationReason = emailVerificationEligibilityReason(user);
+  if (emailVerificationReason) reasons.push(emailVerificationReason);
 
   // 1b. ACTIVE_SUSPENSION: check if student has an active suspension
   const todayStr = new Date().toISOString().slice(0, 10);

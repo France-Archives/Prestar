@@ -38,6 +38,14 @@ export const otpRateLimiter = rateLimit({
   },
 });
 
+export const signupOtpVerifyRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  handler: rateLimitResponse,
+});
+
 /**
  * Rate limiter for standalone OTP request: 20 requests per 15 minutes per IP.
  */
@@ -59,4 +67,3 @@ export const otpVerifyLimiter = rateLimit({
   legacyHeaders: false,
   handler: rateLimitResponse,
 });
-

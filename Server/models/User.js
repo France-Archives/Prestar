@@ -52,6 +52,14 @@ export default function defineUser(sequelize) {
         allowNull: false,
         defaultValue: false,
       },
+      terms_accepted_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+      privacy_policy_accepted_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
       created_at: {
         type: DataTypes.DATE,
         allowNull: false,

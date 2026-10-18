@@ -117,7 +117,8 @@ export async function requestOtp(email) {
 		         ELSE email_otps.resend_count + 1
 		       END,
 		       last_sent_at = NOW()
-		 WHERE email_otps.last_sent_at < NOW() - INTERVAL '${COOLDOWN_SECONDS} seconds'
+		 WHERE (email_otps.signup_payload IS NULL OR email_otps.signup_payload = '{}'::jsonb)
+		   AND email_otps.last_sent_at < NOW() - INTERVAL '${COOLDOWN_SECONDS} seconds'
 		 RETURNING *`,
 		{
 			bind: [normalizedEmail, codeHash, expiresAt],
@@ -137,7 +138,7 @@ export async function requestOtp(email) {
 	} catch (err) {
 		console.error("[OTP] Gmail delivery failed:", err.message);
 		// Delete stored code on send failure so user can retry immediately
-		await EmailOtp.destroy({ where: { email: normalizedEmail } });
+		await EmailOtp.destroy({ where: { email: normalizedEmail, otp_hash: codeHash } });
 		throw new OtpError(500, "If the email is valid, a code has been sent.");
 	}
 
@@ -205,7 +206,13 @@ export async function verifyOtp(email, code) {
 export async function cleanupExpiredOtps() {
 	try {
 		const [, meta] = await sequelize.query(
-			`DELETE FROM email_otps WHERE expires_at <= NOW()`,
+			`DELETE FROM email_otps
+			 WHERE expires_at <= NOW()
+			   AND (
+			     signup_payload IS NULL
+			     OR signup_payload = '{}'::jsonb
+			     OR created_at <= NOW() - INTERVAL '24 hours'
+			   )`,
 		);
 		const count = meta?.rowCount ?? 0;
 		if (count > 0) {

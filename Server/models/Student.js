@@ -14,6 +14,14 @@ export default function defineStudent(sequelize) {
         type: DataTypes.STRING(50),
         allowNull: false,
       },
+      middle_name: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
+      suffix: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
       college: {
         type: DataTypes.STRING(150),
         allowNull: true,

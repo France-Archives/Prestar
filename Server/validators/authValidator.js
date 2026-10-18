@@ -1,7 +1,16 @@
 // Server/validators/authValidator.js
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const wmsuEmailPattern = /^[^\s@]+@wmsu\.edu\.ph$/i;
+const namePattern = /^\p{L}[\p{L}\s'.-]*$/u;
+const studentNumberPattern = /^[A-Za-z0-9-]+$/;
 const studentTypes = new Set(["Regular", "Transferee", "Returnee", "Other"]);
+
+function validName(value) {
+  return typeof value === "string"
+    && value.trim().length > 0
+    && value.trim().length <= 100
+    && namePattern.test(value.trim());
+}
 
 export function validateLogin(req, res, next) {
   const { email, password } = req.body ?? {};
@@ -34,6 +43,9 @@ export function validateSignup(req, res, next) {
   }
   body.student_number = studentNumber.trim();
   body.studentNumber = body.student_number;
+  if (!studentNumberPattern.test(body.student_number)) {
+    return res.status(400).json({ error: "Student number may contain letters, numbers, and dashes only." });
+  }
 
   // First name: frontend sends firstName, legacy sends first_name
   const firstName = body.first_name || body.firstName;
@@ -45,6 +57,9 @@ export function validateSignup(req, res, next) {
   }
   body.first_name = firstName.trim();
   body.firstName = body.first_name;
+  if (!validName(body.first_name)) {
+    return res.status(400).json({ error: "First name may contain letters, spaces, apostrophes, periods, and dashes only." });
+  }
 
   // Last name: frontend sends lastName, legacy sends last_name
   const lastName = body.last_name || body.lastName;
@@ -56,14 +71,24 @@ export function validateSignup(req, res, next) {
   }
   body.last_name = lastName.trim();
   body.lastName = body.last_name;
+  if (!validName(body.last_name)) {
+    return res.status(400).json({ error: "Last name may contain letters, spaces, apostrophes, periods, and dashes only." });
+  }
 
   // Middle name and suffix (optional in frontend)
-  if (body.middle_name || body.middleName) {
-    body.middle_name = String(body.middle_name || body.middleName || "").trim();
+  const middleName = body.middle_name ?? body.middleName;
+  if (middleName !== undefined && middleName !== null && middleName !== "") {
+    if (!validName(middleName)) {
+      return res.status(400).json({ error: "Middle name may contain letters, spaces, apostrophes, periods, and dashes only." });
+    }
+    body.middle_name = middleName.trim();
     body.middleName = body.middle_name;
   }
-  if (body.suffix) {
-    body.suffix = String(body.suffix).trim();
+  if (body.suffix !== undefined && body.suffix !== null && body.suffix !== "") {
+    if (!validName(body.suffix)) {
+      return res.status(400).json({ error: "Suffix may contain letters, spaces, apostrophes, periods, and dashes only." });
+    }
+    body.suffix = body.suffix.trim();
   }
 
   // Email
@@ -80,6 +105,9 @@ export function validateSignup(req, res, next) {
   if (!wmsuEmailPattern.test(body.email)) {
     return res.status(400).json({ error: "Email must be a valid WMSU email address ending with @wmsu.edu.ph." });
   }
+  if (body.email.length > 255) {
+    return res.status(400).json({ error: "Email must be 255 characters or fewer." });
+  }
 
   // Password
   if (typeof body.password !== "string" || body.password.length < 8) {
@@ -87,6 +115,13 @@ export function validateSignup(req, res, next) {
   }
   if (Buffer.byteLength(body.password, "utf8") > 72) {
     return res.status(400).json({ error: "Password must not exceed 72 bytes." });
+  }
+  if (!/[A-Za-z]/.test(body.password) || !/\d/.test(body.password)) {
+    return res.status(400).json({ error: "Password must contain at least one letter and one number." });
+  }
+
+  if (body.termsAccepted !== true || body.privacyPolicyAccepted !== true) {
+    return res.status(400).json({ error: "You must accept the Terms and Privacy Policy." });
   }
 
   const studentType = body.student_type || body.studentType;
@@ -100,13 +135,14 @@ export function validateSignup(req, res, next) {
 
   // Course / Program mapping: in DB it is course, in frontend it is program
   const course = body.course || body.program || body.submitted_course;
-  if (course !== undefined && course !== null && course !== "") {
-    if (typeof course !== "string" || course.trim().length > 150) {
-      return res.status(400).json({ error: "course must be a string up to 150 characters." });
-    }
-    body.course = course.trim();
-    body.program = body.course;
+  if (typeof course !== "string" || !course.trim()) {
+    return res.status(400).json({ error: "Course is required." });
   }
+  if (course.trim().length > 150) {
+    return res.status(400).json({ error: "Course must be 150 characters or fewer." });
+  }
+  body.course = course.trim();
+  body.program = body.course;
 
   // Year level: frontend sends yearLevel (1-10), backend uses year_level
   const yearLevel = body.year_level !== undefined && body.year_level !== null && body.year_level !== ""
@@ -115,21 +151,20 @@ export function validateSignup(req, res, next) {
       ? body.yearLevel
       : body.submitted_year_level);
 
-  if (yearLevel !== undefined && yearLevel !== null && yearLevel !== "") {
-    const year = Number(yearLevel);
-    if (!Number.isInteger(year) || year < 1 || year > 10) {
-      return res.status(400).json({ error: "year_level must be an integer from 1 to 10." });
-    }
-    body.year_level = year;
-    body.yearLevel = year;
+  const year = Number(yearLevel);
+  if (yearLevel === undefined || yearLevel === null || yearLevel === "" || !Number.isInteger(year) || year < 1 || year > 10) {
+    return res.status(400).json({ error: "Year level must be an integer from 1 to 10." });
   }
+  body.year_level = year;
+  body.yearLevel = year;
 
-  if (body.college !== undefined && body.college !== null && body.college !== "") {
-    if (typeof body.college !== "string" || body.college.trim().length > 150) {
-      return res.status(400).json({ error: "college must be a string up to 150 characters." });
-    }
-    body.college = body.college.trim();
+  if (typeof body.college !== "string" || !body.college.trim()) {
+    return res.status(400).json({ error: "College is required." });
   }
+  if (body.college.trim().length > 150) {
+    return res.status(400).json({ error: "College must be 150 characters or fewer." });
+  }
+  body.college = body.college.trim();
 
   return next();
 }

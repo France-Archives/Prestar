@@ -140,7 +140,8 @@ export async function getBookDetails(bookId) {
 }
 
 /**
- * Returns the top N most borrowed books ranked by total borrow count.
+ * Returns the top N most borrowed books ranked by total borrow count,
+ * optionally restricted to loans since a given timestamp.
  * Counts all borrowed_books rows with status in ('Borrowed', 'Returned')
  * i.e. books that were actually picked up (not just reserved/cancelled).
  *
@@ -148,7 +149,10 @@ export async function getBookDetails(bookId) {
  *   { bookId, title, loanCount }
  * Plus extra fields for richer display (author, cover, category, availability).
  */
-export async function getTopBorrowedBooks(topLimit = 10) {
+export async function getTopBorrowedBooks(topLimit = 10, borrowedSince = null) {
+  const recentBorrowFilter = borrowedSince
+    ? "AND bb.borrow_date >= :borrowedSince"
+    : "";
   const rows = await sequelize.query(
     `SELECT
        b.book_id,
@@ -177,7 +181,9 @@ export async function getTopBorrowedBooks(topLimit = 10) {
        ), 0) AS total_usable_copies
      FROM books b
      LEFT JOIN borrow_requests br ON br.book_id = b.book_id
-     LEFT JOIN borrowed_books bb ON bb.request_id = br.request_id AND bb.status IN ('Borrowed', 'Returned')
+     LEFT JOIN borrowed_books bb ON bb.request_id = br.request_id
+       AND bb.status IN ('Borrowed', 'Returned')
+       ${recentBorrowFilter}
      LEFT JOIN authors a ON a.author_id = b.author_id
      LEFT JOIN categories c ON c.category_id = b.category_id
      WHERE b.status = 'Active'
@@ -187,7 +193,7 @@ export async function getTopBorrowedBooks(topLimit = 10) {
      ORDER BY loan_count DESC, b.title ASC
      LIMIT :topLimit`,
     {
-      replacements: { topLimit },
+      replacements: { topLimit, ...(borrowedSince ? { borrowedSince } : {}) },
       type: QueryTypes.SELECT,
     },
   );
@@ -230,4 +236,3 @@ export async function getTopBorrowedBooks(topLimit = 10) {
     };
   });
 }
-

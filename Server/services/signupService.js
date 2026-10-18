@@ -9,6 +9,60 @@ const OTP_HASH_COST = 10;
 const OTP_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
 const COOLDOWN_MS = 2 * 60 * 1000; // 2 minutes (120 seconds)
 const MAX_OTP_COUNT = 3;
+const OTP_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+function deps(overrides = {}) {
+  return {
+    UserModel: overrides.UserModel ?? User,
+    StudentModel: overrides.StudentModel ?? Student,
+    EmailOtpModel: overrides.EmailOtpModel ?? EmailOtp,
+    database: overrides.database ?? sequelize,
+    sendEmail: overrides.sendEmail ?? sendOtpEmail,
+    now: overrides.now ?? (() => new Date()),
+  };
+}
+
+function isSignupOtp(record) {
+  return typeof record?.signup_payload?.email === "string"
+    && typeof record.signup_payload.password_hash === "string";
+}
+
+function nextSendCount(record, now) {
+  const windowExpired = now.getTime() - new Date(record.created_at).getTime() >= OTP_WINDOW_MS;
+  if (!windowExpired && record.resend_count >= MAX_OTP_COUNT) {
+    throw new SignupError(429, "Maximum of 3 OTP emails per 24 hours reached. Please try again later.");
+  }
+  return { count: windowExpired ? 1 : record.resend_count + 1, windowExpired };
+}
+
+function snapshotOtp(record) {
+  return {
+    otp_hash: record.otp_hash,
+    signup_payload: record.signup_payload,
+    expires_at: record.expires_at,
+    attempts: record.attempts,
+    resend_count: record.resend_count,
+    last_sent_at: record.last_sent_at,
+    created_at: record.created_at,
+  };
+}
+
+async function deliverOtp(sendEmail, email, code, firstName) {
+  try {
+    const result = await sendEmail(email, code, firstName);
+    if (result?.sent !== true) throw new Error("Email sender did not confirm delivery.");
+  } catch {
+    throw new SignupError(503, "Verification email could not be sent. Please try again later.");
+  }
+}
+
+async function restoreOtpAfterDeliveryFailure(EmailOtpModel, email, newHash, previous) {
+  if (previous) {
+    await EmailOtpModel.update(previous, { where: { email, otp_hash: newHash } });
+  } else {
+    await EmailOtpModel.destroy({ where: { email, otp_hash: newHash } });
+  }
+}
 
 export class SignupError extends Error {
   constructor(status, message) {
@@ -22,7 +76,12 @@ export class SignupError extends Error {
  * Initiates user signup: validates uniqueness, applies cooldown & 3-OTP limit,
  * generates a 6-digit OTP, and sends it via Gmail API.
  */
-export async function createSignup(input) {
+export async function createSignup(input, overrides = {}) {
+  const { UserModel, StudentModel, EmailOtpModel, sendEmail, now } = deps(overrides);
+  const currentTime = now();
+  if (input.termsAccepted !== true || input.privacyPolicyAccepted !== true) {
+    throw new SignupError(400, "You must accept the Terms and Privacy Policy.");
+  }
   const email = String(input.email ?? "").trim().toLowerCase();
   const studentNumber = String(input.student_number ?? input.studentNumber ?? input.student_id ?? "").trim();
   const firstName = String(input.first_name ?? input.firstName ?? "").trim();
@@ -42,7 +101,7 @@ export async function createSignup(input) {
   }
 
   // 1. Check if user already exists
-  const existingUser = await User.findOne({
+  const existingUser = await UserModel.findOne({
     where: { email },
     attributes: ["user_id"],
   });
@@ -50,7 +109,7 @@ export async function createSignup(input) {
     throw new SignupError(409, "An account with that email already exists.");
   }
 
-  const existingStudent = await Student.findOne({
+  const existingStudent = await StudentModel.findOne({
     where: { student_number: studentNumber },
     attributes: ["user_id"],
   });
@@ -59,11 +118,15 @@ export async function createSignup(input) {
   }
 
   // 2. Check existing OTP record for rate limiting & cooldown
-  const existingOtp = await EmailOtp.findOne({ where: { email } });
+  const existingOtp = await EmailOtpModel.findOne({ where: { email } });
   let nextResendCount = 1;
+  let windowExpired = false;
 
   if (existingOtp) {
-    const elapsed = Date.now() - new Date(existingOtp.last_sent_at).getTime();
+    if (!isSignupOtp(existingOtp)) {
+      throw new SignupError(409, "Unable to start signup with this email.");
+    }
+    const elapsed = currentTime.getTime() - new Date(existingOtp.last_sent_at).getTime();
 
     // 2-minute cooldown between OTP sends
     if (elapsed < COOLDOWN_MS) {
@@ -74,20 +137,7 @@ export async function createSignup(input) {
       );
     }
 
-    // Limit to only 3 OTPs
-    if (existingOtp.resend_count >= MAX_OTP_COUNT) {
-      // If 2 minutes have passed after the 3rd attempt, reset counter
-      if (elapsed >= COOLDOWN_MS) {
-        nextResendCount = 1;
-      } else {
-        throw new SignupError(
-          429,
-          `Maximum of ${MAX_OTP_COUNT} OTP requests reached. Please wait 2 minutes before trying again.`,
-        );
-      }
-    } else {
-      nextResendCount = existingOtp.resend_count + 1;
-    }
+    ({ count: nextResendCount, windowExpired } = nextSendCount(existingOtp, currentTime));
   }
 
   // 3. Generate 6-digit OTP
@@ -97,7 +147,9 @@ export async function createSignup(input) {
 
   const signupPayload = {
     first_name: firstName,
+    middle_name: (input.middle_name ?? input.middleName)?.trim() || null,
     last_name: lastName,
+    suffix: input.suffix?.trim() || null,
     email,
     password_hash: passwordHashed,
     student_number: studentNumber,
@@ -105,10 +157,12 @@ export async function createSignup(input) {
     course,
     year_level: yearLevel,
     student_type: studentType,
+    terms_accepted_at: currentTime.toISOString(),
+    privacy_policy_accepted_at: currentTime.toISOString(),
   };
 
-  const expiresAt = new Date(Date.now() + OTP_EXPIRY_MS);
-  const now = new Date();
+  const expiresAt = new Date(currentTime.getTime() + OTP_EXPIRY_MS);
+  const previousOtp = existingOtp ? snapshotOtp(existingOtp) : null;
 
   if (existingOtp) {
     await existingOtp.update({
@@ -117,22 +171,28 @@ export async function createSignup(input) {
       expires_at: expiresAt,
       attempts: 0,
       resend_count: nextResendCount,
-      last_sent_at: now,
+      last_sent_at: currentTime,
+      ...(windowExpired ? { created_at: currentTime } : {}),
     });
   } else {
-    await EmailOtp.create({
+    await EmailOtpModel.create({
       email,
       otp_hash: otpHashed,
       signup_payload: signupPayload,
       expires_at: expiresAt,
       attempts: 0,
       resend_count: 1,
-      last_sent_at: now,
+      last_sent_at: currentTime,
+      created_at: currentTime,
     });
   }
 
-  // 4. Send email via Gmail API
-  await sendOtpEmail(email, rawOtp, firstName);
+  try {
+    await deliverOtp(sendEmail, email, rawOtp, firstName);
+  } catch (error) {
+    await restoreOtpAfterDeliveryFailure(EmailOtpModel, email, otpHashed, previousOtp);
+    throw error;
+  }
 
   return {
     message: "OTP sent to your email. Please verify to complete your registration.",
@@ -147,15 +207,22 @@ export async function createSignup(input) {
 /**
  * Resends OTP with 2-minute cooldown and max 3 attempts constraint.
  */
-export async function resendOtp(emailInput) {
+export async function resendOtp(emailInput, overrides = {}) {
+  const { EmailOtpModel, sendEmail, now } = deps(overrides);
   const email = String(emailInput ?? "").trim().toLowerCase();
-  const existingOtp = await EmailOtp.findOne({ where: { email } });
+  const existingOtp = await EmailOtpModel.findOne({ where: { email } });
 
-  if (!existingOtp) {
-    throw new SignupError(404, "No pending registration found for this email. Please register first.");
+  if (!existingOtp || !isSignupOtp(existingOtp)) {
+    return {
+      message: "If a pending registration exists, a verification email will be sent.",
+      email,
+      cooldown_seconds: 120,
+      remaining_otps: 0,
+    };
   }
 
-  const elapsed = Date.now() - new Date(existingOtp.last_sent_at).getTime();
+  const currentTime = now();
+  const elapsed = currentTime.getTime() - new Date(existingOtp.last_sent_at).getTime();
 
   // 2-minute cooldown check
   if (elapsed < COOLDOWN_MS) {
@@ -166,37 +233,30 @@ export async function resendOtp(emailInput) {
     );
   }
 
-  let nextResendCount = existingOtp.resend_count + 1;
-  if (existingOtp.resend_count >= MAX_OTP_COUNT) {
-    if (elapsed >= COOLDOWN_MS) {
-      nextResendCount = 1;
-    } else {
-      throw new SignupError(
-        429,
-        `Maximum of ${MAX_OTP_COUNT} OTP requests reached. Please wait 2 minutes before requesting again.`,
-      );
-    }
-  }
+  const { count: nextResendCount, windowExpired } = nextSendCount(existingOtp, currentTime);
 
   const rawOtp = String(crypto.randomInt(100000, 1000000));
   const otpHashed = await bcrypt.hash(rawOtp, OTP_HASH_COST);
+  const previousOtp = snapshotOtp(existingOtp);
 
-  console.log(`🔄 [RESEND OTP] New code for ${email}: ${rawOtp}`);
-
-  const [rowsUpdated] = await EmailOtp.update(
-    {
+  const [rowsUpdated] = await EmailOtpModel.update({
       otp_hash: otpHashed,
-      expires_at: new Date(Date.now() + OTP_EXPIRY_MS),
+      expires_at: new Date(currentTime.getTime() + OTP_EXPIRY_MS),
       attempts: 0,
       resend_count: nextResendCount,
-      last_sent_at: new Date(),
-    },
-    { where: { email } },
-  );
+      last_sent_at: currentTime,
+      ...(windowExpired ? { created_at: currentTime } : {}),
+    }, { where: { email, otp_hash: existingOtp.otp_hash } });
+  if (rowsUpdated !== 1) {
+    throw new SignupError(409, "The verification request changed. Please try again.");
+  }
 
-  console.log(`✅ [RESEND OTP] Rows updated in DB: ${rowsUpdated}`);
-
-  await sendOtpEmail(email, rawOtp, existingOtp.signup_payload?.first_name ?? "");
+  try {
+    await deliverOtp(sendEmail, email, rawOtp, existingOtp.signup_payload?.first_name ?? "");
+  } catch (error) {
+    await restoreOtpAfterDeliveryFailure(EmailOtpModel, email, otpHashed, previousOtp);
+    throw error;
+  }
 
   return {
     message: "A new OTP has been sent to your email.",
@@ -206,79 +266,100 @@ export async function resendOtp(emailInput) {
   };
 }
 
+export const signupOtpPolicy = {
+  cooldownMs: COOLDOWN_MS,
+  expiryMs: OTP_EXPIRY_MS,
+  maxAttempts: 5,
+  maxEmailsPerWindow: MAX_OTP_COUNT,
+  windowMs: OTP_WINDOW_MS,
+};
+
 /**
  * Verifies OTP code and creates the active User and Student records.
  */
-export async function verifyOtp(emailInput, otpInput) {
+export async function verifyOtp(emailInput, otpInput, overrides = {}) {
+  const { UserModel, StudentModel, EmailOtpModel, database, now } = deps(overrides);
   const email = String(emailInput ?? "").trim().toLowerCase();
   const otpCode = String(otpInput ?? "").trim();
 
-  const otpRecord = await EmailOtp.findOne({ where: { email } });
-  if (!otpRecord) {
-    throw new SignupError(404, "No pending registration found for this email.");
-  }
+  try {
+    const outcome = await database.transaction(async (transaction) => {
+      const otpRecord = await EmailOtpModel.findOne({
+        where: { email },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+      if (!otpRecord || !isSignupOtp(otpRecord)) {
+        throw new SignupError(404, "No pending registration found for this email.");
+      }
 
-  // Expiry check
-  if (new Date() > new Date(otpRecord.expires_at)) {
-    throw new SignupError(400, "The OTP has expired. Please request a new one.");
-  }
+      if (now() > new Date(otpRecord.expires_at)) {
+        throw new SignupError(400, "The OTP has expired. Please request a new one.");
+      }
+      if (otpRecord.attempts >= signupOtpPolicy.maxAttempts) {
+        throw new SignupError(400, "Too many failed attempts. Please request a new OTP.");
+      }
+      if (!await bcrypt.compare(otpCode, otpRecord.otp_hash)) {
+        await otpRecord.increment("attempts", { by: 1, transaction });
+        return { error: new SignupError(400, "Invalid OTP code.") };
+      }
 
-  // Brute-force protection: max 5 failed attempts per OTP code
-  if (otpRecord.attempts >= 5) {
-    throw new SignupError(400, "Too many failed attempts. Please request a new OTP.");
-  }
+      const payload = otpRecord.signup_payload;
+      const existing = await UserModel.findOne({
+        where: { email: payload.email },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+      if (existing) {
+        throw new SignupError(409, "An account with this email has already been registered.");
+      }
+      const existingStudent = await StudentModel.findOne({
+        where: { student_number: payload.student_number },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+      if (existingStudent) {
+        throw new SignupError(409, "An account with this student number has already been registered.");
+      }
 
-  const isValid = await bcrypt.compare(otpCode, otpRecord.otp_hash);
-  if (!isValid) {
-    await otpRecord.increment("attempts");
-    throw new SignupError(400, "Invalid OTP code.");
-  }
+      const user = await UserModel.create(
+        {
+          first_name: payload.first_name,
+          last_name: payload.last_name,
+          email: payload.email,
+          password_hash: payload.password_hash,
+          role: "Student",
+          status: "Active",
+          email_verified: true,
+          terms_accepted_at: payload.terms_accepted_at,
+          privacy_policy_accepted_at: payload.privacy_policy_accepted_at,
+        },
+        { transaction },
+      );
 
-  const payload = otpRecord.signup_payload;
+      await StudentModel.create(
+        {
+          user_id: user.id,
+          student_number: payload.student_number,
+          middle_name: payload.middle_name,
+          suffix: payload.suffix,
+          college: payload.college,
+          course: payload.course,
+          year_level: payload.year_level,
+          student_type: payload.student_type || "Regular",
+        },
+        { transaction },
+      );
 
-  return sequelize.transaction(async (transaction) => {
-    // Final check for existing user
-    const existing = await User.findOne({
-      where: { email: payload.email },
-      transaction,
-      lock: transaction.LOCK.UPDATE,
+      await otpRecord.destroy({ transaction });
+      return { result: { message: "Registration successful. You may now log in." } };
     });
-    if (existing) {
-      throw new SignupError(409, "An account with this email has already been registered.");
+    if (outcome.error) throw outcome.error;
+    return outcome.result;
+  } catch (error) {
+    if (error?.name === "SequelizeUniqueConstraintError") {
+      throw new SignupError(409, "An account with these details has already been registered.");
     }
-
-    // Create User record
-    const user = await User.create(
-      {
-        first_name: payload.first_name,
-        last_name: payload.last_name,
-        email: payload.email,
-        password_hash: payload.password_hash,
-        role: "Student",
-        status: "Active",
-        email_verified: true,
-      },
-      { transaction },
-    );
-
-    // Create Student record linked to user_id
-    const student = await Student.create(
-      {
-        user_id: user.id,
-        student_number: payload.student_number,
-        college: payload.college,
-        course: payload.course,
-        year_level: payload.year_level,
-        student_type: payload.student_type || "Regular",
-      },
-      { transaction },
-    );
-
-    // Remove OTP record
-    await otpRecord.destroy({ transaction });
-
-    return {
-      message: "Registration successful. You may now log in.",
-    };
-  });
+    throw error;
+  }
 }

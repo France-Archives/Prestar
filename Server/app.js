@@ -11,6 +11,7 @@ import borrowedBookRoutes from "./routes/borrowedBookRoutes.js";
 import otpRoutes from "./routes/otpRoutes.js";
 import verificationRoutes from "./routes/verificationRoutes.js";
 import reservationRoutes from "./routes/reservationRoutes.js";
+import studentDashboardRoutes from "./routes/studentDashboardRoutes.js";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -42,6 +43,7 @@ app.use("/api/borrowing-requests", borrowRequestRoutes);
 app.use("/api/borrowed-books", borrowedBookRoutes);
 app.use("/api/otp", otpRoutes);
 app.use("/api/reservations", reservationRoutes);
+app.use("/api", studentDashboardRoutes);
 app.use("/api", verificationRoutes);
 
 app.use((req, res) => {

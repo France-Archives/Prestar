@@ -10,12 +10,13 @@
 ## Table of Contents
 
 1. [Auth](#1-auth)
-2. [Books](#2-books)
-3. [Borrow Requests](#3-borrow-requests)
-4. [Borrowed Books](#4-borrowed-books)
-5. [Common Error Responses](#5-common-error-responses)
-6. [Academic Terms & COR Verification](#6-academic-terms--cor-verification)
-7. [Reservations (FIFO Queue System)](#7-reservations-fifo-queue-system)
+2. [Student Dashboard](#2-student-dashboard)
+3. [Books](#3-books)
+4. [Borrow Requests](#4-borrow-requests)
+5. [Borrowed Books](#5-borrowed-books)
+6. [Common Error Responses](#6-common-error-responses)
+7. [Academic Terms & COR Verification](#7-academic-terms--cor-verification)
+8. [Reservations (FIFO Queue System)](#8-reservations-fifo-queue-system)
 
 ---
 
@@ -83,6 +84,7 @@ Return the currently authenticated user's profile.
     "email": "student@example.com",
     "role": "Student",
     "accountStatus": "ACTIVE",
+    "emailVerified": true,
     "firstName": "Juan",
     "lastName": "Dela Cruz",
     "displayName": "Juan Dela Cruz",
@@ -100,6 +102,9 @@ Return the currently authenticated user's profile.
 }
 ```
 
+`emailVerified` is a boolean derived from `users.email_verified`. The endpoint does not expose a verification timestamp.
+The response also includes `data` as an alias of `user` and `dashboard_url` as an alias of `dashboardUrl`.
+
 **Errors**
 | Code | Meaning |
 |---|---|
@@ -108,7 +113,7 @@ Return the currently authenticated user's profile.
 ---
 
 ### 1.4 `POST /api/auth/signup`
-Initiate registration and dispatch a 6-digit OTP code to the provided email via the official Gmail REST API. Enforces a **2-minute cooldown** between requests and a **maximum of 3 OTP requests**.
+Initiate registration and dispatch a 6-digit OTP code to the provided email via the Gmail API. The user and student rows are created only after OTP verification. Enforces a **2-minute cooldown** and a **maximum of 3 OTP emails per 24-hour signup window**; the window does not reset after each cooldown.
 
 | Property | Value |
 |---|---|
@@ -126,7 +131,11 @@ Initiate registration and dispatch a 6-digit OTP code to the provided email via 
   "college": "College of Computer Studies",
   "course": "BS Information Technology",
   "year_level": 1,
-  "student_type": "Regular"
+  "student_type": "Regular",
+  "middleName": "Maria",
+  "suffix": "Jr.",
+  "termsAccepted": true,
+  "privacyPolicyAccepted": true
 }
 ```
 
@@ -149,7 +158,8 @@ Initiate registration and dispatch a 6-digit OTP code to the provided email via 
 |---|---|
 | `400` | Validation error (missing or malformed fields) |
 | `409` | Email or student number already registered |
-| `429` | Cooldown active or maximum 3 OTP requests exceeded |
+| `429` | Cooldown active, send limit exceeded, or signup rate limit exceeded |
+| `503` | Verification email could not be sent; the new OTP is removed and any previous OTP is restored |
 
 ---
 
@@ -163,12 +173,12 @@ Verify the 6-digit OTP code received via email and finalize account creation in 
 **Request body**
 ```json
 {
-  "email": "student@example.edu",
+  "email": "student@wmsu.edu.ph",
   "otp": "123456"
 }
 ```
 
-**Success `200`**
+**Success `201`**
 ```json
 {
   "message": "Registration successful. You may now log in."
@@ -180,12 +190,13 @@ Verify the 6-digit OTP code received via email and finalize account creation in 
 |---|---|
 | `400` | Invalid OTP code or expired OTP |
 | `404` | No pending registration found for the email |
-| `409` | Email already registered |
+| `409` | Email or student number already registered |
+| `429` | Verification rate limit exceeded |
 
 ---
 
 ### 1.6 `POST /api/auth/signup/resend-otp`
-Resend a fresh 6-digit OTP code. Enforces a **2-minute cooldown** and a **maximum limit of 3 OTPs**.
+Resend a fresh 6-digit OTP code. Enforces a **2-minute cooldown** and the same **maximum of 3 OTP emails per 24-hour signup window** as initial signup. The generic response for an email without a pending signup does not confirm whether an account exists.
 
 | Property | Value |
 |---|---|
@@ -195,7 +206,7 @@ Resend a fresh 6-digit OTP code. Enforces a **2-minute cooldown** and a **maximu
 **Request body**
 ```json
 {
-  "email": "student@example.edu"
+  "email": "student@wmsu.edu.ph"
 }
 ```
 
@@ -213,17 +224,59 @@ Resend a fresh 6-digit OTP code. Enforces a **2-minute cooldown** and a **maximu
 | Code | Meaning |
 |---|---|
 | `400` | Validation error |
-| `404` | No pending registration found |
-| `429` | Cooldown in effect (wait remaining seconds) or 3 OTP limit reached |
+| `429` | Cooldown in effect, 24-hour send limit reached, or IP rate limit exceeded |
+| `503` | Verification email could not be sent; the previous OTP record is restored with its original expiry |
+
+Signup OTPs are bcrypt-hashed and expire after 10 minutes. Five failed code attempts invalidate verification for that code. Codes are single-use. Signup OTP rows are retained only through the 24-hour send-limit window, then eligible for cleanup.
+
+The separate standalone `/api/otp/request` and `/api/otp/verify` flow is not signup: it uses HMAC-hashed codes and updates `users.email_verified` on an existing user. Do not use those endpoints to create student accounts.
 
 ---
 
-## 2. Books
+## 2. Student Dashboard
+
+### `GET /api/me/dashboard`
+Returns the authenticated Student's dashboard data. The route requires a valid `auth_token` cookie and the `Student` role. It reads the current account, active-term COR, open requests, active loans, reservations, and most-borrowed books from the database.
+
+Personalized recommendations and notifications are not implemented by the backend; `recommended`, `recentNotifications`, and `unreadCount` are `null` rather than simulated empty results. Most-borrowed books are ranked over the preceding seven days.
+
+**Success `200`**
+```json
+{
+  "data": {
+    "accountStatus": "ACTIVE",
+    "emailVerified": true,
+    "cor": {
+      "status": "APPROVED",
+      "currentTerm": { "id": "1", "name": "1st Semester 2026-2027" }
+    },
+    "commitments": { "active": 2, "max": 10 },
+    "pickupWaiting": [{ "id": "12", "status": "APPROVED" }],
+    "activeLoans": [{ "id": "24", "bookTitle": "Example Book", "status": "ACTIVE", "dueAt": "2026-10-25" }],
+    "reservations": [{ "id": "7", "status": "WAITING" }],
+    "recentNotifications": null,
+    "unreadCount": null,
+    "recommended": null,
+    "mostBorrowed": []
+  }
+}
+```
+
+`commitments.active` reports the sum of pending/approved requests, reserved/borrowed loan rows, and waiting/ready reservations. `commitments.max` uses `MAX_ACTIVE_BORROWS`. This is display data, not authorization; the borrowing and reservation eligibility checks remain authoritative.
+
+**Errors**
+| Status | Meaning |
+|---|---|
+| `401` | Missing/invalid session or inactive account |
+| `403` | Authenticated account is not a Student |
+| `500` | Dashboard query failed |
+
+## 3. Books
 
 **Prefix**: `/api/books`  
 All book routes require authentication (cookie).
 
-### 2.1 `GET /api/books`
+### 3.1 `GET /api/books`
 List books with pagination, optional full-text search, and optional category filter.
 
 | Property | Value |
@@ -289,7 +342,7 @@ List books with pagination, optional full-text search, and optional category fil
 
 ---
 
-### 2.2 `GET /api/books/:id`
+### 3.2 `GET /api/books/:id`
 Retrieve full details for a single active book, including copy availability.
 
 | Property | Value |
@@ -341,7 +394,7 @@ Retrieve full details for a single active book, including copy availability.
 
 ---
 
-### 2.3 `GET /api/books/top`
+### 3.3 `GET /api/books/top`
 Returns the top most-borrowed books ranked by total loan count (books that were actually picked up, i.e. `borrowed_books.status IN ('Borrowed', 'Returned')`).
 
 | Property | Value |
@@ -391,7 +444,7 @@ Each item matches the frontend `PopularBook` type (`bookId`, `title`, `loanCount
 
 ---
 
-## 3. Borrow Requests
+## 4. Borrow Requests
 
 **Prefix**: `/api/borrow-requests`  
 All routes require authentication (cookie).
@@ -410,7 +463,7 @@ All routes require authentication (cookie).
 
 ---
 
-### 3.1 `POST /api/borrow-requests`
+### 4.1 `POST /api/borrow-requests`
 Submit a new borrow request for an active book. The system automatically performs a comprehensive flag check, assigns an available copy, auto-approves the request, and creates the reservation loan record in `borrowed_books`.
 
 | Property | Value |
@@ -480,7 +533,7 @@ When a request fails flag verification, the API returns a response containing on
 
 ---
 
-### 3.2 `GET /api/borrow-requests/mine`
+### 4.2 `GET /api/borrow-requests/mine`
 List the authenticated student's own borrow requests (newest first, paginated).
 
 | Property | Value |
@@ -531,7 +584,7 @@ List the authenticated student's own borrow requests (newest first, paginated).
 
 ---
 
-### 3.3 `GET /api/borrow-requests`
+### 4.3 `GET /api/borrow-requests`
 Review queue for staff — lists pending requests (or filtered by status), oldest first. Includes book details, student profile, and a live eligibility assessment.
 
 | Property | Value |
@@ -601,7 +654,7 @@ Review queue for staff — lists pending requests (or filtered by status), oldes
 
 ---
 
-### 3.4 `GET /api/borrow-requests/:id/available-copies`
+### 4.4 `GET /api/borrow-requests/:id/available-copies`
 List available copies in 'Good' condition for the book associated with this request, so the librarian can select a specific physical copy for assignment.
 
 | Property | Value |
@@ -634,7 +687,7 @@ List available copies in 'Good' condition for the book associated with this requ
 
 ---
 
-### 3.5 `POST /api/borrow-requests/:id/review`
+### 4.5 `POST /api/borrow-requests/:id/review`
 Approve or reject a **Pending** borrow request. Atomic transaction with row-level lock.
 
 | Property | Value |
@@ -697,7 +750,7 @@ Approve or reject a **Pending** borrow request. Atomic transaction with row-leve
 
 ---
 
-### 3.6 `POST /api/borrow-requests/:id/approve`
+### 4.6 `POST /api/borrow-requests/:id/approve`
 *(Role: Librarian, Admin)* Dedicated endpoint to approve a pending borrow request, auto-assigning (or selecting) an available copy and reserving it.
 
 **Request body**
@@ -721,7 +774,7 @@ Approve or reject a **Pending** borrow request. Atomic transaction with row-leve
 
 ---
 
-### 3.7 `POST /api/borrow-requests/:id/reject`
+### 4.7 `POST /api/borrow-requests/:id/reject`
 *(Role: Librarian, Admin)* Dedicated endpoint to reject a pending borrow request with a required reason.
 
 **Request body**
@@ -743,7 +796,7 @@ Approve or reject a **Pending** borrow request. Atomic transaction with row-leve
 
 ---
 
-### 3.8 `POST /api/borrow-requests/:id/confirm-handover`
+### 4.8 `POST /api/borrow-requests/:id/confirm-handover`
 *(Role: Librarian, Admin)* (Alias: `POST /api/borrow-requests/:id/pickup`)
 Confirm book handover by request ID. Releases the reserved copy to the student as an active loan (`status = 'Borrowed'`).
 
@@ -770,7 +823,7 @@ Confirm book handover by request ID. Releases the reserved copy to the student a
 
 ---
 
-### 3.9 `POST /api/borrow-requests/:id/reject-handover`
+### 4.9 `POST /api/borrow-requests/:id/reject-handover`
 *(Role: Librarian, Admin)* Reject handover at the pickup desk. Cancels the reservation, releases the assigned copy back to `Available`, and marks request as `Rejected`.
 
 **Request body:**
@@ -796,12 +849,12 @@ Confirm book handover by request ID. Releases the reserved copy to the student a
 
 ---
 
-## 4. Borrowed Books
+## 5. Borrowed Books
 
 **Prefix**: `/api/borrowed-books`  
 All routes require authentication (cookie).
 
-### 4.1 `GET /api/borrowed-books/mine`
+### 5.1 `GET /api/borrowed-books/mine`
 List the authenticated student's own loans (Reserved for pickup or on loan). Students can never access other students' loans.
 
 | Property | Value |
@@ -846,7 +899,7 @@ List the authenticated student's own loans (Reserved for pickup or on loan). Stu
 
 ---
 
-### 4.2 `GET /api/borrowed-books`
+### 5.2 `GET /api/borrowed-books`
 Staff list of borrowed books (Reserved or Borrowed). Searchable by `student_number`, student name, `accession_no`, and book `title`.
 
 | Property | Value |
@@ -906,7 +959,7 @@ Staff list of borrowed books (Reserved or Borrowed). Searchable by `student_numb
 
 ---
 
-### 4.3 `GET /api/borrowed-books/:id/pickup-check`
+### 5.3 `GET /api/borrowed-books/:id/pickup-check`
 Read-only pre-pickup verification check. Lazily expires stale pickups, re-checks student borrow eligibility, inspects active penalties and verification, and returns whether the book can be released.
 
 | Property | Value |
@@ -937,7 +990,7 @@ Read-only pre-pickup verification check. Lazily expires stale pickups, re-checks
 
 ---
 
-### 4.4 `POST /api/borrowed-books/:id/pickup`
+### 5.4 `POST /api/borrowed-books/:id/pickup`
 Mark an approved and reserved book as picked up and borrowed. Executed in a single atomic transaction through `withActor` with row-level locks on `borrowed_books`, `borrow_requests`, and `book_copies`.
 
 | Property | Value |
@@ -982,7 +1035,7 @@ Mark an approved and reserved book as picked up and borrowed. Executed in a sing
 
 ---
 
-### 4.5 `POST /api/borrowed-books/:id/reject-pickup`
+### 5.5 `POST /api/borrowed-books/:id/reject-pickup`
 *(Role: Librarian, Admin)* (Alias: `POST /api/borrowed-books/:id/reject`)
 Reject handover by loan/borrow ID (`borrow_id`). Cancels the loan (`status = 'Cancelled'`), releases the assigned copy back to `Available`, and marks the request as `Rejected`.
 
@@ -1009,7 +1062,7 @@ Reject handover by loan/borrow ID (`borrow_id`). Cancels the loan (`status = 'Ca
 
 ---
 
-## 5. Common Error Responses
+## 6. Common Error Responses
 
 Error responses return JSON with standardized message and error code structures:
 
@@ -1038,7 +1091,7 @@ Error responses return JSON with standardized message and error code structures:
 
 ---
 
-## 6. Academic Terms & COR Verification
+## 7. Academic Terms & COR Verification
 
 ### Term Schedule Rules
 - **1st Term (First Semester):** August 1 to December 31 (`YYYY-08-01` to `YYYY-12-31`). Deadline: `YYYY-12-31`.
@@ -1051,7 +1104,7 @@ Error responses return JSON with standardized message and error code structures:
 3. **End Date / Deadline (`valid_until`):** Always set to the end of the month of the respective term (`12-31`, `05-31`, or `07-31`).
 4. **Expiration (`status = 'Expired'`):** When the current date passes `valid_until`, the COR status becomes `Expired`, and borrowing is blocked with `VERIFICATION_EXPIRED`.
 
-### 6.1 `GET /api/academic-terms`
+### 7.1 `GET /api/academic-terms`
 Returns the list of academic terms sorted by start date.
 
 **Success `200`**
@@ -1070,7 +1123,7 @@ Returns the list of academic terms sorted by start date.
 ]
 ```
 
-### 6.2 `GET /api/me/verifications`
+### 7.2 `GET /api/me/verifications`
 Returns the authenticated student's COR verifications.
 
 **Success `200`**
@@ -1091,7 +1144,7 @@ Returns the authenticated student's COR verifications.
 ]
 ```
 
-### 6.3 `POST /api/me/verifications`
+### 7.3 `POST /api/me/verifications`
 Submits a student COR proof document.
 
 **Payload:**
@@ -1101,10 +1154,10 @@ Submits a student COR proof document.
 }
 ```
 
-### 6.4 `GET /api/staff/verifications`
+### 7.4 `GET /api/staff/verifications`
 *(Role: Librarian, Admin)* Lists the verification queue with optional `?status=Pending` and `?search=`.
 
-### 6.5 `POST /api/staff/verifications/:id/approve`
+### 7.5 `POST /api/staff/verifications/:id/approve`
 *(Role: Librarian, Admin)* Approves student COR, setting `valid_from` to the approval date, `valid_until` to the term's end date, and status to `Approved`.
 
 **Payload:**
@@ -1114,7 +1167,7 @@ Submits a student COR proof document.
 }
 ```
 
-### 6.6 `POST /api/staff/verifications/:id/reject`
+### 7.6 `POST /api/staff/verifications/:id/reject`
 *(Role: Librarian, Admin)* Rejects student COR with required reason.
 
 **Payload:**
@@ -1126,7 +1179,7 @@ Submits a student COR proof document.
 
 ---
 
-## 7. Reservations (FIFO Queue System)
+## 8. Reservations (FIFO Queue System)
 
 **Prefix**: `/api/reservations`  
 All routes require authentication (`auth_token` cookie).
@@ -1162,7 +1215,7 @@ The system implements a **Dual-Checkpoint Flag Enforcement Architecture**:
 
 ---
 
-### 7.1 `POST /api/reservations`
+### 8.1 `POST /api/reservations`
 Join the FIFO reservation queue for an out-of-stock book.
 
 | Property | Value |
@@ -1216,7 +1269,7 @@ Returns a message stating specifically why the reservation was rejected:
 
 ---
 
-### 7.2 `GET /api/reservations/mine`
+### 8.2 `GET /api/reservations/mine`
 List the authenticated student's own reservations, including dynamic real-time FIFO queue positions.
 
 | Property | Value |
@@ -1265,7 +1318,7 @@ List the authenticated student's own reservations, including dynamic real-time F
 
 ---
 
-### 7.3 `POST /api/reservations/:id/cancel`
+### 8.3 `POST /api/reservations/:id/cancel`
 Cancel a waiting or ready reservation. If the reservation was in `Ready` status, its assigned copy is automatically released and immediately dispatched to the next eligible student in the FIFO queue.
 
 | Property | Value |
@@ -1294,7 +1347,7 @@ Cancel a waiting or ready reservation. If the reservation was in `Ready` status,
 
 ---
 
-### 7.4 `GET /api/reservations`
+### 8.4 `GET /api/reservations`
 Staff endpoint to monitor the global reservation queues across books.
 
 | Property | Value |
@@ -1339,4 +1392,3 @@ Staff endpoint to monitor the global reservation queues across books.
 ---
 
 *Generated: 2026-10-18 — Prestar Library Management System Backend v3*
-

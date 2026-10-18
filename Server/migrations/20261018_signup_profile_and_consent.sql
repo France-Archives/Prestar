@@ -1,0 +1,11 @@
+BEGIN;
+
+ALTER TABLE public.students
+  ADD COLUMN IF NOT EXISTS middle_name VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS suffix VARCHAR(100);
+
+ALTER TABLE public.users
+  ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS privacy_policy_accepted_at TIMESTAMPTZ;
+
+COMMIT;
