@@ -30,8 +30,9 @@ import type {
   UUID,
 } from "@/types";
 import type { MockAccount, MockBook, MockBorrowingRequest, MockCorRecord, MockFine, MockLoan, MockNotification, MockReservation } from "@/data";
-import { FINE_AMOUNTS, POLICY_SETTINGS, statusLabel } from "@/utils/constants";
-import { fail } from "@/utils/errors";
+import { ERROR_CODES } from "@/types";
+import { FINE_AMOUNTS, POLICY_SETTINGS, statusLabel, USE_MOCKS } from "@/utils/constants";
+import { fail, unsupportedOperation } from "@/utils/errors";
 import { formatPeso, roundMoney } from "@/utils/formatCurrency";
 import { addDaysIso, formatDate, overdueDays, todayKey } from "@/utils/formatDate";
 import {
@@ -52,6 +53,7 @@ import {
 
 /** Start of every mock request: simulated latency, then the background jobs (expiry, offers) a real backend runs on a schedule. */
 export async function begin(): Promise<void> {
+  if (!USE_MOCKS) unsupportedOperation("This operation");
   await latency();
   runJobs();
 }
@@ -272,7 +274,8 @@ export function assertEligible(studentId: UUID, opts: EligibilityOptions = {}): 
   const first = check.reasons[0];
   if (first) {
     const corIssue = first.code.startsWith("COR_");
-    fail(first.code, first.message, 403, {
+    const code = ERROR_CODES.find((candidate) => candidate === first.code) ?? "ELIGIBILITY_FAILED";
+    fail(code, first.message, 403, {
       reasons: check.reasons,
       ...(corIssue ? { requiredAction: "SUBMIT_COR" } : {}),
       canBrowseCatalog: true,
@@ -293,6 +296,7 @@ export function queuePosition(r: MockReservation): number {
 
 /** Offer a free copy to the first ELIGIBLE waiting student. Ineligible students are skipped and keep their place (TO CONFIRM). */
 export function offerCopyToQueue(copy: BookCopy): boolean {
+  if (copy.status !== "AVAILABLE" || copy.condition !== "GOOD") return false;
   const queue = db.reservations.filter((r) => r.bookId === copy.bookId && r.status === "WAITING").sort(byFifo);
   for (const r of queue) {
     if (!checkEligibility(r.studentId).eligible) continue;

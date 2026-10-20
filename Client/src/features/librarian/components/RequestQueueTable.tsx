@@ -21,9 +21,9 @@ export default function RequestQueueTable({ rows, onOpen, pageSize }: RequestQue
       header: "Shelf location",
       render: ({ copy }) => formatCopyLocation(copy),
     },
-    { key: "requestedDurationDays", header: "Duration", render: (request) => `${request.requestedDurationDays} days` },
-    { key: "approvedAt", header: "Approved / reserved", render: (request) => formatDate(request.approvedAt) },
-    { key: "pickupDeadline", header: "Pickup deadline", render: (request) => formatDate(request.pickupDeadline) },
+    { key: "requestedDurationDays", header: "Duration", render: (request) => request.requestedDurationDays ? `${request.requestedDurationDays} days` : "—" },
+    { key: "approvedAt", header: "Approved / reserved", render: (request) => request.approvedAt ? formatDate(request.approvedAt) : "—" },
+    { key: "pickupDeadline", header: "Pickup deadline", render: (request) => request.pickupDeadline ? formatDate(request.pickupDeadline) : "—" },
     { key: "status", header: "Status", render: (request) => <StatusBadge status={request.status} /> },
     {
       key: "actions",

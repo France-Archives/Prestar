@@ -13,6 +13,7 @@ import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import { useToast } from "@/hooks/useToast";
 import * as verificationService from "@/services/verificationService";
+import { USE_MOCKS } from "@/utils/constants";
 import { describeError } from "@/utils/errors";
 import { formatDate } from "@/utils/formatDate";
 import { validateCorFile } from "@/utils/validators";
@@ -20,7 +21,7 @@ import CorCameraCapture from "../components/CorCameraCapture";
 
 type Source = "camera" | "file";
 
-// TEMPORARY MOCK: the chosen file is NOT uploaded or stored anywhere. The real backend stores it in private storage (S5, multipart).
+// Mock mode stores only a filename. The live API also persists only a filename; it has no document-upload contract.
 // A photo from the camera is just a File (JPEG), so it follows exactly the same validation and submission as an uploaded file.
 export default function UploadCORPage() {
   const navigate = useNavigate();
@@ -37,7 +38,9 @@ export default function UploadCORPage() {
   if (terms.error) return <div className="page"><ErrorState message={terms.error} onRetry={() => void terms.reload()} /></div>;
 
   // A COR is submitted for the current or the next term.
-  const options = (terms.data ?? []).filter((t) => t.status === "ACTIVE" || t.status === "UPCOMING");
+  const options = (terms.data ?? []).filter((t) => USE_MOCKS
+    ? t.status === "ACTIVE" || t.status === "UPCOMING"
+    : t.status === "ACTIVE");
   const chosen = termId || options.find((t) => t.status === "ACTIVE")?.id || options[0]?.id || "";
 
   // Switching tabs clears the file, so a photo can never be submitted by accident from the other tab.
@@ -58,8 +61,8 @@ export default function UploadCORPage() {
     setBusy(true);
     try {
       // Same call for a photo and for an uploaded file. The COR is created as PENDING and still needs staff review.
-      await verificationService.submitCor({ academicTermId: chosen, file });
-      toast.success("COR submitted. It is waiting for review.");
+      const submitted = await verificationService.submitCor({ academicTermId: chosen, file });
+      toast.success(`COR submitted${submitted.termName ? ` for ${submitted.termName}` : ""}. It is waiting for review.`);
       navigate(ROUTES.student.cor);
     } catch (err) {
       setFormError(describeError(err));
@@ -72,13 +75,22 @@ export default function UploadCORPage() {
       <PageHeader eyebrow="Account" title="Submit COR" description="Take a photo of your Certificate of Registration with your camera, or upload a file (PDF, JPG or PNG). A newer pending submission for the same term replaces the older one." />
       <Card>
         <form className="stack" onSubmit={submit} noValidate>
-          <Alert kind="warn"><MockTag>Simulated upload</MockTag> The file is not sent or stored in this demo. Only its name is kept.</Alert>
+          {USE_MOCKS
+            ? <Alert kind="warn"><MockTag>Simulated upload</MockTag> The file is not sent or stored in this demo. Only its name is kept.</Alert>
+            : <Alert kind="warn">The Server records the submission and filename, but does not upload or store the selected document.</Alert>}
           <Alert kind="info">A photo or file is only a submission. Library staff still review every COR, and you can borrow only after it is approved.</Alert>
-          <SelectField label="Academic term" value={chosen} onChange={(e) => setTermId(e.target.value)} required>
-            {options.map((t) => (
-              <option key={t.id} value={t.id}>{t.name} (COR deadline {formatDate(t.corDeadline)})</option>
-            ))}
-          </SelectField>
+          {USE_MOCKS ? (
+            <SelectField label="Academic term" value={chosen} onChange={(e) => setTermId(e.target.value)} required>
+              {options.map((t) => (
+                <option key={t.id} value={t.id}>{t.name} (COR deadline {formatDate(t.corDeadline)})</option>
+              ))}
+            </SelectField>
+          ) : (
+            <Alert kind="info">
+              The Server assigns the submission to the current academic term; term selection is not supported by its API.
+              {options[0] ? ` Current term: ${options[0].name}.` : ""}
+            </Alert>
+          )}
 
           <Tabs<Source> tabs={[{ key: "camera", label: "Take a photo" }, { key: "file", label: "Upload a file" }]} active={source} onChange={switchSource} />
 
@@ -99,7 +111,7 @@ export default function UploadCORPage() {
 
           {formError && <Alert kind="error">{formError}</Alert>}
           <div className="row-actions">
-            <Button type="submit" loading={busy} disabled={!chosen}>Submit COR</Button>
+            <Button type="submit" loading={busy} disabled={busy || (USE_MOCKS && !chosen)}>Submit COR</Button>
             <Button variant="ghost" onClick={() => navigate(ROUTES.student.cor)} disabled={busy}>Cancel</Button>
           </div>
         </form>

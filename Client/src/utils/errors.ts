@@ -57,6 +57,7 @@ const FALLBACK: Partial<Record<ErrorCode | ClientErrorCode, string>> = {
   FILE_TYPE_NOT_ALLOWED: "Only PDF, JPG or PNG files are allowed.",
   FILE_TOO_LARGE: "That file is too large.",
   NETWORK_ERROR: "Cannot reach the server. Check your connection and try again.",
+  UNSUPPORTED_OPERATION: "This feature is not available in the live Server API yet.",
   UNKNOWN: "Something went wrong. Please try again.",
 };
 
@@ -101,13 +102,23 @@ export function toApiError(e: unknown): ApiError {
     if (ax.isAxiosError) {
       const status = ax.response?.status ?? 0;
       const data = ax.response?.data;
-      const body = isRecord(data) ? data.error : undefined;
+      const envelope = isRecord(data) ? data : undefined;
+      const body = envelope?.error;
       if (typeof body === "string") return new ApiError(errorCodeForStatus(status), body, status);
       if (isRecord(body)) {
         const code = isErrorCode(body.code) ? body.code : errorCodeForStatus(status);
         const message = typeof body.message === "string" ? body.message : FALLBACK[code] ?? FALLBACK.UNKNOWN!;
         const details = isRecord(body.details) ? body.details : undefined;
         const requestId = typeof body.requestId === "string" ? body.requestId : undefined;
+        return new ApiError(code, message, status, details, requestId);
+      }
+      if (envelope) {
+        const code = isErrorCode(envelope.code) ? envelope.code : errorCodeForStatus(status);
+        const message = typeof envelope.message === "string"
+          ? envelope.message
+          : FALLBACK[code] ?? FALLBACK.UNKNOWN!;
+        const details = isRecord(envelope.details) ? envelope.details : undefined;
+        const requestId = typeof envelope.requestId === "string" ? envelope.requestId : undefined;
         return new ApiError(code, message, status, details, requestId);
       }
       if (!ax.response) return new ApiError("NETWORK_ERROR", FALLBACK.NETWORK_ERROR!);
@@ -172,4 +183,12 @@ export function fail(code: ErrorCode, message?: string, status?: number, details
     FILE_TOO_LARGE: 422,
   };
   throw new ApiError(code, message ?? FALLBACK[code] ?? "Request failed.", status ?? defaultStatus[code] ?? 400, details);
+}
+
+export function unsupportedOperation(operation: string): never {
+  throw new ApiError(
+    "UNSUPPORTED_OPERATION",
+    `${operation} is not available in the live Server API yet.`,
+    501,
+  );
 }

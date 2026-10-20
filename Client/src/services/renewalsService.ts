@@ -1,6 +1,7 @@
 import type { CreateRenewalRequest, RenewalRequest, RenewalView, StaffRenewalView, UUID } from "@/types";
 import type { MockRenewal } from "@/data";
-import { fail } from "@/utils/errors";
+import { fail, unsupportedOperation } from "@/utils/errors";
+import { USE_MOCKS } from "@/utils/constants";
 import { addDaysIso, formatDate } from "@/utils/formatDate";
 import { validateDuration } from "@/utils/validators";
 import { assertEligible, begin, setting, studentRef, studentUserId } from "./mockEngine";
@@ -8,17 +9,16 @@ import { audit, commit, db, matches, newId, notify, nowIso, out, requireAccount,
 import { can } from "@/utils/permissions";
 import { sessionUserOf } from "./mockStore";
 
-// TEMPORARY MOCK IMPLEMENTATION: Replace with the real renewal API (B6, P14).
-// Renewals are decided AUTOMATICALLY by the backend. New due date = approval date + duration; old and new are both kept.
-// Final renewal limit (TC-07) and the time-of-day rule (TC-14) are TO CONFIRM.
+// Mock-only: the current Server does not expose renewal endpoints.
 
 const strip = (r: MockRenewal): RenewalView => {
   const { studentId: _studentId, ...view } = r;
   return view;
 };
 
-/** B6 POST /loans/:loanId/renewals */
+/** Create a mock renewal decision and update the mock loan when approved. */
 export async function createRenewal(loanId: UUID, req: CreateRenewalRequest): Promise<RenewalRequest> {
+  if (!USE_MOCKS) unsupportedOperation("Renewals");
   await begin();
   const { account, student } = requireStudent();
   const loan = db.loans.find((l) => l.id === loanId && l.studentId === student.id);
@@ -66,15 +66,17 @@ export async function createRenewal(loanId: UUID, req: CreateRenewalRequest): Pr
   return out(strip(base));
 }
 
-/** The student's renewal history (all loans). Derived from P14 per loan. */
+/** List the current student's mock renewal history. */
 export async function listMyRenewals(): Promise<RenewalView[]> {
+  if (!USE_MOCKS) unsupportedOperation("Renewals");
   await begin();
   const { student } = requireStudent();
   return out(db.renewals.filter((r) => r.studentId === student.id).sort((a, b) => b.requestedAt.localeCompare(a.requestedAt)).map(strip));
 }
 
-/** P14 GET /loans/:loanId/renewals (owner student, or staff) */
+/** List mock renewals for a loan owned by the current student, or for staff. */
 export async function listLoanRenewals(loanId: UUID): Promise<RenewalView[]> {
+  if (!USE_MOCKS) unsupportedOperation("Renewals");
   await begin();
   const account = requireAccount();
   const loan = db.loans.find((l) => l.id === loanId);
@@ -83,8 +85,9 @@ export async function listLoanRenewals(loanId: UUID): Promise<RenewalView[]> {
   return out(db.renewals.filter((r) => r.loanId === loanId).sort((a, b) => b.requestedAt.localeCompare(a.requestedAt)).map(strip));
 }
 
-/** Staff overview of all renewals (renewal management page). Staff only observe; decisions are automatic. */
+/** List mock renewal history for staff. */
 export async function listStaffRenewals(params: { search?: string } = {}): Promise<StaffRenewalView[]> {
+  if (!USE_MOCKS) unsupportedOperation("Renewals");
   await begin();
   const staff = requireCapability("STAFF_AREA");
   void staff;

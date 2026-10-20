@@ -27,9 +27,9 @@ export default function CORReviewPage() {
   const rows = tab === "ALL" ? all : all.filter((c) => c.status === tab);
 
   const columns: Column<StaffCorVerification>[] = [
-    { key: "student", header: "Student", render: (c) => `${c.student.name} (${c.student.studentNumber})` },
+    { key: "student", header: "Student", render: (c) => `${c.student.name}${c.student.studentNumber ? ` (${c.student.studentNumber})` : ""}` },
     { key: "termName", header: "Term" },
-    { key: "originalFileName", header: "File" },
+    { key: "originalFileName", header: "File", render: (c) => c.originalFileName || "Not provided by Server" },
     { key: "submittedAt", header: "Submitted", render: (c) => formatDate(c.submittedAt) },
     { key: "status", header: "Status", render: (c) => <StatusBadge status={c.status} /> },
     {

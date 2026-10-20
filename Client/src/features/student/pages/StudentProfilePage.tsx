@@ -14,6 +14,7 @@ import { useAsync } from "@/hooks/useAsync";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
 import * as authService from "@/services/authService";
+import { USE_MOCKS } from "@/utils/constants";
 import { describeError } from "@/utils/errors";
 import { validateName, validateYearLevel } from "@/utils/validators";
 
@@ -75,9 +76,11 @@ export default function StudentProfilePage() {
     try {
       await authService.updateMyProfile({
         firstName: v.firstName,
-        middleName: v.middleName.trim() || null,
         lastName: v.lastName,
-        suffix: v.suffix.trim() || null,
+        ...(USE_MOCKS ? {
+          middleName: v.middleName.trim() || null,
+          suffix: v.suffix.trim() || null,
+        } : {}),
         college: v.college,
         program: v.program,
         yearLevel: Number(v.yearLevel),
@@ -100,18 +103,19 @@ export default function StudentProfilePage() {
             <div><dt>Email</dt><dd>{p.email}</dd></div>
             <div><dt>Student number</dt><dd>{p.studentNumber}</dd></div>
             <div><dt>Account status</dt><dd>{user && <StatusBadge status={user.accountStatus} />}</dd></div>
-            <div><dt>Email verified</dt><dd>{user?.emailVerifiedAt ? "Yes" : "Not yet"}</dd></div>
+            <div><dt>Email verified</dt><dd>{user?.emailVerified ? "Yes" : "Not yet"}</dd></div>
           </dl>
         </Card>
         <Card title="Personal information">
           <form className="stack" onSubmit={submit} noValidate>
+            {!USE_MOCKS && <Alert kind="info">The Server currently supports updating first name, last name, college, course, and year level. Middle name and suffix are read-only.</Alert>}
             <div className="form-row">
               <InputField label="First name" required {...text("firstName")} />
               <InputField label="Last name" required {...text("lastName")} />
             </div>
             <div className="form-row">
-              <InputField label="Middle name" {...text("middleName")} />
-              <InputField label="Suffix" {...text("suffix")} />
+              <InputField label="Middle name" disabled={!USE_MOCKS} {...text("middleName")} />
+              <InputField label="Suffix" disabled={!USE_MOCKS} {...text("suffix")} />
             </div>
             <div className="form-row">
               <SelectField
@@ -147,8 +151,8 @@ export default function StudentProfilePage() {
             <div><Button type="submit" loading={busy}>Save changes</Button></div>
           </form>
         </Card>
-        <Card title="Reading interests" actions={<Link to={ROUTES.student.interests} className="link-btn">Edit</Link>}>
-          {p.interests.length === 0 ? <p className="subtle">No interests chosen yet.</p> : (
+        <Card title="Reading interests" actions={USE_MOCKS ? <Link to={ROUTES.student.interests} className="link-btn">Edit</Link> : undefined}>
+          {p.interests.length === 0 ? <p className="subtle">{USE_MOCKS ? "No interests chosen yet." : "Reading interests are not available from the live Server API."}</p> : (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {p.interests.map((i) => <span key={i.id} className="badge badge-ok">{i.name}</span>)}
             </div>

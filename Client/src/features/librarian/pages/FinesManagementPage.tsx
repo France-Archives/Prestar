@@ -17,6 +17,8 @@ import type { FineStatus, StaffFine } from "@/types";
 import { statusLabel } from "@/utils/constants";
 import { formatDate } from "@/utils/formatDate";
 import { can } from "@/utils/permissions";
+import { USE_MOCKS } from "@/utils/constants";
+import Alert from "@/components/feedback/Alert";
 import FineAssessmentForm from "../components/FineAssessmentForm";
 import PaymentForm from "../components/PaymentForm";
 
@@ -34,8 +36,8 @@ export default function FinesManagementPage() {
   const list = useAsync(() => finesService.listFines({ status: status || undefined, search: search || undefined }), [status, search]);
   const loans = useAsync(() => librarianService.listStaffLoans(), []);
 
-  const canManage = user ? can(user, "FINE_MANAGE") : false;
-  const canWaive = user ? can(user, "FINE_WAIVE") : false;
+  const canManage = USE_MOCKS && user ? can(user, "FINE_MANAGE") : false;
+  const canWaive = USE_MOCKS && user ? can(user, "FINE_WAIVE") : false;
 
   const columns: Column<StaffFine>[] = [
     { key: "student", header: "Student", render: (f) => `${f.student.firstName} ${f.student.lastName} (${f.student.studentNumber})` },
@@ -78,6 +80,7 @@ export default function FinesManagementPage() {
         description="Damage and lost-book fines. Unpaid balances block new borrowing and reservations."
         actions={canManage ? <Button onClick={() => setDialog({ kind: "assess" })}>Assess a fine</Button> : undefined}
       />
+      {!USE_MOCKS && <Alert kind="info">The Server does not currently provide fine or payment management APIs. These operations are unavailable in live mode.</Alert>}
       {!canManage && <p className="subtle" style={{ marginBottom: 10 }}>You can view fines. Assessing fines and recording payments needs the fine/payment permission from an Admin.</p>}
       <div className="toolbar" style={{ marginTop: 0 }}>
         <SearchInput value={search} onChange={setSearch} placeholder="Search student, number or book…" />

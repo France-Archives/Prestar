@@ -6,6 +6,7 @@ import { CheckboxField, InputField } from "@/components/forms/FormField";
 import { useToast } from "@/hooks/useToast";
 import * as librarianService from "@/services/librarianService";
 import type { BookToRelease, PenaltyCheck } from "@/types";
+import { USE_MOCKS } from "@/utils/constants";
 import { describeError } from "@/utils/errors";
 import ActionReasonDialog, { HOLD_REASONS, REJECT_REASONS } from "./ActionReasonDialog";
 import PenaltySummary from "./PenaltySummary";
@@ -83,7 +84,7 @@ export default function HandoverChecklist({ item, onChanged }: HandoverChecklist
           <Button onClick={confirm} loading={busy === "claim"} disabled={!canConfirm}>
             Confirm Handover
           </Button>
-          {item.status === "APPROVED" && (
+          {USE_MOCKS && item.status === "APPROVED" && (
             <Button variant="ghost" onClick={() => setDialog("hold")}>
               Place on Hold
             </Button>

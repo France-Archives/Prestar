@@ -8,7 +8,7 @@ export interface Reservation {
   id: UUID;
   bookId: UUID;
   bookTitle: string;
-  requestedDurationDays: AllowedDurationDays;
+  requestedDurationDays: number | null;
   status: ReservationStatus;
   reservedAt: ISODateTime;
   pickupDeadline: ISODateTime | null; // set when OFFERED

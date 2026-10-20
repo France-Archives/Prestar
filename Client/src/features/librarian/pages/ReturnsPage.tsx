@@ -13,7 +13,9 @@ import { useToast } from "@/hooks/useToast";
 import * as librarianService from "@/services/librarianService";
 import type { ReturnResult, StaffLoan } from "@/types";
 import { formatDate } from "@/utils/formatDate";
+import { USE_MOCKS } from "@/utils/constants";
 import ReturnConditionForm from "../components/ReturnConditionForm";
+import Alert from "@/components/feedback/Alert";
 
 type Tab = "active" | "overdue" | "closed";
 type Dialog = { kind: "return" | "lost"; loan: StaffLoan } | null;
@@ -56,7 +58,7 @@ export default function ReturnsPage() {
       key: "actions",
       header: "",
       render: (l) =>
-        l.status === "ACTIVE" ? (
+        l.status === "ACTIVE" && USE_MOCKS ? (
           <div className="row-actions">
             <Button size="sm" onClick={() => setDialog({ kind: "return", loan: l })}>
               Receive return
@@ -72,6 +74,7 @@ export default function ReturnsPage() {
   return (
     <div className="page">
       <PageHeader eyebrow="Circulation" title="Returns and loans" description="Confirm returns and record the copy condition. Returns are never blocked by overdue, fines or suspension. Overdue never becomes lost by itself." />
+      {!USE_MOCKS && <Alert kind="info">The Server does not currently provide return or mark-lost operations. These actions are unavailable in live mode.</Alert>}
       <div className="toolbar" style={{ marginTop: 0 }}>
         <SearchInput value={search} onChange={setSearch} placeholder="Search student, book or barcode…" />
       </div>

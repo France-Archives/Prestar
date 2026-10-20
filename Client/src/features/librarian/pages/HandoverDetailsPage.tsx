@@ -31,7 +31,7 @@ export default function HandoverDetailsPage() {
         <Card title="Request">
           <dl className="kv">
             <div><dt>Status</dt><dd><StatusBadge status={request.status} /></dd></div>
-            <div><dt>Loan duration</dt><dd>{request.requestedDurationDays} days</dd></div>
+            <div><dt>Loan duration</dt><dd>{request.requestedDurationDays ? `${request.requestedDurationDays} days` : "Not provided by Server"}</dd></div>
             <div><dt>Assigned copy</dt><dd>{request.copy?.barcode ?? "—"}</dd></div>
             <div><dt>Requested</dt><dd>{formatDate(request.requestedAt)}</dd></div>
             <div><dt>Pickup deadline</dt><dd>{request.pickupDeadline ? formatDate(request.pickupDeadline) : "—"}</dd></div>
@@ -43,17 +43,21 @@ export default function HandoverDetailsPage() {
         ) : (
           <Alert kind="info">This request is {statusLabel(request.status).toLowerCase()} and is no longer awaiting release.</Alert>
         )}
-        <Card title="Handover history" note="Every check, hold, rejection and claim is recorded.">
-          <Timeline
-            empty="No handover attempts yet."
-            items={attempts.map((a) => ({
-              id: a.id,
-              title: statusLabel(a.action),
-              meta: `${a.staffName} · ${formatDate(a.createdAt)}${a.reasonCode ? ` · ${a.reasonCode}` : ""}`,
-              detail: a.notes,
-            }))}
-          />
-        </Card>
+        {details.data.attemptsAvailable ? (
+          <Card title="Handover history" note="Every check, hold, rejection and claim is recorded.">
+            <Timeline
+              empty="No handover attempts yet."
+              items={attempts.map((a) => ({
+                id: a.id,
+                title: statusLabel(a.action),
+                meta: `${a.staffName} · ${formatDate(a.createdAt)}${a.reasonCode ? ` · ${a.reasonCode}` : ""}`,
+                detail: a.notes,
+              }))}
+            />
+          </Card>
+        ) : (
+          <Alert kind="info">Handover attempt history is not available from the Server API.</Alert>
+        )}
       </div>
     </div>
   );

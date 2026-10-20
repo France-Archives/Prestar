@@ -4,16 +4,18 @@ import * as authService from "@/services/authService";
 import { UNAUTHENTICATED_EVENT } from "@/services/apiClient";
 import { subscribeStore } from "@/services/mockStore";
 import { normalizeUserRole } from "@/utils/permissions";
+import { describeError } from "@/utils/errors";
 
 // Holds the signed-in user for the UI. This is a UX convenience only: the backend decides what a user may do.
 // authService selects mock or live authentication based on VITE_USE_MOCKS.
 // subscribeStore re-reads the session after mock mutations so profile or status changes show up.
 
-export type AuthStatus = "loading" | "authenticated" | "unauthenticated";
+export type AuthStatus = "loading" | "authenticated" | "unauthenticated" | "error";
 
 export interface AuthContextValue {
   user: SessionUser | null;
   status: AuthStatus;
+  sessionError: string | null;
   login: (req: LoginRequest) => Promise<SessionUser>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -24,6 +26,7 @@ export const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [status, setStatus] = useState<AuthStatus>("loading");
+  const [sessionError, setSessionError] = useState<string | null>(null);
   // Newest request wins, so a slow refresh can never overwrite a newer login or logout.
   const seq = useRef(0);
 
@@ -32,15 +35,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Keep the same object when nothing changed, so consumers do not re-render on every mock commit.
     setUser((prev) => (JSON.stringify(prev) === JSON.stringify(normalized) ? prev : normalized));
     setStatus(normalized ? "authenticated" : "unauthenticated");
+    setSessionError(null);
   }, []);
 
   const refresh = useCallback(async () => {
     const id = ++seq.current;
+    setSessionError(null);
     try {
       const current = await authService.getCurrentUser();
       if (id === seq.current) apply(current);
-    } catch {
-      if (id === seq.current) apply(null);
+    } catch (error) {
+      if (id === seq.current) {
+        setSessionError(describeError(error));
+        setStatus((current) => current === "loading" ? "error" : current);
+      }
     }
   }, [apply]);
 
@@ -80,6 +88,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [apply]);
 
-  const value = useMemo<AuthContextValue>(() => ({ user, status, login, logout, refresh }), [user, status, login, logout, refresh]);
+  const value = useMemo<AuthContextValue>(() => ({ user, status, sessionError, login, logout, refresh }), [user, status, sessionError, login, logout, refresh]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

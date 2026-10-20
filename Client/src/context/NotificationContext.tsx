@@ -3,17 +3,16 @@ import type { NotificationItem } from "@/types";
 import * as notificationsService from "@/services/notificationsService";
 import { subscribeStore } from "@/services/mockStore";
 import { useAuth } from "@/hooks/useAuth";
+import { USE_MOCKS } from "@/utils/constants";
 
-// Shared state for the notification bell: unread count plus the latest few items.
-// The backend creates notifications (only after a transaction commits); the frontend only reads and marks them read.
-// TEMPORARY MOCK IMPLEMENTATION: notificationsService reads the in-memory store. Replace with S6 to S8 later.
-// The subscribeStore effect refreshes the bell after any mock mutation. Real backend: poll or use a push channel instead.
+// Shared notification state for the mock bell; live notifications are unavailable from the current Server API.
 
 const RECENT_COUNT = 5;
 
 export interface NotificationContextValue {
-  unreadCount: number;
-  recent: NotificationItem[];
+  unreadCount: number | null;
+  recent: NotificationItem[] | null;
+  available: boolean;
   loading: boolean;
   refresh: () => Promise<void>;
   markRead: (id: string) => Promise<void>;
@@ -25,8 +24,8 @@ export const NotificationContext = createContext<NotificationContextValue | null
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const userId = user?.id ?? null;
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [recent, setRecent] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState<number | null>(USE_MOCKS ? 0 : null);
+  const [recent, setRecent] = useState<NotificationItem[] | null>(USE_MOCKS ? [] : null);
   const [loading, setLoading] = useState(false);
   const seq = useRef(0);
 
@@ -35,6 +34,12 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     if (!userId) {
       setUnreadCount(0);
       setRecent([]);
+      return;
+    }
+    if (!USE_MOCKS) {
+      setUnreadCount(null);
+      setRecent(null);
+      setLoading(false);
       return;
     }
     try {
@@ -58,7 +63,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   }, [userId, refresh]);
 
   // TEMPORARY MOCK: refresh after any mock mutation.
-  useEffect(() => (userId ? subscribeStore(() => void refresh()) : undefined), [userId, refresh]);
+  useEffect(() => (userId && USE_MOCKS ? subscribeStore(() => void refresh()) : undefined), [userId, refresh]);
 
   const markRead = useCallback(
     async (id: string) => {
@@ -74,7 +79,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   const value = useMemo<NotificationContextValue>(
-    () => ({ unreadCount, recent, loading, refresh, markRead, markAllRead }),
+    () => ({ unreadCount, recent, available: USE_MOCKS, loading, refresh, markRead, markAllRead }),
     [unreadCount, recent, loading, refresh, markRead, markAllRead],
   );
   return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>;

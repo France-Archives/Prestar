@@ -10,6 +10,8 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { useToast } from "@/hooks/useToast";
 import * as notificationsService from "@/services/notificationsService";
 import { describeError } from "@/utils/errors";
+import { USE_MOCKS } from "@/utils/constants";
+import Alert from "@/components/feedback/Alert";
 import NotificationList from "../components/NotificationList";
 
 const PAGE_SIZE = 10;
@@ -21,9 +23,22 @@ export default function NotificationsPage() {
   const toast = useToast();
   const [page, setPage] = useState(1);
   const [unreadOnly, setUnreadOnly] = useState(false);
-  const list = useAsync(() => notificationsService.listNotifications({ page, pageSize: PAGE_SIZE, unreadOnly }), [page, unreadOnly]);
+  const list = useAsync(
+    () => USE_MOCKS
+      ? notificationsService.listNotifications({ page, pageSize: PAGE_SIZE, unreadOnly })
+      : Promise.resolve(null),
+    [page, unreadOnly],
+  );
 
   if (!user) return null;
+  if (!USE_MOCKS) {
+    return (
+      <div className="page" style={{ maxWidth: 860 }}>
+        <PageHeader eyebrow="Library" title="Notifications" />
+        <Alert kind="info">Notifications are not available from the live Server API yet.</Alert>
+      </div>
+    );
+  }
 
   const read = async (id: string) => {
     try {

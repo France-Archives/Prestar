@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import Alert from "@/components/feedback/Alert";
+import EmptyState from "@/components/feedback/EmptyState";
 import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
 import { ROUTES } from "@/app/routeConfig";
@@ -39,9 +40,9 @@ function Section({ eyebrow, title, note, action, children }: { eyebrow: string; 
 export default function StudentDashboardPage() {
   const { user } = useAuth();
   const dash = useAsync(() => reportsService.getStudentDashboard(), []);
-  // Mock popular-book rows need catalog lookup; live rows include their book summaries.
+  // Mock popular-book rows need a larger catalog lookup; live rows include book summaries.
   const catalog = useAsync(
-    () => USE_MOCKS ? booksService.listBooks({ pageSize: 100 }) : Promise.resolve(null),
+    () => booksService.listBooks({ pageSize: USE_MOCKS ? 100 : 6 }),
     [],
   );
 
@@ -56,7 +57,8 @@ export default function StudentDashboardPage() {
   // A pending COR is shown only on the COR page.
   const needsCor = d.cor.status !== "APPROVED" && d.cor.status !== "PENDING";
 
-  const byId = new Map((catalog.data?.data ?? []).map((b) => [b.id, b] as const));
+  const books = catalog.data?.data ?? [];
+  const byId = new Map(books.map((b) => [b.id, b] as const));
   const popular = d.mostBorrowed.flatMap((p) => {
     const book = p.book ?? byId.get(p.bookId);
     return book ? [{ book, loans: p.loanCount }] : [];
@@ -97,7 +99,7 @@ export default function StudentDashboardPage() {
 
       {d.mostBorrowed.length > 0 && (
         <Section eyebrow="Reader activity" title="Most Borrowed This Week" note="What other students are reading right now.">
-          {catalog.loading && !catalog.data ? (
+          {USE_MOCKS && catalog.loading && !catalog.data ? (
             <div className="book-row" aria-hidden="true">
               {Array.from({ length: 6 }, (_, i) => <div key={i} className="book-skel skeleton" />)}
             </div>
@@ -112,6 +114,22 @@ export default function StudentDashboardPage() {
           <BookGrid books={d.recommended} emptyText="No recommendations yet." />
         ) : (
           <p className="subtle">Personalized recommendations are not available yet.</p>
+        )}
+      </Section>
+
+      <Section
+        eyebrow="Explore the collection"
+        title="Browse Books"
+        action={<Link to={S.books} className="btn btn-ghost btn-sm">View All</Link>}
+      >
+        {catalog.loading ? (
+          <LoadingState rows={2} />
+        ) : catalog.error ? (
+          <ErrorState message={catalog.error} onRetry={() => void catalog.reload()} />
+        ) : books.length === 0 ? (
+          <EmptyState title="No books are currently available." text="Visit the catalog again later." />
+        ) : (
+          <BookGrid books={books.slice(0, 6)} />
         )}
       </Section>
     </div>

@@ -8,6 +8,8 @@ import { useToast } from "@/hooks/useToast";
 import * as renewalsService from "@/services/renewalsService";
 import type { AllowedDurationDays, Loan } from "@/types";
 import { daysUntil, formatDate } from "@/utils/formatDate";
+import { USE_MOCKS } from "@/utils/constants";
+import Alert from "@/components/feedback/Alert";
 
 const DURATIONS: AllowedDurationDays[] = [3, 7, 14, 21, 30, 60];
 
@@ -36,6 +38,7 @@ export default function MyActiveLoans({ loans, onChanged, compact = false }: Pro
 
   return (
     <>
+      {!USE_MOCKS && <Alert kind="info">Renewals are not available from the live Server API yet.</Alert>}
       <ul className="stack" style={{ padding: 0, listStyle: "none", gap: 10 }}>
         {loans.map((l) => {
           const left = daysUntil(l.dueAt);
@@ -51,7 +54,7 @@ export default function MyActiveLoans({ loans, onChanged, compact = false }: Pro
                 </span>{" "}
                 <StatusBadge status={l.status} />
               </div>
-              {!compact && (
+              {USE_MOCKS && !compact && (
                 <Button variant="ghost" size="sm" onClick={() => { setTarget(l); setDuration(7); }}>
                   Renew
                 </Button>

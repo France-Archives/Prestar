@@ -14,9 +14,9 @@ import type {
   UpdateProfileRequest,
   VerifyEmailRequest,
 } from "@/types";
-import { apiClient, apiGet, apiPost } from "@/services/apiClient";
+import { apiClient, apiGet, apiPatch, apiPost } from "@/services/apiClient";
 import { USE_MOCKS } from "@/utils/constants";
-import { ApiError, fail, toApiError } from "@/utils/errors";
+import { ApiError, fail, toApiError, unsupportedOperation } from "@/utils/errors";
 import {
   validateInterestSelection,
   validateName,
@@ -68,7 +68,7 @@ const check = (message: string | null): void => {
 };
 
 interface BackendSessionUser {
-  id: number;
+  id: number | string;
   email: string;
   role: string;
   accountStatus: string;
@@ -77,8 +77,8 @@ interface BackendSessionUser {
   lastName: string;
   displayName: string;
   student: {
-    id: number;
-    userId: number;
+    id: number | string;
+    userId: number | string;
     studentNumber: string;
     middleName: string | null;
     suffix: string | null;
@@ -287,6 +287,7 @@ export async function resendVerification(req: ResendVerificationRequest): Promis
 
 /** A6 POST /auth/forgot-password. Generic response. */
 export async function forgotPassword(req: ForgotPasswordRequest): Promise<MockTokenResult> {
+  if (!USE_MOCKS) unsupportedOperation("Password reset");
   await latency();
   const account = accountByEmail(req.email);
   if (account && account.password && account.user.accountStatus !== "DISABLED") {
@@ -297,6 +298,7 @@ export async function forgotPassword(req: ForgotPasswordRequest): Promise<MockTo
 
 /** A7 POST /auth/reset-password */
 export async function resetPassword(req: ResetPasswordRequest): Promise<void> {
+  if (!USE_MOCKS) unsupportedOperation("Password reset");
   await latency();
   check(validatePassword(req.password)); // validate first so a weak password does not burn the token
   const t = consumeToken(req.token, "RESET_PASSWORD");
@@ -309,6 +311,7 @@ export async function resetPassword(req: ResetPasswordRequest): Promise<void> {
 
 /** P2 POST /auth/accept-invitation (proposed, TC-19). A Librarian sets a password from the invitation link. */
 export async function acceptInvitation(req: AcceptInvitationRequest): Promise<void> {
+  if (!USE_MOCKS) unsupportedOperation("Librarian invitation acceptance");
   await latency();
   check(validatePassword(req.password));
   const t = consumeToken(req.token, "INVITATION");
@@ -325,6 +328,7 @@ export async function acceptInvitation(req: AcceptInvitationRequest): Promise<vo
 
 /** P1 GET /interests (proposed) */
 export async function listInterests(): Promise<Interest[]> {
+  if (!USE_MOCKS) unsupportedOperation("Reading-interest management");
   await begin();
   requireAccount();
   return out(db.interests);
@@ -335,6 +339,11 @@ const interestsOf = (studentId: string): Interest[] =>
 
 /** S1 GET /me/profile */
 export async function getMyProfile(): Promise<StudentProfileDetail> {
+  if (!USE_MOCKS) {
+    const user = mapBackendSessionUser(await apiGet<BackendSessionUser>("/auth/me"));
+    if (!user.student) fail("FORBIDDEN", "A student profile is required.", 403);
+    return { ...user.student, email: user.email, interests: [] };
+  }
   await begin();
   const { account, student } = requireStudent();
   return out({ ...student, email: account.user.email, interests: interestsOf(student.id) });
@@ -342,6 +351,21 @@ export async function getMyProfile(): Promise<StudentProfileDetail> {
 
 /** S2 PATCH /me/profile. Email is not editable (TC-03). */
 export async function updateMyProfile(req: UpdateProfileRequest): Promise<StudentProfileDetail> {
+  if (!USE_MOCKS) {
+    if (req.middleName !== undefined || req.suffix !== undefined) {
+      unsupportedOperation("Updating middle name and suffix");
+    }
+    const updated = await apiPatch<BackendSessionUser>("/auth/me", {
+      ...(req.firstName === undefined ? {} : { firstName: req.firstName }),
+      ...(req.lastName === undefined ? {} : { lastName: req.lastName }),
+      ...(req.college === undefined ? {} : { college: req.college }),
+      ...(req.program === undefined ? {} : { program: req.program }),
+      ...(req.yearLevel === undefined ? {} : { yearLevel: req.yearLevel }),
+    });
+    const user = mapBackendSessionUser(updated);
+    if (!user.student) fail("FORBIDDEN", "A student profile is required.", 403);
+    return { ...user.student, email: user.email, interests: [] };
+  }
   await begin();
   const { account, student } = requireStudent();
   if (req.firstName !== undefined) check(validateName(req.firstName, "First name"));
@@ -365,6 +389,7 @@ export async function updateMyProfile(req: UpdateProfileRequest): Promise<Studen
 
 /** S3 PUT /me/interests: exactly 3 distinct interests. */
 export async function updateMyInterests(req: UpdateInterestsRequest): Promise<Interest[]> {
+  if (!USE_MOCKS) unsupportedOperation("Reading-interest management");
   await begin();
   const { student } = requireStudent();
   check(validateInterestSelection(req.interestIds));

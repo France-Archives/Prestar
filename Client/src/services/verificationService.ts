@@ -9,19 +9,88 @@ import type {
   VerificationStatus,
 } from "@/types";
 import type { MockCorRecord } from "@/data";
-import { fail } from "@/utils/errors";
+import { apiClient } from "@/services/apiClient";
+import { USE_MOCKS } from "@/utils/constants";
+import { ApiError, fail, unsupportedOperation } from "@/utils/errors";
+import { getStudentDashboard } from "./reportsService";
 import { formatDate } from "@/utils/formatDate";
 import { validateCorFile } from "@/utils/validators";
 import { begin, corSummaryOf, currentTerm, studentName, studentRef, studentUserId, toCor } from "./mockEngine";
 import { audit, commit, db, matches, newId, notify, notifyCorReviewers, nowIso, out, requireAccount, requireCapability, requireStudent } from "./mockStore";
 
-// TEMPORARY MOCK IMPLEMENTATION: Replace with the real COR services (S4, S5, V1 to V3, P3, P17).
-// NO real upload happens: the browser file is never stored or sent anywhere; only its name is kept.
-// The real backend stores the file in PRIVATE storage and never returns a public URL or the storage key.
+type BackendRow = Record<string, unknown>;
+
+function backendRow(value: unknown): BackendRow {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new ApiError("UNKNOWN", "The Server returned an invalid verification response.");
+  }
+  return value as BackendRow;
+}
+
+function mapBackendTerm(value: unknown): AcademicTerm {
+  const row = backendRow(value);
+  return {
+    id: String(row.id ?? row.term_id),
+    name: String(row.name ?? row.term_name ?? ""),
+    startDate: String(row.startDate ?? row.start_date ?? ""),
+    endDate: String(row.endDate ?? row.end_date ?? ""),
+    corDeadline: String(row.corDeadline ?? row.cor_deadline ?? ""),
+    status: String(row.status ?? "").trim().toUpperCase() as AcademicTerm["status"],
+  };
+}
+
+function mapBackendVerification(value: unknown): CorVerification {
+  const row = backendRow(value);
+  const statusText = typeof row.status === "string" ? row.status.trim().toUpperCase() : "";
+  const statusByValue: Record<string, VerificationStatus> = {
+    PENDING: "PENDING",
+    APPROVED: "APPROVED",
+    REJECTED: "REJECTED",
+    SUPERSEDED: "SUPERSEDED",
+    EXPIRED: "EXPIRED",
+  };
+  const status = statusByValue[statusText];
+  if (!status) throw new ApiError("UNKNOWN", `The Server returned an unsupported verification status: ${String(row.status)}.`);
+  return {
+    id: String(row.id ?? row.verification_id),
+    academicTermId: String(row.academicTermId ?? row.termId ?? row.term_id ?? ""),
+    termName: String(row.termName ?? row.term_name ?? ""),
+    status,
+    rejectionReason: typeof (row.rejectionReason ?? row.remarks) === "string"
+      ? String(row.rejectionReason ?? row.remarks)
+      : null,
+    originalFileName: String(row.originalFileName ?? row.original_file_name ?? row.proofFile ?? row.proof_file ?? ""),
+    submittedAt: String(row.submittedAt ?? row.submitted_at ?? ""),
+    reviewedAt: row.reviewedAt == null && row.reviewed_at == null
+      ? null
+      : String(row.reviewedAt ?? row.reviewed_at),
+    effectiveFrom: row.effectiveFrom == null && row.validFrom == null && row.valid_from == null
+      ? null
+      : String(row.effectiveFrom ?? row.validFrom ?? row.valid_from),
+    validUntil: row.validUntil == null && row.valid_until == null
+      ? null
+      : String(row.validUntil ?? row.valid_until),
+  };
+}
+
+function backendStatus(status: VerificationStatus): string {
+  return status === "PENDING" ? "Pending"
+    : status === "APPROVED" ? "Approved"
+      : status === "REJECTED" ? "Rejected"
+        : status === "EXPIRED" ? "Expired"
+          : "Superseded";
+}
+
+// Live Server submission records the selected filename; it does not receive or store the document bytes.
 // Late submissions are allowed in the mock (TC-05 is TO CONFIRM).
 
 /** P17 GET /academic-terms: read-only term list for the COR form and banners (any signed-in user). */
 export async function listAcademicTerms(): Promise<AcademicTerm[]> {
+  if (!USE_MOCKS) {
+    const response = (await apiClient.get<unknown>("/academic-terms")).data;
+    if (!Array.isArray(response)) throw new ApiError("UNKNOWN", "The Server returned an invalid academic-term list.");
+    return response.map(mapBackendTerm);
+  }
   await begin();
   requireAccount();
   return out([...db.terms].sort((a, b) => a.startDate.localeCompare(b.startDate)));
@@ -29,6 +98,11 @@ export async function listAcademicTerms(): Promise<AcademicTerm[]> {
 
 /** S4 GET /me/verifications */
 export async function listMyVerifications(): Promise<CorVerification[]> {
+  if (!USE_MOCKS) {
+    const response = (await apiClient.get<unknown>("/me/verifications")).data;
+    if (!Array.isArray(response)) throw new ApiError("UNKNOWN", "The Server returned an invalid verification list.");
+    return response.map(mapBackendVerification);
+  }
   await begin();
   const { student } = requireStudent();
   return out(db.cors.filter((c) => c.studentId === student.id).sort((a, b) => b.submittedAt.localeCompare(a.submittedAt)).map(toCor));
@@ -36,6 +110,19 @@ export async function listMyVerifications(): Promise<CorVerification[]> {
 
 /** Display summary for the student dashboard and COR page, composed from S4 + P17. */
 export async function getMyCorSummary(): Promise<CorSummary> {
+  if (!USE_MOCKS) {
+    const [dashboard, verifications, terms] = await Promise.all([
+      getStudentDashboard(),
+      listMyVerifications(),
+      listAcademicTerms(),
+    ]);
+    const dashboardTerm = dashboard.cor.currentTerm ?? null;
+    return {
+      status: dashboard.cor.status,
+      currentTerm: dashboardTerm ? terms.find((term) => term.id === dashboardTerm.id) ?? null : null,
+      latest: verifications[0] ?? null,
+    };
+  }
   await begin();
   const { student } = requireStudent();
   return out(corSummaryOf(student.id));
@@ -43,6 +130,12 @@ export async function getMyCorSummary(): Promise<CorSummary> {
 
 /** S5 POST /me/verifications (multipart in the real API). Earlier PENDING uploads for the same term become SUPERSEDED. */
 export async function submitCor(input: SubmitCorInput): Promise<CorVerification> {
+  if (!USE_MOCKS) {
+    const response = (await apiClient.post<unknown>("/me/verifications", {
+      proof_file: input.file.name,
+    })).data;
+    return mapBackendVerification(response);
+  }
   await begin();
   const { account, student } = requireStudent();
   const fileError = validateCorFile(input.file);
@@ -85,6 +178,27 @@ export async function submitCor(input: SubmitCorInput): Promise<CorVerification>
 
 /** V1 GET /staff/verifications */
 export async function listCorQueue(params: { status?: VerificationStatus; search?: string } = {}): Promise<StaffCorVerification[]> {
+  if (!USE_MOCKS) {
+    const response = (await apiClient.get<unknown>("/staff/verifications", {
+      params: {
+        ...(params.status ? { status: backendStatus(params.status) } : {}),
+        ...(params.search?.trim() ? { search: params.search.trim() } : {}),
+      },
+    })).data;
+    if (!Array.isArray(response)) throw new ApiError("UNKNOWN", "The Server returned an invalid verification queue.");
+    return response.map((value): StaffCorVerification => {
+      const row = backendRow(value);
+      const student = row.student && typeof row.student === "object" ? row.student as BackendRow : {};
+      return {
+        ...mapBackendVerification(row),
+        student: {
+          id: String(student.id ?? ""),
+          studentNumber: String(student.studentNumber ?? student.student_number ?? ""),
+          name: String(student.name ?? ""),
+        },
+      };
+    });
+  }
   await begin();
   requireCapability("COR_REVIEW");
   const rows = db.cors
@@ -107,6 +221,10 @@ const pendingRecord = (id: UUID): MockCorRecord => {
 
 /** V2 POST /staff/verifications/:id/approve. Valid from the term start to the term end. */
 export async function approveCor(id: UUID): Promise<CorVerification> {
+  if (!USE_MOCKS) {
+    const response = (await apiClient.post<unknown>(`/staff/verifications/${encodeURIComponent(id)}/approve`, {})).data;
+    return mapBackendVerification(response);
+  }
   await begin();
   const staff = requireCapability("COR_REVIEW");
   const record = pendingRecord(id);
@@ -125,6 +243,12 @@ export async function approveCor(id: UUID): Promise<CorVerification> {
 
 /** V3 POST /staff/verifications/:id/reject. The reason is required and kept; the student may resubmit. */
 export async function rejectCor(id: UUID, req: ReviewCorRejectRequest): Promise<CorVerification> {
+  if (!USE_MOCKS) {
+    const response = (await apiClient.post<unknown>(`/staff/verifications/${encodeURIComponent(id)}/reject`, {
+      reason: req.reason,
+    })).data;
+    return mapBackendVerification(response);
+  }
   await begin();
   const staff = requireCapability("COR_REVIEW");
   if (!req.reason.trim()) fail("VALIDATION_ERROR", "A reason is required to reject a COR.", 422);
@@ -141,6 +265,7 @@ export async function rejectCor(id: UUID, req: ReviewCorRejectRequest): Promise<
 
 /** P3 GET /staff/verifications/:id/document (proposed). The real API streams the PRIVATE file; the mock has no file. */
 export async function getCorDocumentInfo(id: UUID): Promise<{ fileName: string; simulated: true }> {
+  if (!USE_MOCKS) unsupportedOperation("Viewing submitted COR documents");
   await begin();
   requireCapability("COR_REVIEW");
   const record = db.cors.find((c) => c.id === id);

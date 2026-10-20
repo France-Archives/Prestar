@@ -7,14 +7,16 @@ vi.mock("@/utils/constants", async (importOriginal) => {
 vi.mock("@/services/apiClient", () => ({
   apiClient: { post: vi.fn() },
   apiGet: vi.fn(),
+  apiPatch: vi.fn(),
 }));
 
-import { apiClient, apiGet } from "@/services/apiClient";
+import { apiClient, apiGet, apiPatch } from "@/services/apiClient";
 import {
   getCurrentUser,
   login,
   register,
   resendVerification,
+  updateMyProfile,
   verifyEmail,
 } from "@/services/authService";
 
@@ -159,5 +161,35 @@ describe("live signup and session requests", () => {
     expect(apiClient.post).toHaveBeenCalledWith("/auth/signup/resend-otp", {
       email: sessionResponse.email,
     });
+  });
+
+  it("updates only the profile fields supported by the Server", async () => {
+    vi.mocked(apiPatch).mockResolvedValue(sessionResponse);
+
+    await expect(updateMyProfile({
+      firstName: "Ana",
+      lastName: "Reyes",
+      college: "College of Computer Studies",
+      program: "BS Information Technology",
+      yearLevel: 2,
+    })).resolves.toMatchObject({
+      firstName: "Ana",
+      yearLevel: 1,
+      interests: [],
+    });
+
+    expect(apiPatch).toHaveBeenCalledWith("/auth/me", {
+      firstName: "Ana",
+      lastName: "Reyes",
+      college: "College of Computer Studies",
+      program: "BS Information Technology",
+      yearLevel: 2,
+    });
+  });
+
+  it("does not silently ignore profile fields the Server cannot update", async () => {
+    await expect(updateMyProfile({ middleName: "Marie" }))
+      .rejects.toMatchObject({ code: "UNSUPPORTED_OPERATION", status: 501 });
+    expect(apiPatch).not.toHaveBeenCalled();
   });
 });

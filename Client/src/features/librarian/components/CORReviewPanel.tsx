@@ -6,6 +6,7 @@ import Modal from "@/components/ui/Modal";
 import StatusBadge from "@/components/data-display/StatusBadge";
 import { useToast } from "@/hooks/useToast";
 import * as verificationService from "@/services/verificationService";
+import { USE_MOCKS } from "@/utils/constants";
 import type { StaffCorVerification } from "@/types";
 import { describeError } from "@/utils/errors";
 import { formatDate } from "@/utils/formatDate";
@@ -84,21 +85,25 @@ export default function CORReviewPanel({ item, onClose, onDone }: CORReviewPanel
     >
       <dl className="kv">
         <div><dt>Student</dt><dd>{item.student.name}</dd></div>
-        <div><dt>Student number</dt><dd>{item.student.studentNumber}</dd></div>
+        <div><dt>Student number</dt><dd>{item.student.studentNumber || "Not provided by Server"}</dd></div>
         <div><dt>Term</dt><dd>{item.termName}</dd></div>
         <div><dt>Status</dt><dd><StatusBadge status={item.status} /></dd></div>
         <div><dt>Submitted</dt><dd>{formatDate(item.submittedAt)}</dd></div>
-        <div><dt>File</dt><dd>{item.originalFileName}</dd></div>
+        <div><dt>File</dt><dd>{item.originalFileName || "Not provided by Server"}</dd></div>
         {item.effectiveFrom && item.validUntil && (
           <div><dt>Valid</dt><dd>{formatDate(item.effectiveFrom)} – {formatDate(item.validUntil)}</dd></div>
         )}
         {item.rejectionReason && <div><dt>Rejection reason</dt><dd>{item.rejectionReason}</dd></div>}
       </dl>
       <div>
-        <Button variant="ghost" size="sm" onClick={openDocument}>
-          View document
-        </Button>{" "}
-        <MockTag>Simulated</MockTag>
+        {USE_MOCKS ? (
+          <>
+            <Button variant="ghost" size="sm" onClick={openDocument}>View document</Button>{" "}
+            <MockTag>Simulated</MockTag>
+          </>
+        ) : (
+          <Alert kind="warn">The Server does not provide a document-view endpoint or return the submitted filename.</Alert>
+        )}
       </div>
       {docNote && <Alert kind="warn">{docNote}</Alert>}
       {pending && rejecting && <TextareaField label="Reason for rejection (shown to the student)" value={reason} onChange={(e) => setReason(e.target.value)} required />}
