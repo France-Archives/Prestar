@@ -103,9 +103,13 @@ describe("Book Process & Frontend Form Integration Test Suite", () => {
       yearLevel: 3, // Frontend sends yearLevel
       email: `student_${uniqueSuffix}@wmsu.edu.ph`,
       password: "StrongPassword123!",
+      termsAccepted: true,
+      privacyPolicyAccepted: true,
     };
 
-    const signupRes = await createSignup(signupData);
+    const signupRes = await createSignup(signupData, {
+      sendEmail: async () => ({ sent: true }),
+    });
     assert.equal(signupRes.email, signupData.email);
 
     // Verify stored signup_payload in EmailOtp maps program to course
@@ -505,6 +509,7 @@ describe("Book Process & Frontend Form Integration Test Suite", () => {
       status: "Active",
       first_name: "Unverified",
       last_name: "Student",
+      email_verified: true,
     });
 
     const tempCopy = await BookCopy.create({

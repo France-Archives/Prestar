@@ -12,6 +12,7 @@ import {
 test("New OTP Signup Flow Test Suite", async (t) => {
   const testEmail = `test_${Date.now()}@wmsu.edu.ph`;
   const testStudentNo = `SN_${Date.now()}`;
+  const signupDependencies = { sendEmail: async () => ({ sent: true }) };
 
   await t.test("rejects non-WMSU email format during signup", async () => {
     await assert.rejects(
@@ -22,7 +23,9 @@ test("New OTP Signup Flow Test Suite", async (t) => {
           email: "student@gmail.com",
           student_number: `SN_INVALID_${Date.now()}`,
           password: "StrongPassword123!",
-        });
+          termsAccepted: true,
+          privacyPolicyAccepted: true,
+        }, signupDependencies);
       },
       (err) => {
         assert.ok(err instanceof SignupError);
@@ -44,7 +47,9 @@ test("New OTP Signup Flow Test Suite", async (t) => {
       course: "BS Information Technology",
       year_level: 3,
       student_type: "Regular",
-    });
+      termsAccepted: true,
+      privacyPolicyAccepted: true,
+    }, signupDependencies);
 
     assert.equal(res.email, testEmail);
     assert.equal(res.cooldown_seconds, 120);
@@ -64,7 +69,9 @@ test("New OTP Signup Flow Test Suite", async (t) => {
           email: testEmail,
           student_number: testStudentNo,
           password: "StrongPassword123!",
-        });
+          termsAccepted: true,
+          privacyPolicyAccepted: true,
+        }, signupDependencies);
       },
       (err) => {
         assert.ok(err instanceof SignupError);

@@ -88,6 +88,7 @@ describe("Reservation FIFO Queue & Dual-Checkpoint Flag Enforcement Test Suite",
       status: "Active",
       first_name: "Eligible1",
       last_name: "Student",
+      email_verified: true,
     });
     await Student.create({
       user_id: eligibleStudent1.user_id,
@@ -114,6 +115,7 @@ describe("Reservation FIFO Queue & Dual-Checkpoint Flag Enforcement Test Suite",
       status: "Active",
       first_name: "Eligible2",
       last_name: "Student",
+      email_verified: true,
     });
     await Student.create({
       user_id: eligibleStudent2.user_id,
@@ -140,6 +142,7 @@ describe("Reservation FIFO Queue & Dual-Checkpoint Flag Enforcement Test Suite",
       status: "Active",
       first_name: "Flagged",
       last_name: "Student",
+      email_verified: true,
     });
     await Student.create({
       user_id: flaggedStudent.user_id,
