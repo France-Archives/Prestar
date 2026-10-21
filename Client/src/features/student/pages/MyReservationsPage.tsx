@@ -5,7 +5,8 @@ import EmptyState from "@/components/feedback/EmptyState";
 import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
 import Tabs from "@/components/ui/Tabs";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
 import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import { matchesSearch, useSearchTerm } from "@/hooks/useSearchTerm";
@@ -52,7 +53,7 @@ export default function MyReservationsPage() {
 
   return (
     <div className="page">
-      <PageHeader eyebrow="Student" title="Reservations" description="Reservations are first-in, first-out and exist only when no copy is available. An offered copy is held for 3 days." />
+      <PageHero eyebrow="Student" title="Reservations" description="Reservations are first-in, first-out and exist only when no copy is available. An offered copy is held for 3 days." leading={<BackButton fallback={ROUTES.student.dashboard} />} />
       <Tabs<Tab> tabs={[{ key: "active", label: "Active", count: active.length }, { key: "closed", label: "Closed", count: closed.length }]} active={tab} onChange={setTab} />
       {list.loading ? (
         <LoadingState rows={3} />
