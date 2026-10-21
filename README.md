@@ -30,15 +30,16 @@ Administrator and librarian logins are listed on the login page. The librarians 
 
 ### Server (Backend)
 
-#### Signup Proof Upload API
-Create an account with `POST /api/auth/signup` using the existing JSON signup fields. If the submitted details do not match a student record, the API returns `202` with `proof_required: true`, a `reference_no`, a short-lived `proof_upload_token` (valid for 30 minutes), and a `proof_upload_url`. The frontend must retain the token securely for the upload; the reference number by itself cannot authorize an upload.
+#### Signup Proof Upload
+The `20261007_add_signup_proof_bytea.sql` migration adds proof-image columns to `signups`, but the current auth routes, controller, and signup service do not implement a proof-upload flow. Current student registration uses institutional email and OTP verification as documented below; do not expect a `202` proof-required response or an upload URL.
 
-Upload the enrollment photo to the returned URL with `multipart/form-data`: use `proof` as the file field and send `Authorization: Bearer <proof_upload_token>`. JPEG, PNG, and WebP images are accepted up to 5 MB. The token is bound to that signup and can attach only one proof image.
+#### Student Signup Email Verification
+`POST /api/auth/signup` stores a pending signup payload and sends a six-digit OTP; it creates no `users` or `students` rows until `POST /api/auth/signup/verify-otp` succeeds. Signup OTPs are bcrypt-hashed, expire in 10 minutes, allow five failed attempts, and are single-use. Resending has a two-minute cooldown and a maximum of three sends per 24-hour window. The resend counter is not reset by each cooldown. A failed or unconfigured Gmail delivery is an error; OTPs are not returned or logged.
 
-Proof bytes are stored in PostgreSQL in the `signups.proof_image` `BYTEA` column, with the validated media type in `signups.proof_mime_type`. Apply `Server/migrations/20261007_add_signup_proof_bytea.sql` before deploying the updated backend. The upload is not exposed through a public URL; future reviewer access should be through an authenticated, role-protected endpoint.
+The signup record stores accepted Terms and Privacy timestamps, plus optional middle name and suffix. Apply `Server/migrations/20261018_signup_profile_and_consent.sql` before deploying this version.
 
-#### Email OTP Verification System
-A standalone email verification system using PostgreSQL and Gmail API OAuth2.
+#### Standalone Email OTP Verification System
+This is a separate endpoint flow from student registration. It uses PostgreSQL and HMAC-SHA256 OTP hashes to verify the email of an existing account; it does not create a user or student.
 
 ##### Endpoints
 1. `POST /api/otp/request`
@@ -59,7 +60,7 @@ A standalone email verification system using PostgreSQL and Gmail API OAuth2.
      - Constant-time HMAC-SHA256 comparison (`crypto.timingSafeEqual`)
      - Atomic attempt increment with lockout after 5 failed attempts (deletes row)
      - Single-use deletion on verification success
-     - Updates `users.email_verified = true`
+     - Updates `users.email_verified = true` for an existing user
 
 ##### Environment Setup
 Add the following to `Server/.env`:

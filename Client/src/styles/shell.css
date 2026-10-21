@@ -12,8 +12,21 @@
   transition: grid-template-columns var(--dur-slow) var(--ease-out-expo);
 }
 @media (min-width: 768px) {
+  .app-shell {
+    grid-template-rows: 0 minmax(0, 1fr);
+  }
   .app-shell[data-collapsed="true"] {
     --sb: var(--sidebar-w-collapsed);
+  }
+  .app-sidebar {
+    position: fixed;
+    top: var(--header-h);
+    bottom: 0;
+    left: 0;
+    width: var(--sb);
+  }
+  .app-main {
+    padding-top: var(--header-h);
   }
 }
 @media (max-width: 767.98px) {
@@ -34,6 +47,13 @@
   -webkit-backdrop-filter: saturate(1.3) blur(14px);
   backdrop-filter: saturate(1.3) blur(14px);
   border-bottom: 1px solid color-mix(in srgb, var(--color-line) 70%, transparent);
+}
+@media (min-width: 768px) {
+  .app-header {
+    position: fixed;
+    left: 0;
+    right: 0;
+  }
 }
 .app-header__inner {
   display: grid;
@@ -166,14 +186,9 @@
 .app-sidebar {
   grid-column: 1;
   grid-row: 2;
-  position: sticky;
-  top: var(--header-h);
-  align-self: start;
   z-index: 35;
   display: flex;
   flex-direction: column;
-  height: calc(100vh - var(--header-h));
-  height: calc(100dvh - var(--header-h));
   min-width: 0;
   overflow: hidden;
   background: var(--color-forest-deep);
