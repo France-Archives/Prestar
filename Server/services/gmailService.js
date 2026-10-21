@@ -47,6 +47,11 @@ export async function sendOtpEmail(toEmail, otpCode, firstName = "") {
   const senderEmail = process.env.GMAIL_USER;
 
   if (!clientId || !clientSecret || !refreshToken || !senderEmail) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(`[Gmail API] Dev mode — credentials missing, email not sent.`);
+      console.warn(`🔑 [DEV/TEST OTP for ${toEmail}] (${firstName || "unknown"}): ${otpCode}\n`);
+      return { sent: true, devMode: true };
+    }
     throw new Error("Gmail API credentials are not configured.");
   }
 
@@ -89,7 +94,14 @@ export async function sendOtpEmail(toEmail, otpCode, firstName = "") {
       },
     });
     return { sent: true };
-  } catch {
+  } catch (error) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(
+        `\n⚠️  [Gmail API] Failed to send email (${error.message}). Falling back to console log for development/test.`,
+      );
+      console.warn(`🔑 [DEV/TEST OTP for ${toEmail}] (${firstName || "unknown"}): ${otpCode}\n`);
+      return { sent: true, devMode: true };
+    }
     throw new Error("Verification email delivery failed.");
   }
 }
