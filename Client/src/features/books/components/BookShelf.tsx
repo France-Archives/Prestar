@@ -62,19 +62,27 @@ export default function BookShelf({ items, onSelect, selectedId = null, layout =
     );
   }
 
-  // Covers stay readable: never narrower than 124px, and at least 2 per shelf.
+  // Covers stay readable: never narrower than 124px, with at least 1 per shelf.
   const cw = width < 480 ? 124 : width > 1100 ? 156 : 140;
-  const perRow = Math.max(2, Math.floor((width - SIDE_PAD + GAP) / (cw + GAP)));
+  const perRow = Math.max(1, Math.floor((width - SIDE_PAD + GAP) / (cw + GAP)));
   const rows: ShelfItem[][] = [];
   for (let i = 0; i < items.length; i += perRow) rows.push(items.slice(i, i + perRow));
 
   const cover = (item: ShelfItem) => {
     const inner = (
-      <>
-        <BookCover src={item.coverUrl} title={item.title} author={item.subtitle} />
-        {item.rank !== undefined && <span className="book-card__rank" aria-hidden="true">{item.rank}</span>}
-        <span className="book-card__hint" aria-hidden="true">View details</span>
-      </>
+      <div className="book-card__3d">
+        <div className="book-card__3d-face book-card__3d-front">
+          <BookCover src={item.coverUrl} title={item.title} author={item.subtitle} />
+        </div>
+        <div className="book-card__3d-face book-card__3d-spine" aria-hidden="true" />
+        <div className="book-card__3d-face book-card__3d-pages" aria-hidden="true" />
+        <div className="book-card__3d-face book-card__3d-top" aria-hidden="true" />
+        <div className="book-card__3d-face book-card__3d-back" aria-hidden="true" />
+        <div className="book-card__3d-overlay">
+          {item.rank !== undefined && <span className="book-card__rank" aria-hidden="true">{item.rank}</span>}
+          <span className="book-card__hint" aria-hidden="true">View details</span>
+        </div>
+      </div>
     );
     return onSelect ? (
       <button type="button" className="book-card__cover" aria-label={`View ${item.title}`} aria-haspopup="dialog" aria-pressed={selectedId === item.id} onClick={() => onSelect(item)}>
@@ -90,15 +98,18 @@ export default function BookShelf({ items, onSelect, selectedId = null, layout =
   return (
     <div ref={ref} className="bshelf-wrap">
       {rows.map((row, r) => (
-        <div key={r} className="bshelf" style={{ "--cw": `${cw}px`, "--gap": `${GAP}px`, "--n": row.length } as CSSProperties}>
-          <ul className="bshelf__books">
-            {row.map((item) => (
-              <li key={item.id} className={`bshelf__slot${selectedId === item.id ? " is-selected" : ""}`}>
-                {cover(item)}
-              </li>
-            ))}
-          </ul>
-          <div className="bshelf__plank" aria-hidden="true" />
+        <div key={r} className="bshelf" style={{ "--cw": `${cw}px`, "--gap": `${GAP}px`, "--n": perRow } as CSSProperties}>
+          <div className="bshelf__stage">
+            <ul className="bshelf__books">
+              {row.map((item) => (
+                <li key={item.id} className={`bshelf__slot${selectedId === item.id ? " is-selected" : ""}`}>
+                  {cover(item)}
+                </li>
+              ))}
+            </ul>
+            <div className="bshelf__plank" aria-hidden="true" />
+            <div className="bshelf__front" aria-hidden="true" />
+          </div>
           <ul className="bshelf__labels">
             {row.map((item) => (
               <li key={item.id} className="book-card__meta">

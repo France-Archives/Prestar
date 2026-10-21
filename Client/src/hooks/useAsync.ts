@@ -10,7 +10,7 @@ export interface AsyncState<T> {
 
 // Runs an async service call on mount and whenever deps change. The newest call wins, so a slow
 // older response can never overwrite a newer one. Existing data stays visible while reloading.
-export function useAsync<T>(fn: () => Promise<T>, deps: unknown[]): AsyncState<T> {
+export function useAsync<T>(fn: () => Promise<T>, deps: unknown[], enabled = true): AsyncState<T> {
   const [state, setState] = useState<{ data: T | null; loading: boolean; error: string | null }>({
     data: null,
     loading: true,
@@ -32,9 +32,10 @@ export function useAsync<T>(fn: () => Promise<T>, deps: unknown[]): AsyncState<T
   }, []);
 
   useEffect(() => {
+    if (!enabled) return;
     void run();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
+  }, [enabled, ...deps]);
 
   return { ...state, reload: run };
 }

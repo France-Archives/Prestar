@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
 import Pagination from "@/components/data-display/Pagination";
@@ -10,17 +10,75 @@ import type { BookListParams } from "@/types";
 import BookFilters, { type BookFilterValues } from "../components/BookFilters";
 import BookGrid from "../components/BookGrid";
 
-const PAGE_SIZE = 12;
+const ROWS_PER_PAGE = 2;
+const SHELF_GAP = 16;
+const SHELF_SIDE_PAD = 32;
+
+function columnsForWidth(width: number): number {
+  const columnWidth = width < 480 ? 124 : width > 1100 ? 156 : 140;
+  return Math.max(1, Math.floor((width - SHELF_SIDE_PAD + SHELF_GAP) / (columnWidth + SHELF_GAP)));
+}
 
 export default function BookCatalogPage() {
+  const catalogRef = useRef<HTMLDivElement>(null);
+  const columnsRef = useRef(6);
+  const [columns, setColumns] = useState(6);
+  const [columnsReady, setColumnsReady] = useState(false);
+  const pageSize = columns * ROWS_PER_PAGE;
+  const pageSizeRef = useRef(pageSize);
+
   // The search text lives in the URL (?q=): typing in the navbar box OR the box below updates the same value.
   const [search, setSearch] = useSearchTerm();
+  const searchRef = useRef(search);
+  searchRef.current = search;
   const [filters, setFilters] = useState<Pick<BookFilterValues, "categoryId" | "availability">>({ categoryId: "", availability: "" });
 
   // A new search always starts at page 1 (derived, so no extra request with the old page number).
   const [pageState, setPageState] = useState({ page: 1, search });
   const page = pageState.search === search ? pageState.page : 1;
-  const setPage = (p: number) => setPageState({ page: p, search });
+  const pageRef = useRef(page);
+  pageRef.current = page;
+  pageSizeRef.current = pageSize;
+  const setPage = (p: number) => {
+    pageRef.current = p;
+    setPageState({ page: p, search });
+  };
+
+  useLayoutEffect(() => {
+    const element = catalogRef.current;
+    if (!element) return;
+
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const updateColumns = (width: number) => {
+      const nextColumns = columnsForWidth(width);
+      if (nextColumns === columnsRef.current) return;
+
+      const firstVisibleIndex = (pageRef.current - 1) * pageSizeRef.current;
+      const nextPage = Math.floor(firstVisibleIndex / (nextColumns * ROWS_PER_PAGE)) + 1;
+      columnsRef.current = nextColumns;
+      pageSizeRef.current = nextColumns * ROWS_PER_PAGE;
+      pageRef.current = nextPage;
+      setColumns(nextColumns);
+      setPageState((current) => (
+        current.search === searchRef.current && current.page === nextPage
+          ? current
+          : { page: nextPage, search: searchRef.current }
+      ));
+    };
+
+    updateColumns(element.clientWidth);
+    setColumnsReady(true);
+    const observer = new ResizeObserver(([entry]) => {
+      if (timeout) clearTimeout(timeout);
+      timeout = setTimeout(() => updateColumns(entry.contentRect.width), 100);
+    });
+    observer.observe(element);
+
+    return () => {
+      if (timeout) clearTimeout(timeout);
+      observer.disconnect();
+    };
+  }, []);
 
   const categories = useAsync(() => booksService.listCategories(), []);
   const books = useAsync(
@@ -30,9 +88,10 @@ export default function BookCatalogPage() {
         categoryId: filters.categoryId || undefined,
         availability: (filters.availability || undefined) as BookListParams["availability"],
         page,
-        pageSize: PAGE_SIZE,
+        pageSize,
       }),
-    [search, filters.categoryId, filters.availability, page],
+    [search, filters.categoryId, filters.availability, page, pageSize],
+    columnsReady,
   );
 
   const change = (next: BookFilterValues) => {
@@ -42,13 +101,13 @@ export default function BookCatalogPage() {
   };
 
   const meta = books.data?.meta;
-  const totalPages = meta ? Math.max(1, Math.ceil(meta.total / meta.pageSize)) : 1;
+  const totalPages = meta ? Math.max(1, Math.ceil(meta.total / pageSize)) : 1;
 
   return (
     <div className="page">
       <PageHeader eyebrow="Library" title="Book catalog" description="Search the collection. Request an available book or reserve one when every copy is out." />
       <BookFilters values={{ search, ...filters }} categories={categories.data ?? []} onChange={change} />
-      <div style={{ marginTop: 14 }}>
+      <div ref={catalogRef} style={{ marginTop: 14 }}>
         {books.loading ? (
           <LoadingState rows={3} />
         ) : books.error ? (
@@ -60,15 +119,17 @@ export default function BookCatalogPage() {
             </p>
             <BookGrid books={books.data?.data ?? []} />
             {meta && (
-              <Pagination
-                page={meta.page}
-                totalPages={totalPages}
-                from={meta.total === 0 ? 0 : (meta.page - 1) * meta.pageSize + 1}
-                to={Math.min(meta.total, meta.page * meta.pageSize)}
-                total={meta.total}
-                onPrev={() => setPage(Math.max(1, page - 1))}
-                onNext={() => setPage(Math.min(totalPages, page + 1))}
-              />
+              <div className="book-catalog__pager">
+                <Pagination
+                  page={meta.page}
+                  totalPages={totalPages}
+                  from={meta.total === 0 ? 0 : (meta.page - 1) * pageSize + 1}
+                  to={Math.min(meta.total, meta.page * pageSize)}
+                  total={meta.total}
+                  onPrev={() => setPage(Math.max(1, page - 1))}
+                  onNext={() => setPage(Math.min(totalPages, page + 1))}
+                />
+              </div>
             )}
           </>
         )}
