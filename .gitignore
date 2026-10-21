@@ -141,3 +141,10 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Private file storage
+Server/storage/
+Server/uploads/
+storage/
+uploads/
+

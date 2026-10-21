@@ -22,6 +22,7 @@ import defineAcademicTerm from "./AcademicTerm.js";
 import defineStudentVerification from "./StudentVerification.js";
 import defineAuditLog from "./AuditLog.js";
 import defineUserCategoryPreference from "./UserCategoryPreference.js";
+import defineNotification from "./Notification.js";
 
 export const sequelize = new Sequelize(
   config.database,
@@ -52,6 +53,7 @@ export const AcademicTerm = defineAcademicTerm(sequelize);
 export const StudentVerification = defineStudentVerification(sequelize);
 export const AuditLog = defineAuditLog(sequelize);
 export const UserCategoryPreference = defineUserCategoryPreference(sequelize);
+export const Notification = defineNotification(sequelize);
 
 // User 1-to-1 extensions
 User.hasOne(Student, { foreignKey: "user_id", as: "student" });
@@ -120,5 +122,9 @@ Suspension.belongsTo(User, { foreignKey: "user_id", as: "student" });
 // User Category Preferences
 UserCategoryPreference.belongsTo(User, { foreignKey: "user_id", as: "user" });
 UserCategoryPreference.belongsTo(Category, { foreignKey: "category_id", as: "category" });
+
+// Notifications
+User.hasMany(Notification, { foreignKey: "user_id", as: "notifications" });
+Notification.belongsTo(User, { foreignKey: "user_id", as: "user" });
 
 export default sequelize;

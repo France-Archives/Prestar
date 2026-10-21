@@ -1,9 +1,12 @@
 // Server/middleware/authMiddleware.js
 import jwt from "jsonwebtoken";
 import { User } from "../models/index.js";
-
 export default async function authMiddleware(req, res, next) {
-  const token = req.cookies?.auth_token;
+  const authHeader = req.headers?.authorization;
+  const bearerToken = typeof authHeader === "string" && authHeader.startsWith("Bearer ")
+    ? authHeader.slice(7).trim()
+    : null;
+  const token = req.cookies?.auth_token || bearerToken;
   if (!token) {
     return res.status(401).json({ error: "Authentication required." });
   }

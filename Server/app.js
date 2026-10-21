@@ -12,6 +12,8 @@ import otpRoutes from "./routes/otpRoutes.js";
 import verificationRoutes from "./routes/verificationRoutes.js";
 import reservationRoutes from "./routes/reservationRoutes.js";
 import studentDashboardRoutes from "./routes/studentDashboardRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -24,7 +26,8 @@ const allowedOrigins = new Set(
 
 app.use(helmet());
 app.use(morgan("common"));
-app.use(express.json());
+app.use(express.json({ limit: "15mb" }));
+app.use(express.urlencoded({ extended: true, limit: "15mb" }));
 app.use(cookieParser());
 app.use(cors({
 	origin(origin, callback) {
@@ -43,6 +46,8 @@ app.use("/api/borrowing-requests", borrowRequestRoutes);
 app.use("/api/borrowed-books", borrowedBookRoutes);
 app.use("/api/otp", otpRoutes);
 app.use("/api/reservations", reservationRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/notifications", notificationRoutes);
 app.use("/api", studentDashboardRoutes);
 app.use("/api", verificationRoutes);
 

@@ -17,6 +17,8 @@
 6. [Common Error Responses](#6-common-error-responses)
 7. [Academic Terms & COR Verification](#7-academic-terms--cor-verification)
 8. [Reservations (FIFO Queue System)](#8-reservations-fifo-queue-system)
+9. [Notifications](#9-notifications)
+10. [Admin Account Management](#10-admin-account-management)
 
 ---
 
@@ -473,7 +475,7 @@ Submit a new borrow request for an active book. The system automatically perform
 
 **Automated System Flag Validation:**
 Before creating a request, the system checks all student eligibility flags:
-1. **Account Status**: Must be `Active` with role `Student`.
+1. **Account Status & Email Verification**: Must be `Active` with role `Student` and verified email (`email_verified: true`). If email is not verified, rejects with `EMAIL_NOT_VERIFIED`.
 2. **Academic Term & COR Verification**: Active term must exist, and student's COR for that term must be `Approved` (and not expired).
 3. **Account Suspensions**: Student must have no active suspensions.
 4. **Penalties**: Student must have no unpaid/active penalties.
@@ -481,7 +483,7 @@ Before creating a request, the system checks all student eligibility flags:
 6. **Total Loan Limit**: Must not exceed max **10** active library loans/reservations (`MAX_ACTIVE_BORROWS = 10`).
 7. **Copy Availability**: Book must have at least one copy in `Available` status with `condition_status = 'Good'`.
 
-> **Note on Rejections**: If any single flag is triggered or no copy is available, the request is rejected immediately. The response body is **strictly a message** stating why it was rejected based on the detected flag.
+> **Note on Rejections**: If any single flag is triggered or no copy is available, the request is rejected immediately. The response body is **strictly a message** stating why it was rejected based on the detected flag. Common rejection reasons include `"Student email address must be verified before borrowing."` (`EMAIL_NOT_VERIFIED`).
 
 **Request body**
 ```json
@@ -1124,6 +1126,7 @@ Returns the list of academic terms sorted by start date.
 ```
 
 ### 7.2 `GET /api/me/verifications`
+*(Alias: `GET /api/verifications/me`)*  
 Returns the authenticated student's COR verifications.
 
 **Success `200`**
@@ -1145,20 +1148,114 @@ Returns the authenticated student's COR verifications.
 ```
 
 ### 7.3 `POST /api/me/verifications`
-Submits a student COR proof document.
+*(Alias: `POST /api/verifications`)*  
+Submits a student COR proof document. Supports two upload modes: **multipart file upload** (camera capture / file picker) or **JSON body with base64-encoded image data**. Previous pending verifications for the same term are automatically superseded. Creates a `COR_SUBMITTED` notification for the student.
 
-**Payload:**
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Student |
+| **Max file size** | 10 MB |
+| **Allowed types** | JPEG, PNG, WEBP, PDF |
+
+**Mode 1: Multipart/form-data (file upload)**
+```
+Content-Type: multipart/form-data
+
+file: <binary image/pdf>
+```
+
+**Mode 2: JSON body (base64 / data URL)**
 ```json
 {
-  "proof_file": "cor_document_data_or_url"
+  "proof_file": "data:image/jpeg;base64,/9j/4AAQ..."
 }
 ```
 
-### 7.4 `GET /api/staff/verifications`
-*(Role: Librarian, Admin)* Lists the verification queue with optional `?status=Pending` and `?search=`.
+**Success `201`**
+```json
+{
+  "id": "1",
+  "verificationId": "1",
+  "userId": "42",
+  "termId": "1",
+  "termName": "1st Semester 2026-2027",
+  "status": "Pending",
+  "validFrom": null,
+  "validUntil": null,
+  "submittedAt": "2026-10-21T08:00:00.000Z",
+  "reviewedAt": null,
+  "originalFileName": "camera_cor.jpg",
+  "proofFile": "cor_42_1729497600000_a1b2c3d4.jpg"
+}
+```
 
-### 7.5 `POST /api/staff/verifications/:id/approve`
-*(Role: Librarian, Admin)* Approves student COR, setting `valid_from` to the approval date, `valid_until` to the term's end date, and status to `Approved`.
+**Errors**
+| Code | Meaning |
+|---|---|
+| `400` | No file / image data provided |
+| `401` | Not authenticated |
+| `422` | Invalid file type or file exceeds 10 MB |
+
+---
+
+### 7.4 `GET /api/me/verifications/:id/document`
+Securely streams the stored COR document to the student who owns it. Files are served inline from private storage with appropriate MIME type detection. Prevents directory traversal.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Student (owner) or Staff |
+
+**Success `200`**: Binary stream with headers:
+- `Content-Type`: detected MIME type (`image/jpeg`, `image/png`, `image/webp`, `application/pdf`)
+- `Content-Disposition`: `inline; filename="cor_42_..._a1b2c3d4.jpg"`
+- `Cache-Control`: `private, no-cache, no-store, must-revalidate`
+
+**Errors**
+| Code | Meaning |
+|---|---|
+| `401` | Not authenticated |
+| `403` | Not the owner and not Staff |
+| `404` | Verification record or file not found |
+
+---
+
+### 7.5 `GET /api/staff/verifications`
+*(Role: Librarian, Admin)* Lists the verification queue with optional `?status=Pending` and `?search=`. Now includes student profile details (student number, college, course) and the stored proof file name.
+
+**Success `200`**
+```json
+{
+  "verifications": [
+    {
+      "id": "1",
+      "verificationId": "1",
+      "userId": "42",
+      "termId": "1",
+      "termName": "1st Semester 2026-2027",
+      "status": "Pending",
+      "submittedAt": "2026-10-21T08:00:00.000Z",
+      "originalFileName": "cor_42_1729497600000_a1b2c3d4.jpg",
+      "proofFile": "cor_42_1729497600000_a1b2c3d4.jpg",
+      "student": {
+        "id": "42",
+        "studentNumber": "2024-00001",
+        "name": "Juan Dela Cruz",
+        "email": "student@wmsu.edu.ph",
+        "college": "College of Computer Studies",
+        "course": "BS Information Technology"
+      }
+    }
+  ]
+}
+```
+
+---
+
+### 7.6 `POST /api/staff/verifications/:id/approve`
+*(Role: Librarian, Admin)* (Alias: `POST /api/verifications/:id/approve`)
+Approves student COR, setting `valid_from` to the approval date, `valid_until` to the term's end date, and status to `Approved`. Creates a `COR_APPROVED` notification for the student.
 
 **Payload:**
 ```json
@@ -1167,8 +1264,11 @@ Submits a student COR proof document.
 }
 ```
 
-### 7.6 `POST /api/staff/verifications/:id/reject`
-*(Role: Librarian, Admin)* Rejects student COR with required reason.
+---
+
+### 7.7 `POST /api/staff/verifications/:id/reject`
+*(Role: Librarian, Admin)* (Alias: `POST /api/verifications/:id/reject`)
+Rejects student COR with a required reason. Student verification status remains unverified. Creates a `COR_REJECTED` notification for the student with the rejection reason.
 
 **Payload:**
 ```json
@@ -1176,6 +1276,44 @@ Submits a student COR proof document.
   "reason": "Document blurred or invalid term"
 }
 ```
+
+**Errors**
+| Code | Meaning |
+|---|---|
+| `400` | Reason is required and must not be empty |
+
+---
+
+### 7.8 `GET /api/staff/verifications/:id/document`
+*(Role: Librarian, Admin)* Securely streams the stored COR proof document for staff review. Same streaming behavior as the student endpoint (7.4).
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Librarian or Admin |
+
+**Success `200`**: Binary stream with detected MIME type.
+
+**Errors**
+| Code | Meaning |
+|---|---|
+| `401` | Not authenticated |
+| `403` | Role not allowed |
+| `404` | Verification record or file not found |
+
+---
+
+### COR File Storage
+
+COR documents are stored in a **private file system** at `Server/storage/cor/` which is excluded from version control via `.gitignore`. Files are named `cor_<userId>_<timestamp>_<random>.ext` to prevent collisions and ensure traceability.
+
+| Property | Detail |
+|---|---|
+| **Storage path** | `Server/storage/cor/` |
+| **Max size** | 10 MB |
+| **Allowed types** | JPEG, PNG, WEBP, PDF |
+| **Security** | Directory traversal prevention via `path.basename()` |
+| **Access** | Streaming only via authenticated API endpoints |
 
 ---
 
@@ -1193,8 +1331,8 @@ The system implements a **Dual-Checkpoint Flag Enforcement Architecture**:
 ```
 [Student joins queue]
          │
-  (Checkpoint 1) ──► Check flags (COR, suspensions, penalties, limits)
-         │           • If any flag exists ──► Reject with message only
+  (Checkpoint 1) ──► Check flags (Email verification, COR, suspensions, penalties, limits)
+         │           • If any flag exists (e.g. unverified email) ──► Reject with message only
          │           • Duplicate entry check ──► Reject if already waiting/ready
          ▼
 [In FIFO Queue (status: 'Waiting')]
@@ -1203,9 +1341,9 @@ The system implements a **Dual-Checkpoint Flag Enforcement Architecture**:
          ▼
   (Checkpoint 2) ──► System Automated Queue Processor:
                      1. Inspects queue front (`ORDER BY reservation_date ASC`).
-                     2. Re-evaluates student flags (COR, account status, limits).
+                     2. Re-evaluates student flags (Email verification, COR, account status, limits).
                      3. Flagged student? ──► Mark reservation 'Cancelled' with remarks:
-                                              "Skipped: <flagReason>",
+                                              "Skipped: <flagReason>" (e.g. unverified email),
                                               and automatically advance to NEXT student.
                      4. Eligible student? ──► Lock available copy ('Reserved'),
                                               auto-create Approved BorrowRequest,
@@ -1260,6 +1398,7 @@ Returns a message stating specifically why the reservation was rejected:
 }
 ```
 *Other common rejection messages:*
+- `"Reservation rejected: Student email address must be verified before borrowing."`
 - `"Reservation rejected: You are already in the reservation queue for this title."`
 - `"Reservation rejected: Student enrollment verification is required for the active academic term."`
 - `"Reservation rejected: Student account has active suspension(s)."`
@@ -1391,4 +1530,290 @@ Staff endpoint to monitor the global reservation queues across books.
 
 ---
 
-*Generated: 2026-10-18 — Prestar Library Management System Backend v3*
+## 9. Notifications
+
+**Prefix**: `/api/notifications`  
+All routes require authentication (`auth_token` cookie or `Authorization: Bearer <token>` header). Notifications are created automatically by the system during COR lifecycle events (submit, approve, reject).
+
+### Notification Types
+
+| Type | Trigger | Recipient |
+|---|---|---|
+| `COR_SUBMITTED` | Student submits a COR document | Student |
+| `COR_APPROVED` | Staff approves a COR | Student |
+| `COR_REJECTED` | Staff rejects a COR | Student |
+
+### Notification Shape
+```json
+{
+  "id": "1",
+  "type": "COR_APPROVED",
+  "title": "COR approved",
+  "message": "Your COR for 1st Semester 2026-2027 was approved. It is valid until 2026-12-31. You can now borrow books.",
+  "relatedEntityType": "STUDENT_VERIFICATION",
+  "relatedEntityId": "5",
+  "readAt": null,
+  "createdAt": "2026-10-21T09:30:00.000Z"
+}
+```
+
+---
+
+### 9.1 `GET /api/notifications`
+List the authenticated user's notifications (newest first, paginated).
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Any authenticated user |
+
+**Query parameters**
+| Param | Type | Default | Description |
+|---|---|---|---|
+| `page` | integer | `1` | Page number |
+| `pageSize` | integer | `20` | Items per page (max 100) |
+| `unreadOnly` | string | — | Set to `"true"` to return only unread notifications |
+
+**Success `200`**
+```json
+{
+  "items": [
+    {
+      "id": "1",
+      "type": "COR_APPROVED",
+      "title": "COR approved",
+      "message": "Your COR for 1st Semester 2026-2027 was approved...",
+      "relatedEntityType": "STUDENT_VERIFICATION",
+      "relatedEntityId": "5",
+      "readAt": null,
+      "createdAt": "2026-10-21T09:30:00.000Z"
+    }
+  ],
+  "total": 3,
+  "page": 1,
+  "pageSize": 20,
+  "totalPages": 1
+}
+```
+
+---
+
+### 9.2 `GET /api/notifications/unread-count`
+Returns the count of unread notifications for the authenticated user.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Any authenticated user |
+
+**Success `200`**
+```json
+{
+  "unreadCount": 5
+}
+```
+
+---
+
+### 9.3 `POST /api/notifications/:id/read`
+Mark a single notification as read. Idempotent — calling on an already-read notification is a no-op.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Any authenticated user (owner) |
+
+**Path parameter**: `id` — notification ID.
+
+**Success `200`**
+```json
+{
+  "id": "1",
+  "type": "COR_APPROVED",
+  "title": "COR approved",
+  "message": "Your COR was approved...",
+  "relatedEntityType": "STUDENT_VERIFICATION",
+  "relatedEntityId": "5",
+  "readAt": "2026-10-21T10:00:00.000Z",
+  "createdAt": "2026-10-21T09:30:00.000Z"
+}
+```
+
+**Errors**
+| Code | Meaning |
+|---|---|
+| `404` | Notification not found or does not belong to user |
+
+---
+
+### 9.4 `POST /api/notifications/read-all`
+Mark all of the authenticated user's unread notifications as read.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Any authenticated user |
+
+**Success `200`**
+```json
+{
+  "message": "All notifications marked as read."
+}
+```
+
+---
+
+## 10. Admin Account Management
+
+**Prefix**: `/api/admin`  
+All routes require authentication **and** the `Admin` role. Uses standard password creation (bcrypt, 10 salt rounds). Created accounts are immediately `Active` with `emailVerified: true`.
+
+### Validation Rules (shared)
+
+| Field | Rule |
+|---|---|
+| `email` | Valid email format, max 255 chars, must be unique |
+| `password` | Min 8 chars, max 72 bytes, must contain at least 1 letter + 1 number |
+| `firstName` / `first_name` | Required, max 100 chars, letters/spaces/periods/dashes only |
+| `lastName` / `last_name` | Required, max 100 chars, letters/spaces/periods/dashes only |
+| `employeeNumber` / `employee_number` | Optional, max 50 chars |
+
+---
+
+### 10.1 `POST /api/admin/librarians`
+*(Alias: `POST /api/admin/create-librarian`)*
+Creates a new Librarian account. The account is created with `role: "Librarian"`, `status: "Active"`, and `email_verified: true`. A row in the `librarians` table is also created.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Admin only |
+
+**Request body**
+```json
+{
+  "email": "librarian@wmsu.edu.ph",
+  "password": "SecurePass123",
+  "firstName": "Maria",
+  "lastName": "Santos",
+  "employeeNumber": "EMP-2024-001"
+}
+```
+
+**Success `201`**
+```json
+{
+  "message": "Librarian account created successfully.",
+  "user": {
+    "id": "15",
+    "userId": "15",
+    "email": "librarian@wmsu.edu.ph",
+    "firstName": "Maria",
+    "lastName": "Santos",
+    "displayName": "Maria Santos",
+    "role": "Librarian",
+    "status": "Active",
+    "employeeNumber": "EMP-2024-001",
+    "emailVerified": true
+  }
+}
+```
+
+**Errors**
+| Code | Meaning |
+|---|---|
+| `400` | Validation error (invalid email, weak password, missing name) |
+| `401` | Not authenticated |
+| `403` | Not an Admin |
+| `409` | Email already registered |
+
+---
+
+### 10.2 `POST /api/admin/admins`
+*(Alias: `POST /api/admin/create-admin`)*
+Creates a new Admin account. Same validation and behavior as Librarian creation, but with `role: "Admin"` and a row in the `admins` table.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Admin only |
+
+**Request body**
+```json
+{
+  "email": "admin2@wmsu.edu.ph",
+  "password": "SecurePass456",
+  "firstName": "Jose",
+  "lastName": "Rizal",
+  "employeeNumber": "EMP-2024-002"
+}
+```
+
+**Success `201`**
+```json
+{
+  "message": "Admin account created successfully.",
+  "user": {
+    "id": "16",
+    "userId": "16",
+    "email": "admin2@wmsu.edu.ph",
+    "firstName": "Jose",
+    "lastName": "Rizal",
+    "displayName": "Jose Rizal",
+    "role": "Admin",
+    "status": "Active",
+    "employeeNumber": "EMP-2024-002",
+    "emailVerified": true
+  }
+}
+```
+
+**Errors**
+| Code | Meaning |
+|---|---|
+| `400` | Validation error |
+| `401` | Not authenticated |
+| `403` | Not an Admin |
+| `409` | Email already registered |
+
+---
+
+## Appendix: Authentication Methods
+
+The auth middleware now supports **two** token delivery methods (checked in order):
+
+1. **HTTP-only cookie** (`auth_token`) — default, set by login
+2. **Authorization header** (`Authorization: Bearer <token>`) — for API clients / testing
+
+Both methods use the same JWT verification and user lookup logic.
+
+---
+
+## Appendix: Migration Required
+
+### `20261021_create_notifications_table.sql`
+
+Creates the `notifications` table with indexes:
+
+```sql
+CREATE TABLE IF NOT EXISTS public.notifications (
+    notification_id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES public.users(user_id) ON DELETE CASCADE,
+    type VARCHAR(100) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    related_entity_type VARCHAR(100),
+    related_entity_id BIGINT,
+    read_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON public.notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_read_at ON public.notifications(read_at);
+CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON public.notifications(created_at DESC);
+```
+
+---
+
+*Generated: 2026-10-21 — Prestar Library Management System Backend v4*
