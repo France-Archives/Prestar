@@ -2,7 +2,9 @@ import { useLayoutEffect, useRef, useState } from "react";
 import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
 import Pagination from "@/components/data-display/Pagination";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
+import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import { useSearchTerm } from "@/hooks/useSearchTerm";
 import * as booksService from "@/services/booksService";
@@ -105,7 +107,7 @@ export default function BookCatalogPage() {
 
   return (
     <div className="page">
-      <PageHeader eyebrow="Library" title="Book catalog" description="Search the collection. Request an available book or reserve one when every copy is out." />
+      <PageHero eyebrow="Library" title="Book catalog" description="Search the collection. Request an available book or reserve one when every copy is out." leading={<BackButton fallback={ROUTES.student.dashboard} />} />
       <BookFilters values={{ search, ...filters }} categories={categories.data ?? []} onChange={change} />
       <div ref={catalogRef} style={{ marginTop: 14 }}>
         {books.loading ? (

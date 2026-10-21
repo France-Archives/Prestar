@@ -2,7 +2,8 @@ import { useParams } from "react-router-dom";
 import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
 import Breadcrumbs from "@/components/navigation/Breadcrumbs";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
 import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import * as booksService from "@/services/booksService";
@@ -22,7 +23,7 @@ export default function BookDetailsPage() {
   return (
     <div className="page">
       <Breadcrumbs items={[{ label: "Book catalog", to: ROUTES.student.books }, { label: book.title }]} />
-      <PageHeader eyebrow={book.category?.name ?? "Book"} title={book.title} description={`by ${authors}`} />
+      <PageHero eyebrow={book.category?.name ?? "Book"} title={book.title} description={`by ${authors}`} leading={<BackButton fallback={ROUTES.student.dashboard} />} />
       <BookDetailsContent book={book} reload={() => void reload()} large />
     </div>
   );

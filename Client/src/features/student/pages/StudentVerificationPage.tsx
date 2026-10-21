@@ -4,7 +4,8 @@ import DataTable, { type Column } from "@/components/data-display/DataTable";
 import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
 import StatusBadge from "@/components/data-display/StatusBadge";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
 import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import * as verificationService from "@/services/verificationService";
@@ -27,7 +28,7 @@ export default function StudentVerificationPage() {
 
   return (
     <div className="page">
-      <PageHeader eyebrow="Account" title="Certificate of Registration" description="A COR is submitted once per academic term and reviewed by authorized staff." actions={<Link to={ROUTES.student.uploadCor} className="btn btn-primary" style={{ textDecoration: "none", color: "#fff" }}>Upload COR</Link>} />
+      <PageHero eyebrow="Account" title="Certificate of Registration" description="A COR is submitted once per academic term and reviewed by authorized staff." leading={<BackButton fallback={ROUTES.student.dashboard} />} actions={<Link to={ROUTES.student.uploadCor} className="btn btn-primary" style={{ textDecoration: "none", color: "#fff" }}>Upload COR</Link>} />
       <div className="stack">
         <Alert kind="info">An expired or unapproved COR blocks only new borrowing, reservations and renewals. Your existing loans and due dates are not changed.</Alert>
         {summary.loading ? <LoadingState rows={2} /> : summary.error || !summary.data ? <ErrorState message={summary.error ?? ""} onRetry={() => void summary.reload()} /> : <CORStatusCard cor={summary.data} />}

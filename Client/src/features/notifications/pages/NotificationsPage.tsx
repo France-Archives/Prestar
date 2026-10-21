@@ -4,6 +4,9 @@ import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
 import Pagination from "@/components/data-display/Pagination";
 import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
+import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -34,7 +37,9 @@ export default function NotificationsPage() {
   if (!USE_MOCKS) {
     return (
       <div className="page" style={{ maxWidth: 860 }}>
-        <PageHeader eyebrow="Library" title="Notifications" />
+        {user.role === "STUDENT"
+          ? <PageHero eyebrow="Library" title="Notifications" leading={<BackButton fallback={ROUTES.student.dashboard} />} />
+          : <PageHeader eyebrow="Library" title="Notifications" />}
         <Alert kind="info">Notifications are not available from the live Server API yet.</Alert>
       </div>
     );
@@ -60,23 +65,22 @@ export default function NotificationsPage() {
 
   const meta = list.data?.meta;
   const totalPages = meta ? Math.max(1, Math.ceil(meta.total / meta.pageSize)) : 1;
+  const actions = (
+    <>
+      <Button variant="ghost" size="sm" onClick={() => { setUnreadOnly(!unreadOnly); setPage(1); }}>
+        {unreadOnly ? "Show all" : "Unread only"}
+      </Button>
+      <Button size="sm" disabled={unreadCount === 0} onClick={readAll}>
+        Mark all read
+      </Button>
+    </>
+  );
 
   return (
     <div className="page" style={{ maxWidth: 860 }}>
-      <PageHeader
-        eyebrow="Library"
-        title="Notifications"
-        actions={
-          <>
-            <Button variant="ghost" size="sm" onClick={() => { setUnreadOnly(!unreadOnly); setPage(1); }}>
-              {unreadOnly ? "Show all" : "Unread only"}
-            </Button>
-            <Button size="sm" disabled={unreadCount === 0} onClick={readAll}>
-              Mark all read
-            </Button>
-          </>
-        }
-      />
+      {user.role === "STUDENT"
+        ? <PageHero eyebrow="Library" title="Notifications" leading={<BackButton fallback={ROUTES.student.dashboard} />} actions={actions} />
+        : <PageHeader eyebrow="Library" title="Notifications" actions={actions} />}
       <p className="subtle" style={{ marginBottom: 12 }}>{unreadCount} unread</p>
       {list.loading ? (
         <LoadingState rows={4} />

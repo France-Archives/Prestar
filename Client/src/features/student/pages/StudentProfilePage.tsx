@@ -7,7 +7,8 @@ import ErrorState from "@/components/feedback/ErrorState";
 import { InputField, SelectField } from "@/components/forms/FormField";
 import LoadingState from "@/components/feedback/LoadingState";
 import StatusBadge from "@/components/data-display/StatusBadge";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
 import { ROUTES } from "@/app/routeConfig";
 import { MOCK_COLLEGES } from "@/data";
 import { useAsync } from "@/hooks/useAsync";
@@ -96,7 +97,7 @@ export default function StudentProfilePage() {
 
   return (
     <div className="page" style={{ maxWidth: 860 }}>
-      <PageHeader eyebrow="Account" title="My profile" />
+      <PageHero eyebrow="Account" title="My profile" leading={<BackButton fallback={ROUTES.student.dashboard} />} />
       <div className="stack">
         <Card title="Account">
           <dl className="kv">

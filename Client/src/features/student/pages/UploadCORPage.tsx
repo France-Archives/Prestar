@@ -8,7 +8,8 @@ import FileUpload from "@/components/forms/FileUpload";
 import { SelectField } from "@/components/forms/FormField";
 import LoadingState from "@/components/feedback/LoadingState";
 import Tabs from "@/components/ui/Tabs";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
 import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import { useToast } from "@/hooks/useToast";
@@ -72,7 +73,7 @@ export default function UploadCORPage() {
 
   return (
     <div className="page" style={{ maxWidth: 760 }}>
-      <PageHeader eyebrow="Account" title="Submit COR" description="Take a photo of your Certificate of Registration with your camera, or upload a file (PDF, JPG or PNG). A newer pending submission for the same term replaces the older one." />
+      <PageHero eyebrow="Account" title="Submit COR" description="Take a photo of your Certificate of Registration with your camera, or upload a file (PDF, JPG or PNG). A newer pending submission for the same term replaces the older one." leading={<BackButton fallback={ROUTES.student.dashboard} />} />
       <Card>
         <form className="stack" onSubmit={submit} noValidate>
           {USE_MOCKS

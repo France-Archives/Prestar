@@ -6,7 +6,8 @@ import EmptyState from "@/components/feedback/EmptyState";
 import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
 import { CheckboxField, InputField, SelectField } from "@/components/forms/FormField";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
 import { ROUTES } from "@/app/routeConfig";
 import { useBorrowList } from "@/context/BorrowListContext";
 import { useAsync } from "@/hooks/useAsync";
@@ -92,7 +93,7 @@ export default function MyBorrowListPage() {
 
   return (
     <div className="page">
-      <PageHeader eyebrow="Student" title="My Borrow List" description="Review each title, quantity, and duration before submitting. Each title is processed independently." />
+      <PageHero eyebrow="Student" title="My Borrow List" description="Review each title, quantity, and duration before submitting. Each title is processed independently." leading={<BackButton fallback={ROUTES.student.dashboard} />} />
 
       {results && (
         <section className="stack" aria-live="polite">

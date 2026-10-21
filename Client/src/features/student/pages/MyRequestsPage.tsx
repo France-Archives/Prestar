@@ -5,7 +5,8 @@ import EmptyState from "@/components/feedback/EmptyState";
 import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
 import Tabs from "@/components/ui/Tabs";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
 import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import { matchesSearch, useSearchTerm } from "@/hooks/useSearchTerm";
@@ -41,7 +42,7 @@ export default function MyRequestsPage() {
 
   return (
     <div className="page">
-      <PageHeader eyebrow="Student" title="My requests" description="An approved request holds a copy for pickup. It becomes a loan only after staff hand it over." />
+      <PageHero eyebrow="Student" title="My requests" description="An approved request holds a copy for pickup. It becomes a loan only after staff hand it over." leading={<BackButton fallback={ROUTES.student.dashboard} />} />
       <Tabs<Tab> tabs={[{ key: "open", label: "Open", count: open.length }, { key: "closed", label: "Closed", count: closed.length }]} active={tab} onChange={setTab} />
       {list.loading ? (
         <LoadingState rows={3} />
