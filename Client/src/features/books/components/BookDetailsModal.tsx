@@ -173,7 +173,6 @@ export function BookDetailsContent({ book, reload, onNavigate, large = false, mo
               </div>
             </div>
           </div>
-          <p className="bk-modal__tilt-caption">Move your cursor to tilt</p>
         </section>
 
         <div className="bk-detail__body bk-modal__body">
