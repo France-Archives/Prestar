@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
+import { AlertCircle, Barcode, CheckCircle2, Info, LockKeyhole } from "lucide-react";
 import Alert from "@/components/feedback/Alert";
 import Button from "@/components/common/Button";
 import Card from "@/components/ui/Card";
@@ -18,6 +19,7 @@ import * as authService from "@/services/authService";
 import { USE_MOCKS } from "@/utils/constants";
 import { describeError } from "@/utils/errors";
 import { validateName, validateYearLevel } from "@/utils/validators";
+import "@/styles/profile.css";
 
 // Email and student number are not editable here (email-change policy is TO CONFIRM, TC-03).
 export default function StudentProfilePage() {
@@ -52,6 +54,8 @@ export default function StudentProfilePage() {
   const p = profile.data;
 
   const courses = MOCK_COLLEGES.find((c) => c.name === v.college)?.courses ?? [];
+  const fullName = [p.firstName, p.middleName, p.lastName, p.suffix].filter(Boolean).join(" ");
+  const initials = `${p.firstName[0] ?? ""}${p.lastName[0] ?? ""}`.toUpperCase();
 
   const text = (key: keyof typeof v) => ({ value: v[key], error: errors[key], onChange: (e: React.ChangeEvent<HTMLInputElement>) => setV({ ...v, [key]: e.target.value }) });
 
@@ -96,62 +100,115 @@ export default function StudentProfilePage() {
   };
 
   return (
-    <div className="page" style={{ maxWidth: 860 }}>
+    <div className="page profile-page">
       <PageHero eyebrow="Account" title="My profile" leading={<BackButton fallback={ROUTES.student.dashboard} />} />
-      <div className="stack">
-        <Card title="Account">
-          <dl className="kv">
-            <div><dt>Email</dt><dd>{p.email}</dd></div>
-            <div><dt>Student number</dt><dd>{p.studentNumber}</dd></div>
-            <div><dt>Account status</dt><dd>{user && <StatusBadge status={user.accountStatus} />}</dd></div>
-            <div><dt>Email verified</dt><dd>{user?.emailVerified ? "Yes" : "Not yet"}</dd></div>
-          </dl>
-        </Card>
-        <Card title="Personal information">
-          <form className="stack" onSubmit={submit} noValidate>
-            {!USE_MOCKS && <Alert kind="info">The Server currently supports updating first name, last name, college, course, and year level. Middle name and suffix are read-only.</Alert>}
-            <div className="form-row">
-              <InputField label="First name" required {...text("firstName")} />
-              <InputField label="Last name" required {...text("lastName")} />
+      <div className="profile-content">
+        <div className="profile-overview">
+          <section className="profile-identity" aria-label="Account identity">
+            <div className="profile-identity__top">
+              <span className="profile-avatar" aria-hidden="true">{initials}</span>
+              <div className="profile-identity__name">
+                <p className="profile-identity__fullname">{fullName}</p>
+                <div className="profile-pills">
+                  <StatusBadge status="STUDENT" />
+                  {user && <StatusBadge status={user.accountStatus} />}
+                </div>
+              </div>
             </div>
-            <div className="form-row">
-              <InputField label="Middle name" disabled={!USE_MOCKS} {...text("middleName")} />
-              <InputField label="Suffix" disabled={!USE_MOCKS} {...text("suffix")} />
+            <div className="profile-identity__number">
+              <div>
+                <span className="profile-eyebrow">Student number</span>
+                <strong>{p.studentNumber}</strong>
+              </div>
+              <Barcode className="profile-barcode" size={24} aria-hidden="true" />
             </div>
-            <div className="form-row">
-              <SelectField
-                label="College"
-                required
-                value={v.college}
-                error={errors.college}
-                onChange={(e) => setV({ ...v, college: e.target.value, program: "" })}
-              >
-                <option value="">Select your college</option>
-                {MOCK_COLLEGES.map((c) => (
-                  <option key={c.id} value={c.name}>{c.name}</option>
-                ))}
-              </SelectField>
-              <SelectField
-                label="Course"
-                required
-                value={v.program}
-                error={errors.program}
-                disabled={!v.college}
-                onChange={(e) => setV({ ...v, program: e.target.value })}
-              >
-                <option value="">{v.college ? "Select your course" : "Select a college first"}</option>
-                {courses.map((c) => (
-                  <option key={c.id} value={c.name}>{c.name}</option>
-                ))}
-              </SelectField>
-            </div>
-            <div className="form-row">
-              <InputField label="Year level" required type="number" min={1} max={10} {...text("yearLevel")} />
-            </div>
-            {formError && <Alert kind="error">{formError}</Alert>}
-            <div><Button type="submit" loading={busy}>Save changes</Button></div>
-          </form>
-        </Card>
+          </section>
+
+          <Card title="Account" className="profile-account-card">
+            <dl className="profile-account-grid">
+              <div>
+                <dt>Email</dt>
+                <dd className="profile-break-value">{p.email}</dd>
+              </div>
+              <div>
+                <dt>Student number</dt>
+                <dd className="profile-tabular">{p.studentNumber}</dd>
+              </div>
+              <div>
+                <dt>Account status</dt>
+                <dd>{user && <StatusBadge status={user.accountStatus} />}</dd>
+              </div>
+              <div>
+                <dt>Email verified</dt>
+                <dd>
+                  <span className={`profile-verification ${user?.emailVerified ? "is-verified" : "is-unverified"}`}>
+                    {user?.emailVerified ? <CheckCircle2 size={15} aria-hidden="true" /> : <AlertCircle size={15} aria-hidden="true" />}
+                    {user?.emailVerified ? "Verified" : "Not yet verified"}
+                  </span>
+                </dd>
+              </div>
+            </dl>
+          </Card>
+        </div>
+
+        <section className="profile-personal-section">
+          <header className="profile-content-heading">
+            <h2>Personal information</h2>
+          </header>
+          <Card className="profile-form-card">
+            <form className="profile-form" onSubmit={submit} noValidate>
+              {!USE_MOCKS && (
+                <div className="profile-callout">
+                  <Info size={19} aria-hidden="true" />
+                  <Alert kind="info">The Server currently supports updating first name, last name, college, course, and year level. Middle name and suffix are read-only.</Alert>
+                </div>
+              )}
+              <div className="profile-form-grid">
+                <InputField label="First name" required {...text("firstName")} />
+                <InputField label="Last name" required {...text("lastName")} />
+                <div className="profile-readonly-field">
+                  <InputField label="Middle name" disabled={!USE_MOCKS} {...text("middleName")} />
+                  <LockKeyhole className="profile-lock-icon" size={16} aria-hidden="true" />
+                </div>
+                <div className="profile-readonly-field">
+                  <InputField label="Suffix" disabled={!USE_MOCKS} {...text("suffix")} />
+                  <LockKeyhole className="profile-lock-icon" size={16} aria-hidden="true" />
+                </div>
+                <SelectField
+                  label="College"
+                  required
+                  value={v.college}
+                  error={errors.college}
+                  onChange={(e) => setV({ ...v, college: e.target.value, program: "" })}
+                >
+                  <option value="">Select your college</option>
+                  {MOCK_COLLEGES.map((c) => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
+                  ))}
+                </SelectField>
+                <SelectField
+                  label="Course"
+                  required
+                  value={v.program}
+                  error={errors.program}
+                  disabled={!v.college}
+                  onChange={(e) => setV({ ...v, program: e.target.value })}
+                >
+                  <option value="">{v.college ? "Select your course" : "Select a college first"}</option>
+                  {courses.map((c) => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
+                  ))}
+                </SelectField>
+                <InputField label="Year level" required type="number" min={1} max={10} {...text("yearLevel")} />
+              </div>
+              {formError && <Alert kind="error">{formError}</Alert>}
+              <div className="profile-form-actions">
+                <Button type="submit" loading={busy}>Save changes</Button>
+              </div>
+            </form>
+          </Card>
+        </section>
+
         <Card title="Reading interests" actions={USE_MOCKS ? <Link to={ROUTES.student.interests} className="link-btn">Edit</Link> : undefined}>
           {p.interests.length === 0 ? <p className="subtle">{USE_MOCKS ? "No interests chosen yet." : "Reading interests are not available from the live Server API."}</p> : (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
