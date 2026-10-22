@@ -783,3 +783,175 @@
     transition: none;
   }
 }
+
+.profile-drawer {
+  --profile-mint: #a9e5c8;
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(120, 200, 160, 0.12), transparent 58%),
+    linear-gradient(145deg, var(--color-forest), var(--color-forest-deep));
+}
+
+.profile-drawer__header {
+  border-bottom-color: rgba(169, 229, 200, 0.18);
+}
+
+.profile-drawer__header h2 {
+  color: #bdeed6;
+  font-size: 26px;
+}
+
+.profile-drawer .profile-eyebrow,
+.profile-drawer .profile-section-label {
+  color: #8fd3b2;
+}
+
+.profile-drawer .profile-close {
+  border-color: rgba(169, 229, 200, 0.4);
+  background: rgba(255, 255, 255, 0.04);
+  color: #bdeed6;
+}
+
+.profile-drawer .profile-close:hover {
+  border-color: rgba(169, 229, 200, 0.65);
+  background: rgba(169, 229, 200, 0.14);
+}
+
+.profile-drawer .profile-close:focus-visible,
+.profile-drawer .profile-open-link:focus-visible {
+  outline: 2px solid #a9e5c8;
+  outline-offset: 3px;
+}
+
+.profile-drawer .profile-identity {
+  border: 1px solid rgba(169, 229, 200, 0.5);
+  border-radius: 16px;
+  background:
+    radial-gradient(ellipse at 50% 46%, rgba(120, 200, 160, 0.12), transparent 62%),
+    linear-gradient(145deg, var(--color-forest), var(--color-forest-deep));
+}
+
+.profile-drawer .profile-avatar,
+.profile-page .profile-avatar {
+  border-color: #a9e5c8;
+  background: #d9f2e5;
+  box-shadow: 0 0 0 4px rgba(169, 229, 200, 0.16), 0 4px 14px rgba(0, 0, 0, 0.2);
+  color: var(--color-forest-deep);
+}
+
+.profile-drawer .profile-identity__fullname,
+.profile-drawer .profile-identity__number strong {
+  color: #fff;
+}
+
+.profile-drawer .profile-identity .badge,
+.profile-page .profile-identity .badge {
+  border-color: rgba(169, 229, 200, 0.5);
+  background: rgba(169, 229, 200, 0.08);
+  color: #d9f2e5;
+}
+
+.profile-drawer .profile-identity .badge-ok,
+.profile-page .profile-identity .badge-ok {
+  border-color: rgba(169, 229, 200, 0.2);
+  background: rgba(110, 210, 160, 0.22);
+  color: #e3f7ec;
+}
+
+.profile-drawer .profile-identity__number,
+.profile-page .profile-identity__number {
+  border-top-color: rgba(169, 229, 200, 0.22);
+}
+
+.profile-drawer .profile-identity__number .profile-eyebrow,
+.profile-drawer .profile-identity__number > svg,
+.profile-page .profile-identity__number .profile-eyebrow,
+.profile-page .profile-identity__number > svg {
+  color: #8fd3b2;
+}
+
+.profile-drawer .profile-section-label::after {
+  background: rgba(169, 229, 200, 0.25);
+}
+
+.profile-drawer .profile-detail-card {
+  border: 1px solid rgba(169, 229, 200, 0.5);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: none;
+}
+
+.profile-drawer .profile-detail-icon {
+  background: rgba(169, 229, 200, 0.14);
+  color: #a9e5c8;
+}
+
+.profile-drawer .profile-detail-label {
+  color: #8fbfa8;
+}
+
+.profile-drawer .profile-detail-copy strong,
+.profile-drawer .profile-generic-row dd {
+  color: #fff;
+}
+
+.profile-drawer .profile-academic-row + .profile-academic-row {
+  border-top-color: rgba(169, 229, 200, 0.2);
+}
+
+.profile-drawer .profile-verification {
+  border-color: rgba(217, 242, 229, 0.45);
+  background: transparent;
+  color: #d9f2e5;
+}
+
+.profile-drawer .profile-verification.is-verified {
+  border-color: rgba(110, 210, 160, 0.28);
+  background: rgba(110, 210, 160, 0.22);
+  color: #e3f7ec;
+}
+
+.profile-drawer .profile-verification.is-unverified {
+  border-color: rgba(217, 242, 229, 0.45);
+  background: transparent;
+  color: #d9f2e5;
+}
+
+.profile-drawer__footer {
+  border-top-color: rgba(169, 229, 200, 0.18);
+  background: transparent;
+}
+
+.profile-drawer .profile-open-link {
+  background: #a9e5c8;
+  color: #06291f;
+}
+
+.profile-drawer .profile-open-link:hover {
+  background: #c0efd9;
+  color: #06291f;
+}
+
+.profile-page .profile-identity {
+  border: 1px solid rgba(169, 229, 200, 0.5);
+  background:
+    radial-gradient(ellipse at 50% 46%, rgba(120, 200, 160, 0.12), transparent 62%),
+    linear-gradient(145deg, var(--color-forest), var(--color-forest-deep));
+}
+
+.profile-page .profile-identity__number {
+  border-top-color: rgba(169, 229, 200, 0.22);
+}
+
+.profile-page .profile-callout {
+  border-left-color: #2f6f57;
+  background: #e5f0e8;
+  color: #174a38;
+}
+
+.profile-page .profile-callout > svg {
+  color: #1d674b;
+}
+
+.profile-page .profile-callout .alert-box {
+  color: #174a38;
+}
