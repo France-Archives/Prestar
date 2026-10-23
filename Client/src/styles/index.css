@@ -1,4 +1,3 @@
-/* Tailwind entry point. Imported once in main.tsx. */
 @import "tailwindcss";
 @import "./tokens.css";
 @import "./global.css";
