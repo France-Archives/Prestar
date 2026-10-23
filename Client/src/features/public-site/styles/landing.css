@@ -1,0 +1,25 @@
+.hero {
+  background: linear-gradient(135deg, var(--color-forest) 0%, var(--color-green) 100%);
+  color: var(--color-cream);
+}
+.hero h1 {
+  color: #fff;
+  font-size: clamp(2rem, 5vw, 3.25rem);
+}
+.step-card {
+  position: relative;
+  padding-top: 34px;
+}
+.step-card .num {
+  position: absolute;
+  top: -14px;
+  left: 16px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-amber);
+  color: var(--color-forest-deep);
+  font-weight: 700;
+}
