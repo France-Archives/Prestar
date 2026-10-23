@@ -10,6 +10,7 @@ import {
   User,
   AcademicTerm,
   StudentVerification,
+  Renewal,
   sequelize,
 } from "../models/index.js";
 import {
@@ -1290,6 +1291,11 @@ export async function listMyBorrowedBooks(userId, { status }) {
         as: "copy",
         attributes: ["copy_id", "accession_no", "shelf_location"],
       },
+      {
+        model: Renewal,
+        as: "renewals",
+        attributes: ["renewal_id", "renewal_status"],
+      },
     ],
     order: [["borrow_id", "DESC"]],
   });
@@ -1307,6 +1313,10 @@ export async function listMyBorrowedBooks(userId, { status }) {
       daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
       isOverdue = loan.due_date < todayStr;
     }
+
+    const renewedCount = (loan.renewals || []).filter(
+      (r) => r.renewal_status === "Approved",
+    ).length;
 
     return {
       id: loan.borrow_id,
@@ -1332,6 +1342,7 @@ export async function listMyBorrowedBooks(userId, { status }) {
       dueDate: loan.due_date,
       daysRemaining,
       isOverdue,
+      renewedCount,
     };
   });
 }

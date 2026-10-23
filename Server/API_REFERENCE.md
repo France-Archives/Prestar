@@ -1530,6 +1530,149 @@ Staff endpoint to monitor the global reservation queues across books.
 
 ---
 
+## 8b. Renewals
+
+Renewal management and decisioning. Renewals extend the due date of active loans (`status: "Borrowed"`).
+
+### 8b.1 Rules and Constraints
+1. **Loan Status**: Only active loans (`status: "Borrowed"`) can be renewed.
+2. **Renewal Limit**: Maximum 1 renewal per loan (`RENEWAL_LIMIT = 1`).
+3. **Student Eligibility**: Checks all borrow eligibility flags (Active account, Active suspension, Active term, Approved COR, No unpaid penalties).
+4. **Reservation Queue Check**: If another student is waiting for the same book (`Waiting` or `Ready`), the renewal is rejected with `decisionReason: "Another student is waiting for this title."` and recorded.
+5. **Loan Limits**: Validates `MAX_COPIES_PER_BOOK` (2) and `MAX_ACTIVE_BORROWS` (10).
+6. **Due Date Calculation**: New due date counts from the renewal approval date (`today + requestedDurationDays`).
+7. **Notifications**: Automatically creates `RENEWAL_APPROVED` or `RENEWAL_REJECTED` notifications.
+
+---
+
+### 8b.2 `POST /api/borrowed-books/:id/renew`
+Request and execute an automatic renewal for an active loan. (Also available at `POST /api/renewals/loan/:loanId`).
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Student |
+
+**Request body**
+```json
+{
+  "requestedDurationDays": 7
+}
+```
+
+**Success `200` (Approved)**
+```json
+{
+  "id": "1",
+  "loanId": "45",
+  "bookTitle": "Clean Architecture",
+  "requestedDurationDays": 7,
+  "status": "APPROVED",
+  "requestedAt": "2026-10-23T10:30:00.000Z",
+  "approvedAt": "2026-10-23T10:30:00.000Z",
+  "oldDueAt": "2026-10-25T00:00:00.000Z",
+  "newDueAt": "2026-10-30T00:00:00.000Z",
+  "decisionReason": null
+}
+```
+
+**Success `200` (Auto-rejected due to queue)**
+```json
+{
+  "id": "2",
+  "loanId": "45",
+  "bookTitle": "Clean Architecture",
+  "requestedDurationDays": 7,
+  "status": "REJECTED",
+  "requestedAt": "2026-10-23T10:30:00.000Z",
+  "approvedAt": null,
+  "oldDueAt": "2026-10-25T00:00:00.000Z",
+  "newDueAt": null,
+  "decisionReason": "Another student is waiting for this title."
+}
+```
+
+**Errors**
+| Code | Meaning |
+|---|---|
+| `400` | Invalid loan ID or request payload |
+| `403` | Student ineligible (`BORROW_INELIGIBLE`) or renewal limit reached (`RENEWAL_LIMIT_REACHED`) |
+| `404` | Loan not found or does not belong to student |
+| `409` | Loan not in active `Borrowed` state, or limits exceeded |
+| `422` | Invalid requested duration |
+
+---
+
+### 8b.3 `GET /api/renewals/mine`
+List all renewal decisions and history for the authenticated student.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Student |
+
+**Success `200`**
+```json
+[
+  {
+    "id": "1",
+    "loanId": "45",
+    "bookTitle": "Clean Architecture",
+    "requestedDurationDays": 7,
+    "status": "APPROVED",
+    "requestedAt": "2026-10-23T10:30:00.000Z",
+    "approvedAt": "2026-10-23T10:30:00.000Z",
+    "oldDueAt": "2026-10-25T00:00:00.000Z",
+    "newDueAt": "2026-10-30T00:00:00.000Z",
+    "decisionReason": null
+  }
+]
+```
+
+---
+
+### 8b.4 `GET /api/renewals`
+Staff endpoint to monitor all renewal history across students.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Librarian, Admin |
+
+**Query parameters**
+| Param | Type | Description |
+|---|---|---|
+| `search` | string | Search by student name, student number, or book title |
+
+**Success `200`**
+```json
+[
+  {
+    "id": "1",
+    "loanId": "45",
+    "bookTitle": "Clean Architecture",
+    "requestedDurationDays": 7,
+    "status": "APPROVED",
+    "requestedAt": "2026-10-23T10:30:00.000Z",
+    "approvedAt": "2026-10-23T10:30:00.000Z",
+    "oldDueAt": "2026-10-25T00:00:00.000Z",
+    "newDueAt": "2026-10-30T00:00:00.000Z",
+    "decisionReason": null,
+    "student": {
+      "id": "10",
+      "userId": "9001",
+      "firstName": "Juan",
+      "lastName": "Dela Cruz",
+      "studentNumber": "2024-00123",
+      "college": "College of Science",
+      "program": "BS Computer Science"
+    }
+  }
+]
+```
+
+---
+
 ## 9. Notifications
 
 **Prefix**: `/api/notifications`  

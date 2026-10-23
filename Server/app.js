@@ -14,6 +14,7 @@ import reservationRoutes from "./routes/reservationRoutes.js";
 import studentDashboardRoutes from "./routes/studentDashboardRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
+import renewalRoutes from "./routes/renewalRoutes.js";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -48,6 +49,7 @@ app.use("/api/otp", otpRoutes);
 app.use("/api/reservations", reservationRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/renewals", renewalRoutes);
 app.use("/api", studentDashboardRoutes);
 app.use("/api", verificationRoutes);
 

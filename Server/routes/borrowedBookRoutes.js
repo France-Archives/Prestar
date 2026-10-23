@@ -15,6 +15,8 @@ import {
   validateMyLoansQuery,
 } from "../validators/borrowedBookValidator.js";
 import { validateRejectPickup } from "../validators/borrowRequestValidator.js";
+import { handleCreateRenewal } from "../controllers/renewalController.js";
+import { validateCreateRenewal } from "../validators/renewalValidator.js";
 
 const router = Router();
 const staffOnly = requireRole(["Admin", "Librarian"]);
@@ -48,6 +50,15 @@ router.post(
   validateBorrowId,
   validateRejectPickup,
   rejectPickupLoan,
+);
+
+// 10. POST /api/borrowed-books/:id/renew [Student]
+router.post(
+  "/:id/renew",
+  studentsOnly,
+  validateBorrowId,
+  validateCreateRenewal,
+  handleCreateRenewal,
 );
 
 export default router;
