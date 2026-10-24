@@ -12,8 +12,6 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { useToast } from "@/hooks/useToast";
 import * as notificationsService from "@/services/notificationsService";
 import { describeError } from "@/utils/errors";
-import { USE_MOCKS } from "@/utils/constants";
-import Alert from "@/components/feedback/Alert";
 import NotificationList from "../components/NotificationList";
 
 const PAGE_SIZE = 10;
@@ -26,23 +24,11 @@ export default function NotificationsPage() {
   const [page, setPage] = useState(1);
   const [unreadOnly, setUnreadOnly] = useState(false);
   const list = useAsync(
-    () => USE_MOCKS
-      ? notificationsService.listNotifications({ page, pageSize: PAGE_SIZE, unreadOnly })
-      : Promise.resolve(null),
+    () => notificationsService.listNotifications({ page, pageSize: PAGE_SIZE, unreadOnly }),
     [page, unreadOnly],
   );
 
   if (!user) return null;
-  if (!USE_MOCKS) {
-    return (
-      <div className="page" style={{ maxWidth: 860 }}>
-        {user.role === "STUDENT"
-          ? <PageHero eyebrow="Library" title="Notifications" leading={<BackButton fallback={ROUTES.student.dashboard} />} />
-          : <PageHero eyebrow={user.role === "ADMIN" ? "Admin · notifications" : "Librarian"} title="Notifications" leading={<BackButton fallback={user.role === "ADMIN" ? ROUTES.admin.dashboard : ROUTES.staff.dashboard} />} compact />}
-        <Alert kind="info">Notifications are not available from the live Server API yet.</Alert>
-      </div>
-    );
-  }
 
   const read = async (id: string) => {
     try {

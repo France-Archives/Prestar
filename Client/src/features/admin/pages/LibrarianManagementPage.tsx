@@ -16,8 +16,10 @@ import * as adminService from "@/services/adminService";
 import { LIBRARIAN_PERMISSIONS, type AdminUserRow, type LibrarianAccount, type LibrarianPermission } from "@/types";
 import { describeError } from "@/utils/errors";
 import { formatDate } from "@/utils/formatDate";
+import { USE_MOCKS } from "@/utils/constants";
 import AccountStatusDialog from "../components/AccountStatusDialog";
-import CreateLibrarianDialog, { PERMISSION_LABELS } from "../components/CreateLibrarianDialog";
+import CreateLibrarianDialog from "../components/CreateLibrarianDialog";
+import { PERMISSION_LABELS } from "../components/StaffAccountForm";
 
 function PermissionsDialog({ librarian, onClose, onDone }: { librarian: LibrarianAccount; onClose: () => void; onDone: () => void }) {
   const toast = useToast();
@@ -62,7 +64,7 @@ function PermissionsDialog({ librarian, onClose, onDone }: { librarian: Libraria
 
 // A9 invitation, P15 permissions (proposed, TC-08), D6 status.
 export default function LibrarianManagementPage() {
-  const list = useAsync(() => adminService.listLibrarians(), []);
+  const list = useAsync(() => adminService.listLibrarians(), [], USE_MOCKS);
   const [dialog, setDialog] = useState<{ kind: "invite" } | { kind: "perms"; l: LibrarianAccount } | { kind: "status"; l: LibrarianAccount } | null>(null);
 
   const asUserRow = (l: LibrarianAccount): AdminUserRow => ({
@@ -83,7 +85,7 @@ export default function LibrarianManagementPage() {
     { key: "email", header: "Email" },
     { key: "employeeNumber", header: "Employee no.", render: (l) => l.employeeNumber ?? "—" },
     { key: "accountStatus", header: "Status", render: (l) => <StatusBadge status={l.accountStatus} /> },
-    { key: "invitation", header: "Invitation", render: (l) => <StatusBadge status={l.invitation === "PENDING" ? "PENDING" : "ACCEPTED"} /> },
+    ...(USE_MOCKS ? [{ key: "invitation", header: "Invitation", render: (l: LibrarianAccount) => <StatusBadge status={l.invitation === "PENDING" ? "PENDING" : "ACCEPTED"} /> }] : []),
     {
       key: "permissions",
       header: "Permissions",
@@ -104,8 +106,10 @@ export default function LibrarianManagementPage() {
 
   return (
     <div className="page">
-      <PageHero eyebrow="People" title="Librarians" description="Librarians are created only by Admin invitation. The invitation acceptance flow is proposed (TC-19)." leading={<BackButton fallback={ROUTES.admin.dashboard} />} compact actions={<Button onClick={() => setDialog({ kind: "invite" })}>Invite a Librarian</Button>} />
-      {list.loading && !list.data ? (
+      <PageHero eyebrow="People" title="Librarians" description="Create Librarian accounts and manage access." leading={<BackButton fallback={ROUTES.admin.dashboard} />} compact actions={<Button onClick={() => setDialog({ kind: "invite" })}>Create Librarian</Button>} />
+      {!USE_MOCKS ? (
+        <Alert kind="info">The Librarian list is not available yet.</Alert>
+      ) : list.loading && !list.data ? (
         <LoadingState rows={3} />
       ) : list.error ? (
         <ErrorState message={list.error} onRetry={() => void list.reload()} />
@@ -114,9 +118,9 @@ export default function LibrarianManagementPage() {
           <DataTable columns={columns} rows={list.data ?? []} rowKey={(l) => l.userId} empty="No Librarians yet." />
         </div>
       )}
-      {dialog?.kind === "invite" && <CreateLibrarianDialog onClose={() => setDialog(null)} onDone={() => void list.reload()} />}
-      {dialog?.kind === "perms" && <PermissionsDialog librarian={dialog.l} onClose={() => setDialog(null)} onDone={() => void list.reload()} />}
-      {dialog?.kind === "status" && <AccountStatusDialog user={asUserRow(dialog.l)} onClose={() => setDialog(null)} onDone={() => void list.reload()} />}
+      {dialog?.kind === "invite" && <CreateLibrarianDialog onClose={() => setDialog(null)} onDone={() => { if (USE_MOCKS) void list.reload(); }} />}
+      {USE_MOCKS && dialog?.kind === "perms" && <PermissionsDialog librarian={dialog.l} onClose={() => setDialog(null)} onDone={() => void list.reload()} />}
+      {USE_MOCKS && dialog?.kind === "status" && <AccountStatusDialog user={asUserRow(dialog.l)} onClose={() => setDialog(null)} onDone={() => void list.reload()} />}
     </div>
   );
 }

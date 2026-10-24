@@ -134,6 +134,7 @@ export const ROUTES = {
   },
   admin: {
     dashboard: "/admin/dashboard",
+    createAdmin: "/admin/create-admin",
     users: "/admin/users",
     studentDetails: "/admin/users/students/:studentId",
     librarians: "/admin/librarians",

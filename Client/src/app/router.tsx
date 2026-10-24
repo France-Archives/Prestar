@@ -63,6 +63,7 @@ const P = {
   ShelfLocator: page(() => import("@/features/librarian/pages/ShelfLocatorPage")),
   // admin
   AdminDashboard: page(() => import("@/features/admin/pages/AdminDashboardPage")),
+  CreateAdmin: page(() => import("@/features/admin/pages/CreateAdminPage")),
   UserManagement: page(() => import("@/features/admin/pages/UserManagementPage")),
   StudentDetails: page(() => import("@/features/admin/pages/StudentDetailsPage")),
   LibrarianManagement: page(() => import("@/features/admin/pages/LibrarianManagementPage")),
@@ -135,6 +136,7 @@ const staffRoutes: RouteObject[] = [
 const adminRoutes: RouteObject[] = [
   { index: true, element: <Navigate to="dashboard" replace /> },
   { path: "dashboard", element: el(P.AdminDashboard) },
+  { path: "create-admin", element: el(P.CreateAdmin) },
   { path: "users", element: el(P.UserManagement) },
   { path: "users/students/:studentId", element: el(P.StudentDetails) },
   { path: "books", element: <Navigate to={ROUTES.staff.books} replace /> },

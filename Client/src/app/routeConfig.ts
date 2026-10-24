@@ -58,6 +58,7 @@ export const ROUTES = {
 
   admin: {
     dashboard: "/admin/dashboard",
+    createAdmin: "/admin/create-admin",
     users: "/admin/users",
     studentDetails: (studentId: string) => `/admin/users/students/${studentId}`,
     librarians: "/admin/librarians",
@@ -196,6 +197,7 @@ const ADMIN_SECTIONS: NavSection[] = [
     title: "People",
     items: [
       { label: "Users", to: A.users, capability: "ADMIN_AREA" },
+      { label: "Create admin", to: A.createAdmin, capability: "ADMIN_AREA" },
       { label: "Librarians", to: A.librarians, capability: "MANAGE_LIBRARIANS" },
     ],
   },

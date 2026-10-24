@@ -50,6 +50,28 @@ export interface InviteLibrarianRequest {
   permissions?: LibrarianPermission[];
 }
 
+export interface CreateStaffAccountRequest {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  employeeNumber?: string | null;
+  permissions?: LibrarianPermission[];
+}
+
+export interface CreatedStaffAccount {
+  id: UUID;
+  userId: UUID;
+  email: string;
+  firstName: string;
+  lastName: string;
+  displayName: string;
+  role: "Librarian" | "Admin";
+  status: string;
+  employeeNumber: string | null;
+  emailVerified: boolean;
+}
+
 /** Librarian list row (Admin). Invitation acceptance flow is TO CONFIRM (TC-19). */
 export interface LibrarianAccount {
   userId: UUID;

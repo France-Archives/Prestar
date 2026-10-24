@@ -5,12 +5,12 @@ import { useNotifications } from "@/hooks/useNotifications";
 
 export default function NotificationBell() {
   const { user } = useAuth();
-  const { unreadCount, available } = useNotifications();
+  const { unreadCount } = useNotifications();
   if (!user) return null;
   return (
     <Link
       to={notificationsPathFor(user)}
-      aria-label={available ? `Notifications, ${unreadCount} unread` : "Notifications unavailable"}
+      aria-label={`Notifications, ${unreadCount ?? 0} unread`}
       className="relative grid h-10 w-10 place-items-center rounded-lg text-forest hover:bg-mist"
       style={{ textDecoration: "none" }}
     >

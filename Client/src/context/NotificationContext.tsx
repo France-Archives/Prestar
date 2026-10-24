@@ -5,8 +5,6 @@ import { subscribeStore } from "@/services/mockStore";
 import { useAuth } from "@/hooks/useAuth";
 import { USE_MOCKS } from "@/utils/constants";
 
-// Shared notification state for the mock bell; live notifications are unavailable from the current Server API.
-
 const RECENT_COUNT = 5;
 
 export interface NotificationContextValue {
@@ -34,12 +32,6 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     if (!userId) {
       setUnreadCount(0);
       setRecent([]);
-      return;
-    }
-    if (!USE_MOCKS) {
-      setUnreadCount(null);
-      setRecent(null);
-      setLoading(false);
       return;
     }
     try {
@@ -79,7 +71,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   const value = useMemo<NotificationContextValue>(
-    () => ({ unreadCount, recent, available: USE_MOCKS, loading, refresh, markRead, markAllRead }),
+    () => ({ unreadCount, recent, available: true, loading, refresh, markRead, markAllRead }),
     [unreadCount, recent, loading, refresh, markRead, markAllRead],
   );
   return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>;
