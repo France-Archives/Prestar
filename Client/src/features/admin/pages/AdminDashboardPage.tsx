@@ -1,24 +1,17 @@
 import { Link } from "react-router-dom";
-<<<<<<< HEAD
-import { Activity, LibraryBig, PackageCheck, Scale, ScrollText, FileCheck, Undo2, UserCog } from "lucide-react";
+import { Activity, LibraryBig, PackageCheck, Scale, ScrollText, FileCheck, Undo2, UserCog, UsersRound } from "lucide-react";
+import Alert from "@/components/feedback/Alert";
+import LoadingState from "@/components/feedback/LoadingState";
+import ErrorState from "@/components/feedback/ErrorState";
 import PageHero from "@/components/layout/PageHero";
 import BackButton from "@/components/navigation/BackButton";
-=======
-import { PackageCheck, Scale, ScrollText, FileCheck, Undo2, UserCog } from "lucide-react";
-import Alert from "@/components/feedback/Alert";
-import Card from "@/components/ui/Card";
-import ErrorState from "@/components/feedback/ErrorState";
-import LoadingState from "@/components/feedback/LoadingState";
-import PageHeader from "@/components/layout/PageHeader";
->>>>>>> 3842c0b3196cb32c9bd48713dc5e4eacbab26aeb
 import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import * as reportsService from "@/services/reportsService";
-import AdminStats from "../components/AdminStats";
-import { ActivityChart, CopyStatusBars } from "../components/SystemActivityChart";
 import OperationalCountCards from "@/features/dashboard/OperationalCountCards";
 import { ChartPanel, KpiCard, RankedBars, RatioRing } from "@/features/dashboard/DashboardVisuals";
 import { ActivityChart, CopyStatusDonut } from "@/features/admin/components/SystemActivityChart";
+import { formatPeso } from "@/utils/formatCurrency";
 
 const QUICK = [
   { label: "Books to Release", to: ROUTES.staff.booksToRelease, icon: PackageCheck },
@@ -35,7 +28,12 @@ export default function AdminDashboardPage() {
   if (dash.loading && !dash.data) {
     return (
       <div className="page">
-        <PageHeader eyebrow="Admin" title="Admin dashboard" description="Live circulation counts and administration shortcuts." />
+        <PageHero
+          eyebrow="Admin"
+          title="Admin dashboard"
+          description="Live circulation counts and administration shortcuts."
+          leading={<BackButton fallback={ROUTES.admin.dashboard} />}
+        />
         <LoadingState rows={5} />
       </div>
     );
@@ -44,7 +42,12 @@ export default function AdminDashboardPage() {
   if (dash.error || !dash.data) {
     return (
       <div className="page">
-        <PageHeader eyebrow="Admin" title="Admin dashboard" description="Live circulation counts and administration shortcuts." />
+        <PageHero
+          eyebrow="Admin"
+          title="Admin dashboard"
+          description="Live circulation counts and administration shortcuts."
+          leading={<BackButton fallback={ROUTES.admin.dashboard} />}
+        />
         <ErrorState message={dash.error ?? "Could not load the dashboard."} onRetry={() => void dash.reload()} />
       </div>
     );
@@ -63,11 +66,16 @@ export default function AdminDashboardPage() {
       />
       <div className="dashboard-layout">
         <OperationalCountCards />
-<<<<<<< HEAD
+        {d.pendingCorReviews > 0 && (
+          <Alert kind="warn">
+            {d.pendingCorReviews} COR {d.pendingCorReviews === 1 ? "submission is" : "submissions are"} waiting.{" "}
+            <Link to={ROUTES.staff.corReview}>Review now</Link>
+          </Alert>
+        )}
         <div className="dashboard-kpi-strip">
-          <KpiCard icon={PackageCheck} label="Students" value="Not available yet" to={ROUTES.admin.users} tone="forest" index={0} />
-          <KpiCard icon={LibraryBig} label="Librarians" value="Not available yet" to={ROUTES.admin.librarians} tone="teal" index={1} />
-          <KpiCard icon={Activity} label="Overdue loans" value="Not available yet" to={ROUTES.staff.returns} tone="brick" index={2} />
+          <KpiCard icon={UsersRound} label="Students" value={d.totalStudents} to={ROUTES.admin.users} tone="forest" index={0} />
+          <KpiCard icon={LibraryBig} label="Librarians" value={d.totalLibrarians} to={ROUTES.admin.librarians} tone="teal" index={1} />
+          <KpiCard icon={Activity} label="Overdue loans" value={d.overdueLoans} to={ROUTES.staff.returns} tone="brick" index={2} />
         </div>
         <section className="dashboard-shortcuts" aria-label="Administration shortcuts">
           {QUICK.slice(2).map(({ label, to, icon: Icon }) => (
@@ -79,66 +87,24 @@ export default function AdminDashboardPage() {
         </section>
         <div className="dashboard-grid-main">
           <ChartPanel title="Library activity" note="Loans issued and returns, day by day." className="dashboard-panel--feature">
-            <ActivityChart days={null} />
+            <ActivityChart days={d.activityLast7Days} />
           </ChartPanel>
           <ChartPanel title="Copies by status" note="Collection distribution across copy states.">
-            <CopyStatusDonut counts={null} />
+            <CopyStatusDonut counts={d.copiesByStatus} />
           </ChartPanel>
         </div>
         <div className="dashboard-grid-support">
           <ChartPanel title="Most borrowed" note="Ranked titles by loan count.">
-            <RankedBars books={null} />
+            <RankedBars books={d.popularBooks} />
           </ChartPanel>
           <ChartPanel title="Unpaid fines" note="Outstanding balance across unpaid and partially paid fines.">
             <div className="dashboard-focal-figure">
-              <strong>Not available yet</strong>
+              <strong>{formatPeso(d.unpaidFineBalance)}</strong>
               <Link to={ROUTES.admin.finesAndPayments}>Review fines and payments</Link>
-=======
-
-        {d.pendingCorReviews > 0 && (
-          <Alert kind="warn">
-            {d.pendingCorReviews} COR {d.pendingCorReviews === 1 ? "submission is" : "submissions are"} waiting.{" "}
-            <Link to={ROUTES.staff.corReview}>Review now</Link>
-          </Alert>
-        )}
-
-        <AdminStats data={d} />
-
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card title="Activity, last 7 days" note="Circulation activity over the last 7 days.">
-            <ActivityChart days={d.activityLast7Days} />
-          </Card>
-          <Card title="Copies by status" note="Computed live from copy records.">
-            <CopyStatusBars counts={d.copiesByStatus} />
-          </Card>
-        </div>
-
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card title="Most borrowed">
-            <ol className="rank-list">
-              {d.popularBooks.map((b, i) => (
-                <li key={b.bookId}>
-                  <span className="rank-list__n">{i + 1}</span>
-                  <Link to={ROUTES.student.bookDetails(b.bookId)}>{b.title}</Link>
-                  <span className="subtle">{b.loanCount} loans</span>
-                </li>
-              ))}
-            </ol>
-          </Card>
-
-          <Card title="Quick links">
-            <div className="quick-links">
-              {QUICK.map(({ label, to, icon: Icon }) => (
-                <Link key={to} to={to} className="quick-link">
-                  <Icon size={18} strokeWidth={1.9} aria-hidden="true" />
-                  {label}
-                </Link>
-              ))}
->>>>>>> 3842c0b3196cb32c9bd48713dc5e4eacbab26aeb
             </div>
           </ChartPanel>
           <ChartPanel title="Overdue share" note="Overdue loans compared with active loans.">
-            <RatioRing active={null} overdue={null} />
+            <RatioRing active={d.activeLoans} overdue={d.overdueLoans} />
           </ChartPanel>
         </div>
       </div>
