@@ -3,6 +3,7 @@ import {
   cancelBorrowRequest,
   createBorrowRequest,
   getAvailableCopiesForRequest,
+  getPickupCheck,
   listBorrowRequestsQueue,
   listMyBorrowRequests,
   pickupBook,
@@ -224,4 +225,22 @@ export async function rejectHandover(req, res) {
     return res.status(500).json({ error: "Internal server error." });
   }
 }
+
+export async function getRequestPickupCheck(req, res) {
+  try {
+    const result = await getPickupCheck(req.resourceId);
+    return res.status(200).json(result);
+  } catch (error) {
+    if (error instanceof BorrowFlowError) {
+      return res.status(error.status).json({
+        code: error.code,
+        message: error.message,
+        error: error.message,
+      });
+    }
+    console.error("Get request pickup check error:", error);
+    return res.status(500).json({ error: "Internal server error." });
+  }
+}
+
 

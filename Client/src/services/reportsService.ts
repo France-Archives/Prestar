@@ -148,6 +148,7 @@ export async function getStudentDashboard(): Promise<StudentDashboardData> {
 
 /** P13 GET /staff/dashboard (proposed), composed from H1, P4, P5, V1. Admin sees it too. */
 export async function getStaffDashboard(): Promise<StaffDashboardData> {
+  if (!USE_MOCKS) return apiGet<StaffDashboardData>("/staff/dashboard");
   await begin();
   const account = requireCapability("STAFF_AREA");
   const toRelease = [
@@ -174,6 +175,7 @@ export async function getStaffDashboard(): Promise<StaffDashboardData> {
 
 /** D1 GET /admin/dashboard */
 export async function getAdminDashboard(): Promise<AdminDashboardData> {
+  if (!USE_MOCKS) return apiGet<AdminDashboardData>("/admin/dashboard");
   await begin();
   requireCapability("ADMIN_AREA");
   const copiesByStatus = Object.fromEntries(BOOK_COPY_STATUSES.map((s) => [s, 0])) as Record<BookCopyStatus, number>;

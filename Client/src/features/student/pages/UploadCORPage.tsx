@@ -73,13 +73,15 @@ export default function UploadCORPage() {
 
   return (
     <div className="page" style={{ maxWidth: 760 }}>
-      <PageHero eyebrow="Account" title="Submit COR" description="Take a photo of your Certificate of Registration with your camera, or upload a file (PDF, JPG or PNG). A newer pending submission for the same term replaces the older one." leading={<BackButton fallback={ROUTES.student.dashboard} />} />
+      <PageHero eyebrow="Account" title="Submit COR" description="Take a realtime photo of your Certificate of Registration using your camera. Only genuine captured images (JPG, PNG, WebP) are accepted for verification." leading={<BackButton fallback={ROUTES.student.dashboard} />} />
       <Card>
         <form className="stack" onSubmit={submit} noValidate>
-          {USE_MOCKS
-            ? <Alert kind="warn"><MockTag>Simulated upload</MockTag> The file is not sent or stored in this demo. Only its name is kept.</Alert>
-            : <Alert kind="warn">The Server records the submission and filename, but does not upload or store the selected document.</Alert>}
-          <Alert kind="info">A photo or file is only a submission. Library staff still review every COR, and you can borrow only after it is approved.</Alert>
+          {USE_MOCKS ? (
+            <Alert kind="warn"><MockTag>Simulated upload</MockTag> The file is not stored in this demo.</Alert>
+          ) : (
+            <Alert kind="info">Your captured COR photo will be securely uploaded and stored in private storage for library staff review.</Alert>
+          )}
+          <Alert kind="info">A photo is a submission. Library staff still review every COR, and you can borrow books once approved.</Alert>
           {USE_MOCKS ? (
             <SelectField label="Academic term" value={chosen} onChange={(e) => setTermId(e.target.value)} required>
               {options.map((t) => (
@@ -88,12 +90,12 @@ export default function UploadCORPage() {
             </SelectField>
           ) : (
             <Alert kind="info">
-              The Server assigns the submission to the current academic term; term selection is not supported by its API.
+              The Server assigns the submission to the current academic term.
               {options[0] ? ` Current term: ${options[0].name}.` : ""}
             </Alert>
           )}
 
-          <Tabs<Source> tabs={[{ key: "camera", label: "Take a photo" }, { key: "file", label: "Upload a file" }]} active={source} onChange={switchSource} />
+          <Tabs<Source> tabs={[{ key: "camera", label: "Camera Photo" }, { key: "file", label: "Upload Image" }]} active={source} onChange={switchSource} />
 
           {source === "camera" ? (
             <>
@@ -107,7 +109,7 @@ export default function UploadCORPage() {
               {fileError && <Alert kind="error">{fileError}</Alert>}
             </>
           ) : (
-            <FileUpload label="COR file" file={file} onChange={(f) => { setFile(f); setFileError(null); }} error={fileError} hint="Allowed formats and the maximum size are TO CONFIRM (TC-04)." />
+            <FileUpload label="COR image" file={file} onChange={(f) => { setFile(f); setFileError(null); }} error={fileError} hint="Only genuine captured images (JPG, PNG, WebP) up to 10MB are accepted. PDFs are not allowed." />
           )}
 
           {formError && <Alert kind="error">{formError}</Alert>}

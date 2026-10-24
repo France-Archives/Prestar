@@ -96,11 +96,14 @@ export function validateInterestSelection(ids: string[]): string | null {
 }
 
 export function validateCorFile(file: { name: string; size: number; type: string } | null | undefined): string | null {
-  if (!file) return "Choose a file to upload.";
+  if (!file) return "Take a photo or choose an image.";
   const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
-  const typeOk = (COR_UPLOAD.ALLOWED_MIME as readonly string[]).includes(file.type);
+  if (ext === ".pdf" || file.type === "application/pdf") {
+    return "PDF files are not accepted. Only realtime captured images (JPEG, PNG, WebP) are allowed.";
+  }
+  const typeOk = !file.type || (COR_UPLOAD.ALLOWED_MIME as readonly string[]).includes(file.type);
   const extOk = (COR_UPLOAD.ALLOWED_EXTENSIONS as readonly string[]).includes(ext);
-  if (!typeOk || !extOk) return "Only PDF, JPG or PNG files are allowed.";
+  if (!typeOk || !extOk) return "Only JPG, PNG or WebP images are allowed.";
   if (file.size > COR_UPLOAD.MAX_BYTES) return `File must be ${COR_UPLOAD.MAX_BYTES / (1024 * 1024)} MB or smaller.`;
   return null;
 }

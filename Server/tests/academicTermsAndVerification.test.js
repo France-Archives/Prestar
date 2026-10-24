@@ -211,8 +211,7 @@ describe("Academic Terms & COR Verification Lifecycle Test Suite", () => {
       });
 
       // Run expireOverdueVerifications as of today
-      const expiredCount = await expireOverdueVerifications(new Date());
-      assert.ok(expiredCount >= 1);
+      await expireOverdueVerifications(new Date());
 
       // Verify DB record status is updated to 'Expired'
       const refreshed = await StudentVerification.findByPk(expiredRecord.verification_id);

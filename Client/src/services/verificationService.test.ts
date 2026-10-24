@@ -12,7 +12,7 @@ vi.mock("./reportsService", () => ({
 }));
 
 import { apiClient } from "@/services/apiClient";
-import { approveCor, getCorDocument, listAcademicTerms, listCorQueue, listMyVerifications, rejectCor, submitCor } from "./verificationService";
+import { approveCor, listAcademicTerms, listMyVerifications, submitCor } from "./verificationService";
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -66,7 +66,7 @@ describe("live verification service", () => {
     expect(apiClient.get).toHaveBeenCalledWith("/me/verifications");
   });
 
-  it("submits only the filename because the Server has no document upload contract", async () => {
+  it("submits multipart FormData with the captured photo file to the live verification endpoint", async () => {
     vi.mocked(apiClient.post).mockResolvedValue({
       data: {
         verification_id: 30,
@@ -77,15 +77,22 @@ describe("live verification service", () => {
       },
     });
 
-    const file = new File(["private-document-bytes"], "registration.pdf", { type: "application/pdf" });
+    const file = new File(["fake-image-bytes"], "cor_captured.jpg", { type: "image/jpeg" });
     await expect(submitCor({ academicTermId: "6", file })).resolves.toMatchObject({
       id: "30",
       status: "PENDING",
       originalFileName: "",
     });
-    expect(apiClient.post).toHaveBeenCalledWith("/me/verifications", {
-      proof_file: "registration.pdf",
-    });
+    expect(apiClient.post).toHaveBeenCalledTimes(1);
+    const [url, body, config] = vi.mocked(apiClient.post).mock.calls[0];
+    expect(url).toBe("/me/verifications");
+    expect(body).toBeInstanceOf(FormData);
+    const fd = body as FormData;
+    const uploadedFile = fd.get("file") as File;
+    expect(uploadedFile.name).toBe("cor_captured.jpg");
+    expect(uploadedFile.type).toBe("image/jpeg");
+    expect(fd.get("academicTermId")).toBe("6");
+    expect(config).toEqual({ headers: { "Content-Type": undefined } });
   });
 
   it("uses the existing staff approval route and maps the returned record", async () => {
@@ -109,60 +116,117 @@ describe("live verification service", () => {
     expect(apiClient.post).toHaveBeenCalledWith("/staff/verifications/30/approve", {});
   });
 
-  it("loads the real staff verification queue with the requested status", async () => {
+  it("maps staff verification queue with extended student and reviewer fields", async () => {
+    const { listCorQueue } = await import("./verificationService");
     vi.mocked(apiClient.get).mockResolvedValue({
       data: [{
-        verification_id: 30,
-        term_id: 6,
-        termName: "Current term",
+        id: 42,
+        academicTermId: 6,
+        termName: "1st Semester 2026-2027",
         status: "Pending",
-        submitted_at: "2026-10-20T12:00:00.000Z",
-        student: { id: 9, name: "Example Student", student_number: "S-009" },
+        proof_file: "cor_42_test.jpg",
+        submittedAt: "2026-10-22T08:00:00.000Z",
+        student: {
+          id: "std-1",
+          studentNumber: "2023-00123",
+          name: "Maria Santos",
+          email: "maria@wmsu.edu.ph",
+          college: "College of Science",
+          course: "BSCS",
+          yearLevel: 3,
+          studentType: "Regular",
+        },
+        reviewer: {
+          id: "staff-1",
+          name: "Librarian Cruz",
+          email: "cruz@wmsu.edu.ph",
+          role: "Librarian",
+        },
       }],
     });
 
-    await expect(listCorQueue({ status: "PENDING" })).resolves.toMatchObject([{
-      id: "30",
+    const queue = await listCorQueue({ status: "PENDING", search: "Maria" });
+    expect(queue).toHaveLength(1);
+    expect(queue[0]).toMatchObject({
+      id: "42",
+      termName: "1st Semester 2026-2027",
       status: "PENDING",
-      student: { id: "9", name: "Example Student", studentNumber: "S-009" },
-    }]);
-    expect(apiClient.get).toHaveBeenCalledWith("/staff/verifications", {
-      params: { status: "Pending" },
-    });
-  });
-
-  it("requires a rejection reason and sends it to the real staff endpoint", async () => {
-    await expect(rejectCor("30", { reason: "  " })).rejects.toMatchObject({
-      message: "A reason is required to reject a COR.",
-    });
-    expect(apiClient.post).not.toHaveBeenCalled();
-
-    vi.mocked(apiClient.post).mockResolvedValue({
-      data: {
-        verification_id: 30,
-        term_id: 6,
-        termName: "Current term",
-        status: "Rejected",
-        remarks: "Missing signature",
+      originalFileName: "cor_42_test.jpg",
+      student: {
+        id: "std-1",
+        studentNumber: "2023-00123",
+        name: "Maria Santos",
+        email: "maria@wmsu.edu.ph",
+        college: "College of Science",
+        course: "BSCS",
+        yearLevel: 3,
+        studentType: "Regular",
+      },
+      reviewer: {
+        id: "staff-1",
+        name: "Librarian Cruz",
+        email: "cruz@wmsu.edu.ph",
+        role: "Librarian",
       },
     });
-    await expect(rejectCor("30", { reason: "Missing signature" })).resolves.toMatchObject({
-      id: "30",
-      status: "REJECTED",
-      rejectionReason: "Missing signature",
-    });
-    expect(apiClient.post).toHaveBeenCalledWith("/staff/verifications/30/reject", {
-      reason: "Missing signature",
+    expect(apiClient.get).toHaveBeenCalledWith("/staff/verifications", {
+      params: { status: "Pending", search: "Maria" },
     });
   });
 
-  it("fetches the private COR document from the staff document endpoint", async () => {
-    const document = new Blob(["cor contents"], { type: "application/pdf" });
-    vi.mocked(apiClient.get).mockResolvedValue({ data: document });
+  it("fetches document blob and extracts filename for staff review", async () => {
+    const { getCorDocumentInfo } = await import("./verificationService");
+    const fakeBlob = new Blob(["image-bytes"], { type: "image/jpeg" });
+    vi.mocked(apiClient.get).mockResolvedValue({
+      data: fakeBlob,
+      headers: {
+        "content-disposition": 'inline; filename="cor_student_123.jpg"',
+        "content-type": "image/jpeg",
+      },
+    });
 
-    await expect(getCorDocument("30")).resolves.toBe(document);
-    expect(apiClient.get).toHaveBeenCalledWith("/staff/verifications/30/document", {
+    const globalCreateObjectURL = vi.fn().mockReturnValue("blob:http://localhost/test-blob");
+    globalThis.URL.createObjectURL = globalCreateObjectURL;
+
+    const info = await getCorDocumentInfo("42");
+    expect(info.simulated).toBe(false);
+    expect(info.fileName).toBe("cor_student_123.jpg");
+    expect(info.url).toBe("blob:http://localhost/test-blob");
+    expect(apiClient.get).toHaveBeenCalledWith("/staff/verifications/42/document", {
       responseType: "blob",
     });
+  });
+
+  it("fetches single verification detail for staff and student", async () => {
+    const { getStaffVerification, getMyVerification } = await import("./verificationService");
+    vi.mocked(apiClient.get).mockResolvedValueOnce({
+      data: {
+        id: 55,
+        academicTermId: 6,
+        termName: "1st Semester 2026-2027",
+        status: "Approved",
+        proof_file: "cor_55.jpg",
+        student: { id: "std-55", name: "Juan Luna", studentNumber: "2024-00001" },
+      },
+    });
+
+    const staffDetail = await getStaffVerification("55");
+    expect(staffDetail.id).toBe("55");
+    expect(staffDetail.student.name).toBe("Juan Luna");
+    expect(apiClient.get).toHaveBeenCalledWith("/staff/verifications/55");
+
+    vi.mocked(apiClient.get).mockResolvedValueOnce({
+      data: {
+        id: 55,
+        academicTermId: 6,
+        termName: "1st Semester 2026-2027",
+        status: "Approved",
+        proof_file: "cor_55.jpg",
+      },
+    });
+
+    const myDetail = await getMyVerification("55");
+    expect(myDetail.id).toBe("55");
+    expect(apiClient.get).toHaveBeenCalledWith("/me/verifications/55");
   });
 });

@@ -18,7 +18,7 @@ import type {
   UUID,
 } from "@/types";
 import { COPY_CONDITIONS } from "@/types";
-import { apiClient } from "@/services/apiClient";
+import { apiClient, apiGet } from "@/services/apiClient";
 import { USE_MOCKS } from "@/utils/constants";
 import { ApiError, fail, unsupportedOperation } from "@/utils/errors";
 import { isPast, overdueDays } from "@/utils/formatDate";
@@ -250,10 +250,7 @@ function findRequest(id: UUID) {
 /** H1 GET /staff/books-to-release: APPROVED and ON_HOLD requests, earliest pickup deadline first. */
 export async function listBooksToRelease(params: { search?: string } = {}): Promise<BookToRelease[]> {
   if (!USE_MOCKS) {
-    const requests = await listStaffBorrowingRequests({ status: "APPROVED", search: params.search });
-    return requests
-      .map(toReleaseItem)
-      .sort((a, b) => (a.pickupDeadline ?? "").localeCompare(b.pickupDeadline ?? ""));
+    return apiGet<BookToRelease[]>("/staff/books-to-release", params);
   }
   await begin();
   requireCapability("STAFF_AREA");
@@ -278,12 +275,35 @@ export interface HandoverDetails {
 export async function getHandoverDetails(requestId: UUID): Promise<HandoverDetails> {
   if (!USE_MOCKS) {
     positiveIntegerId(requestId, "Request id");
-    const request = (await listStaffBorrowingRequests({ status: "APPROVED" }))
-      .find((item) => item.id === requestId);
+    const list = await listBooksToRelease();
+    const item = list.find((b) => b.requestId === requestId) ?? null;
+    if (item) {
+      return {
+        item,
+        request: {
+          id: item.requestId,
+          bookId: item.book.id,
+          bookTitle: item.book.title,
+          assignedCopyId: item.copy.id,
+          requestedDurationDays: item.requestedDurationDays ?? 0,
+          status: item.status === "OFFERED" ? "APPROVED" : item.status,
+          requestedAt: item.approvedAt ?? "",
+          approvedAt: item.approvedAt,
+          pickupDeadline: item.pickupDeadline,
+          claimedAt: null,
+          decisionReason: null,
+          student: item.student,
+          copy: item.copy,
+        },
+        attempts: [],
+        attemptsAvailable: false,
+      };
+    }
+    const request = (await listStaffBorrowingRequests()).find((r) => r.id === requestId);
     if (!request) fail("NOT_FOUND", "We could not find an approved request awaiting handover.");
     const awaiting = request.status === "APPROVED";
     return {
-      item: awaiting ? toReleaseItem(request) : null,
+      item: awaiting && request.copy ? toReleaseItem(request) : null,
       request,
       attempts: [],
       attemptsAvailable: false,
@@ -305,15 +325,20 @@ export async function getHandoverDetails(requestId: UUID): Promise<HandoverDetai
 export async function checkHandoverEligibility(requestId: UUID): Promise<PenaltyCheck> {
   if (!USE_MOCKS) {
     const id = positiveIntegerId(requestId, "Request id");
-    const request = (await listStaffBorrowingRequests({ status: "APPROVED" }))
-      .find((item) => item.id === String(id));
-    if (!request) fail("NOT_FOUND", "We could not find an approved request awaiting handover.");
-    const loans = await reservedStaffLoans();
-    const reserved = loans.find((loan) => String(loan.requestId ?? loan.request_id) === String(id));
-    if (!reserved) fail("NOT_FOUND", "The reserved borrowing record was not found.");
-    const borrowId = positiveIntegerId(String(reserved.borrowId ?? reserved.borrow_id ?? reserved.id), "Borrow id");
-    const check = (await apiClient.get<unknown>(`/borrowed-books/${borrowId}/pickup-check`)).data;
-    return mapPickupCheck(check, request.student.id);
+    try {
+      const check = (await apiClient.get<unknown>(`/borrow-requests/${id}/pickup-check`)).data;
+      return mapPickupCheck(check, String(id));
+    } catch {
+      const request = (await listStaffBorrowingRequests({ status: "APPROVED" }))
+        .find((item) => item.id === String(id));
+      if (!request) fail("NOT_FOUND", "We could not find an approved request awaiting handover.");
+      const loans = await reservedStaffLoans();
+      const reserved = loans.find((loan) => String(loan.requestId ?? loan.request_id) === String(id));
+      if (!reserved) fail("NOT_FOUND", "The reserved borrowing record was not found.");
+      const borrowId = positiveIntegerId(String(reserved.borrowId ?? reserved.borrow_id ?? reserved.id), "Borrow id");
+      const check = (await apiClient.get<unknown>(`/borrowed-books/${borrowId}/pickup-check`)).data;
+      return mapPickupCheck(check, request.student.id);
+    }
   }
   await begin();
   const staff = requireCapability("STAFF_AREA");

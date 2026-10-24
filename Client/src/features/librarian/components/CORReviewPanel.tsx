@@ -16,20 +16,25 @@ interface CORReviewPanelProps {
   onDone: () => void;
 }
 
-// COR review is available to Admins and Librarians (the backend enforces access).
+// COR review needs Admin or a Librarian with the COR_REVIEW permission (enforced by the backend).
 export default function CORReviewPanel({ item, onClose, onDone }: CORReviewPanelProps) {
   const toast = useToast();
   const [busy, setBusy] = useState<"approve" | "reject" | null>(null);
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [documentUrl, setDocumentUrl] = useState<string | null>(null);
-  const [documentLoading, setDocumentLoading] = useState(false);
+  const [docNote, setDocNote] = useState<string | null>(null);
+  const [docUrl, setDocUrl] = useState<string | null>(null);
+  const [docLoading, setDocLoading] = useState(false);
+  const [docError, setDocError] = useState<string | null>(null);
+  const [showDoc, setShowDoc] = useState(false);
   const pending = item.status === "PENDING";
 
-  useEffect(() => () => {
-    if (documentUrl) URL.revokeObjectURL(documentUrl);
-  }, [documentUrl]);
+  useEffect(() => {
+    return () => {
+      if (docUrl) URL.revokeObjectURL(docUrl);
+    };
+  }, [docUrl]);
 
   const run = async (kind: "approve" | "reject") => {
     if (kind === "reject" && !reason.trim()) return setError("A reason is required to reject a COR.");
@@ -48,15 +53,25 @@ export default function CORReviewPanel({ item, onClose, onDone }: CORReviewPanel
   };
 
   const openDocument = async () => {
-    setDocumentLoading(true);
-    setError(null);
+    if (docUrl) {
+      setShowDoc(!showDoc);
+      return;
+    }
+    setDocLoading(true);
+    setDocError(null);
+    setDocNote(null);
     try {
-      const document = await verificationService.getCorDocument(item.id);
-      setDocumentUrl(URL.createObjectURL(document));
+      const info = await verificationService.getCorDocumentInfo(item.id);
+      if (info.simulated) {
+        setDocNote(`${info.fileName}: Demo mode (simulated document).`);
+      } else if (info.url) {
+        setDocUrl(info.url);
+        setShowDoc(true);
+      }
     } catch (e) {
-      setError(describeError(e));
+      setDocError(describeError(e));
     } finally {
-      setDocumentLoading(false);
+      setDocLoading(false);
     }
   };
 
@@ -93,26 +108,90 @@ export default function CORReviewPanel({ item, onClose, onDone }: CORReviewPanel
     >
       <dl className="kv">
         <div><dt>Student</dt><dd>{item.student.name}</dd></div>
-        <div><dt>Student number</dt><dd>{item.student.studentNumber || "Not provided by Server"}</dd></div>
+        <div><dt>Student number</dt><dd>{item.student.studentNumber || "—"}</dd></div>
+        {item.student.email && <div><dt>Email</dt><dd>{item.student.email}</dd></div>}
+        {(item.student.college || item.student.course) && (
+          <div>
+            <dt>College / Course</dt>
+            <dd>{[item.student.college, item.student.course].filter(Boolean).join(" · ")}</dd>
+          </div>
+        )}
+        {(item.student.yearLevel != null || item.student.studentType) && (
+          <div>
+            <dt>Level / Type</dt>
+            <dd>{[item.student.yearLevel != null ? `Year ${item.student.yearLevel}` : null, item.student.studentType].filter(Boolean).join(" · ")}</dd>
+          </div>
+        )}
         <div><dt>Term</dt><dd>{item.termName}</dd></div>
         <div><dt>Status</dt><dd><StatusBadge status={item.status} /></dd></div>
         <div><dt>Submitted</dt><dd>{formatDate(item.submittedAt)}</dd></div>
-        <div><dt>File</dt><dd>{item.originalFileName || "Not provided by Server"}</dd></div>
+        <div><dt>File name</dt><dd>{item.originalFileName || "cor_proof.jpg"}</dd></div>
         {item.effectiveFrom && item.validUntil && (
           <div><dt>Valid</dt><dd>{formatDate(item.effectiveFrom)} – {formatDate(item.validUntil)}</dd></div>
         )}
+        {item.reviewer && (
+          <div>
+            <dt>Reviewed by</dt>
+            <dd>{item.reviewer.name} {item.reviewer.role ? `(${item.reviewer.role})` : ""}</dd>
+          </div>
+        )}
+        {item.reviewedAt && <div><dt>Reviewed on</dt><dd>{formatDate(item.reviewedAt)}</dd></div>}
         {item.rejectionReason && <div><dt>Rejection reason</dt><dd>{item.rejectionReason}</dd></div>}
       </dl>
-      <div>
-        <Button variant="ghost" size="sm" onClick={openDocument} loading={documentLoading}>Load document</Button>
-        {documentUrl && (
-          <a className="btn btn-ghost btn-sm" href={documentUrl} target="_blank" rel="noreferrer">
-            Open document
-          </a>
+
+      <div style={{ marginTop: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <Button variant="ghost" size="sm" onClick={openDocument} loading={docLoading}>
+            {docUrl ? (showDoc ? "Hide document photo" : "Show document photo") : "View captured COR photo"}
+          </Button>
+          {docUrl && (
+            <a
+              href={docUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-ghost btn-sm"
+              style={{ textDecoration: "none", fontSize: "0.85rem" }}
+            >
+              Open in new tab ↗
+            </a>
+          )}
+        </div>
+        {docNote && <div style={{ marginTop: 8 }}><Alert kind="info">{docNote}</Alert></div>}
+        {docError && <div style={{ marginTop: 8 }}><Alert kind="error">{docError}</Alert></div>}
+        {showDoc && docUrl && (
+          <div
+            style={{
+              marginTop: 10,
+              borderRadius: 8,
+              overflow: "hidden",
+              border: "1px solid var(--color-line, #e2e8f0)",
+              backgroundColor: "#000",
+              maxHeight: 480,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <img
+              src={docUrl}
+              alt={`COR document for ${item.student.name}`}
+              style={{ maxWidth: "100%", maxHeight: 480, objectFit: "contain" }}
+            />
+          </div>
         )}
       </div>
-      {pending && rejecting && <TextareaField label="Reason for rejection (shown to the student)" value={reason} onChange={(e) => setReason(e.target.value)} required />}
-      {error && <Alert kind="error">{error}</Alert>}
+
+      {pending && rejecting && (
+        <div style={{ marginTop: 12 }}>
+          <TextareaField
+            label="Reason for rejection (shown to the student)"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            required
+          />
+        </div>
+      )}
+      {error && <div style={{ marginTop: 10 }}><Alert kind="error">{error}</Alert></div>}
     </Modal>
   );
 }

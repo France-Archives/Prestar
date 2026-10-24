@@ -13,6 +13,7 @@ import verificationRoutes from "./routes/verificationRoutes.js";
 import reservationRoutes from "./routes/reservationRoutes.js";
 import studentDashboardRoutes from "./routes/studentDashboardRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import staffDashboardRoutes from "./routes/staffDashboardRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import renewalRoutes from "./routes/renewalRoutes.js";
 
@@ -51,6 +52,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/renewals", renewalRoutes);
 app.use("/api", studentDashboardRoutes);
+app.use("/api", staffDashboardRoutes);
 app.use("/api", verificationRoutes);
 
 app.use((req, res) => {
