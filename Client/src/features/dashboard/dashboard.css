@@ -968,3 +968,406 @@
   .admin-kpi__cor-dot { animation: none; }
   .admin-activity-chart__latest { opacity: 0.8; transform: none; }
 }
+
+.page:has(.admin-dashboard__kpis) > .dashboard-layout {
+  width: min(100%, 1280px);
+  margin-inline: auto;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  grid-template-areas:
+    "kpis kpis"
+    "actions actions"
+    "activity copies"
+    "books overdue"
+    "fines fines"
+    "heat heat";
+  align-items: stretch;
+  gap: 16px;
+}
+
+.page:has(.admin-dashboard__kpis) > .dashboard-layout > .admin-dashboard__legacy-counts {
+  display: none;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-dashboard__charts,
+.page:has(.admin-dashboard__kpis) .admin-dashboard__support {
+  display: contents;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-dashboard__kpis { grid-area: kpis; }
+.page:has(.admin-dashboard__kpis) .dashboard-shortcuts { grid-area: actions; }
+.page:has(.admin-dashboard__kpis) .admin-dashboard__activity-panel { grid-area: activity; }
+.page:has(.admin-dashboard__kpis) .admin-dashboard__copies-panel { grid-area: copies; }
+.page:has(.admin-dashboard__kpis) .admin-dashboard__books-panel { grid-area: books; }
+.page:has(.admin-dashboard__kpis) .admin-dashboard__ratio-panel { grid-area: overdue; }
+.page:has(.admin-dashboard__kpis) .admin-dashboard__fines-panel { grid-area: fines; }
+.page:has(.admin-dashboard__kpis) .admin-dashboard__heat-panel { grid-area: heat; }
+
+.page:has(.admin-dashboard__kpis) .dashboard-panel {
+  min-width: 0;
+  padding: 22px;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-dashboard__kpis {
+  grid-template-columns: repeat(auto-fit, minmax(215px, 1fr));
+  gap: 16px;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-kpi {
+  display: grid;
+  height: 124px;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto 1fr;
+  align-items: end;
+  gap: 0;
+  padding: 18px 20px;
+  border-radius: var(--admin-dashboard-radius);
+}
+
+.page:has(.admin-dashboard__kpis) .admin-kpi__label {
+  display: flex;
+  grid-column: 1 / -1;
+  grid-row: 1;
+  align-items: center;
+  justify-self: start;
+  gap: 8px;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.055em;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-kpi__label::before {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border: 1px solid color-mix(in srgb, var(--admin-kpi-accent, var(--color-reading-amber)) 45%, transparent);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--admin-kpi-accent, var(--color-reading-amber)) 13%, transparent);
+  box-shadow: inset 0 0 0 5px var(--color-paper);
+  content: "";
+}
+
+.page:has(.admin-dashboard__kpis) .admin-kpi__number {
+  grid-column: 1;
+  grid-row: 2;
+  align-self: end;
+  font-size: clamp(1.65rem, 2vw, 2.15rem);
+  line-height: 1;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-kpi__spark,
+.page:has(.admin-dashboard__kpis) .admin-kpi__mini-ring,
+.page:has(.admin-dashboard__kpis) .admin-kpi__caption,
+.page:has(.admin-dashboard__kpis) .admin-kpi--cor > a {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: end;
+  justify-self: end;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-kpi__spark {
+  height: 28px;
+  margin: 0 0 1px;
+  padding: 0;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-kpi__caption { padding-bottom: 2px; }
+.page:has(.admin-dashboard__kpis) .admin-kpi__mini-ring { grid-row: 2; align-self: end; }
+.page:has(.admin-dashboard__kpis) .admin-kpi--cor .admin-kpi__number { color: var(--color-reading-cream); }
+.page:has(.admin-dashboard__kpis) .admin-kpi--cor > a { margin: 0 0 3px; }
+.page:has(.admin-dashboard__kpis) .admin-kpi__cor-dot { top: 20px; right: 20px; }
+
+.page:has(.admin-dashboard__kpis) .dashboard-shortcuts {
+  min-width: 0;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  gap: 16px;
+  margin: 0;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-dashboard__activity-panel,
+.page:has(.admin-dashboard__kpis) .admin-dashboard__copies-panel {
+  height: 100%;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-dashboard__activity-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  column-gap: 16px;
+  align-content: start;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-dashboard__activity-panel > .dashboard-panel__head {
+  grid-column: 1;
+  grid-row: 1;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 4px 12px;
+  margin: 0;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-dashboard__activity-panel > .dashboard-panel__head p {
+  margin: 0;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-activity-chart { display: contents; }
+
+.page:has(.admin-dashboard__kpis) .admin-chart-toggle {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+  margin: 0;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-activity-chart__svg {
+  width: 100%;
+  height: auto;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  aspect-ratio: 720 / 300;
+  align-self: stretch;
+}
+
+.page:has(.admin-dashboard__kpis) .dashboard-chart__legend {
+  grid-column: 1;
+  grid-row: 3;
+  align-self: center;
+  margin: 0;
+}
+
+.page:has(.admin-dashboard__kpis) .dashboard-chart__data {
+  grid-column: 2;
+  grid-row: 3;
+  justify-self: end;
+  align-self: center;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-dashboard__copies-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-dashboard-donut { display: contents; }
+
+.page:has(.admin-dashboard__kpis) .admin-dashboard-donut > svg {
+  width: min(200px, 100%);
+  flex: none;
+  align-self: center;
+  margin: 0 auto 12px;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-dashboard-donut__legend {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: space-evenly;
+  gap: 4px;
+  width: 100%;
+  margin: 0;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-dashboard-donut__legend > li { display: block; }
+
+.page:has(.admin-dashboard__kpis) .admin-dashboard-donut__legend-button {
+  min-height: 34px;
+  justify-content: flex-start;
+  padding: 5px 8px;
+  font-size: 0.8rem;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-dashboard__books-panel,
+.page:has(.admin-dashboard__kpis) .admin-dashboard__ratio-panel {
+  height: 100%;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-ranked-row {
+  grid-template-columns: 2.4ch 38px minmax(0, 1fr) 58px;
+  grid-template-rows: auto auto;
+  gap: 2px 12px;
+  min-height: 60px;
+  padding: 4px;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-ranked-row__rank,
+.page:has(.admin-dashboard__kpis) .admin-ranked-row .dashboard-ranked-bars__cover {
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-ranked-row__title-wrap {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-ranked-row .dashboard-ranked-bars__track {
+  grid-column: 3;
+  grid-row: 2;
+  width: 100%;
+  align-self: center;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-ranked-row > b {
+  grid-column: 4;
+  grid-row: 1 / span 2;
+  width: 58px;
+  align-self: center;
+  text-align: right;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-dashboard__ratio-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-dashboard-ratio {
+  flex: 1;
+  align-content: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-dashboard-ratio > svg {
+  width: min(230px, 100%);
+  margin: 0 auto;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-dashboard-ratio p { margin: 0; }
+
+.page:has(.admin-dashboard__kpis) .admin-dashboard__fines-panel {
+  display: flex;
+  min-height: 110px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 18px 24px;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-dashboard__fines-panel::before {
+  top: auto;
+  right: -3%;
+  bottom: -85%;
+  width: 260px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--color-reading-amber) 28%, transparent), transparent 70%);
+}
+
+.page:has(.admin-dashboard__kpis) .admin-dashboard__fines-panel > .dashboard-panel__head {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-dashboard__fines-figure {
+  display: contents;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-dashboard__fines-figure > strong {
+  flex: none;
+  color: var(--color-reading-cream);
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
+  white-space: nowrap;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-dashboard__fines-figure > a {
+  display: inline-flex;
+  min-height: 42px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 14px;
+  border: 1px solid color-mix(in srgb, var(--color-reading-cream) 60%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-reading-cream) 9%, transparent);
+  text-decoration: none;
+}
+
+.page:has(.admin-dashboard__kpis) .admin-dashboard__fines-figure > a:hover {
+  background: color-mix(in srgb, var(--color-reading-cream) 16%, transparent);
+}
+
+.page:has(.admin-dashboard__kpis) .admin-heat__days,
+.page:has(.admin-dashboard__kpis) .admin-heat__row {
+  min-width: 0;
+  grid-template-columns: 78px repeat(7, minmax(0, 1fr));
+}
+
+@media (max-width: 1023px) {
+  .page:has(.admin-dashboard__kpis) > .dashboard-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "kpis"
+      "actions"
+      "activity"
+      "copies"
+      "books"
+      "overdue"
+      "fines"
+      "heat";
+  }
+
+  .page:has(.admin-dashboard__kpis) .dashboard-shortcuts { flex-wrap: wrap; }
+
+  .page:has(.admin-dashboard__kpis) .admin-dashboard__activity-panel,
+  .page:has(.admin-dashboard__kpis) .admin-dashboard__copies-panel,
+  .page:has(.admin-dashboard__kpis) .admin-dashboard__books-panel,
+  .page:has(.admin-dashboard__kpis) .admin-dashboard__ratio-panel {
+    height: auto;
+  }
+
+  .page:has(.admin-dashboard__kpis) .admin-dashboard__copies-panel { min-height: 0; }
+  .page:has(.admin-dashboard__kpis) .admin-dashboard-donut__legend { gap: 8px; }
+  .page:has(.admin-dashboard__kpis) .admin-dashboard-ratio { min-height: 0; }
+}
+
+@media (max-width: 680px) {
+  .page:has(.admin-dashboard__kpis) .dashboard-panel { padding: 20px; }
+
+  .page:has(.admin-dashboard__kpis) .admin-dashboard__activity-panel {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    row-gap: 8px;
+  }
+
+  .page:has(.admin-dashboard__kpis) .admin-dashboard__activity-panel > .dashboard-panel__head,
+  .page:has(.admin-dashboard__kpis) .admin-chart-toggle,
+  .page:has(.admin-dashboard__kpis) .admin-activity-chart__svg,
+  .page:has(.admin-dashboard__kpis) .dashboard-chart__legend,
+  .page:has(.admin-dashboard__kpis) .dashboard-chart__data {
+    grid-column: 1;
+  }
+
+  .page:has(.admin-dashboard__kpis) .admin-dashboard__activity-panel > .dashboard-panel__head { grid-row: 1; }
+  .page:has(.admin-dashboard__kpis) .admin-chart-toggle { grid-row: 2; justify-self: start; }
+  .page:has(.admin-dashboard__kpis) .admin-activity-chart__svg { grid-row: 3; }
+  .page:has(.admin-dashboard__kpis) .dashboard-chart__legend { grid-row: 4; }
+  .page:has(.admin-dashboard__kpis) .dashboard-chart__data { grid-row: 5; justify-self: start; }
+
+  .page:has(.admin-dashboard__kpis) .admin-dashboard__fines-panel {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+    padding: 20px;
+  }
+
+  .page:has(.admin-dashboard__kpis) .admin-dashboard__fines-panel > .dashboard-panel__head { flex: auto; }
+  .page:has(.admin-dashboard__kpis) .admin-dashboard__fines-figure {
+    display: flex;
+    width: 100%;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .page:has(.admin-dashboard__kpis) .admin-dashboard__fines-figure > strong { white-space: normal; }
+}
+
+@media (max-width: 520px) {
+  .page:has(.admin-dashboard__kpis) .admin-heat { overflow-x: auto; }
+  .page:has(.admin-dashboard__kpis) .admin-heat__days,
+  .page:has(.admin-dashboard__kpis) .admin-heat__row {
+    min-width: 620px;
+    grid-template-columns: 78px repeat(7, minmax(66px, 1fr));
+  }
+}
