@@ -235,7 +235,85 @@ The separate standalone `/api/otp/request` and `/api/otp/verify` flow is not sig
 
 ---
 
+### 1.7 `POST /api/auth/forgot-password`
+Request a password-reset code (OTP). A 6-digit code is emailed to the account holder. The response is **always generic** — the API never confirms whether an email is registered, preventing user enumeration.
+
+Cooldown and limits mirror the signup OTP flow: **2-minute cooldown** and **max 3 codes per 24-hour window** per email address.
+
+| Property | Value |
+|---|---|
+| **Auth required** | No |
+| **Rate limited** | Yes (`forgotPasswordLimiter`: 5 per 15 min per IP) |
+
+**Request body**
+```json
+{ "email": "student@wmsu.edu.ph" }
+```
+
+**Success `200`** *(always returned, whether the email exists or not)*
+```json
+{
+  "message": "If that email is registered, a reset code has been sent.",
+  "email": "student@wmsu.edu.ph",
+  "cooldown_seconds": 120
+}
+```
+
+**Errors**
+| Code | Meaning |
+|---|---|
+| `429` | Cooldown active, 24-hour send limit reached, or IP rate limit exceeded |
+| `503` | Reset email could not be delivered |
+
+> **Security note**: A `404` is never returned here. To check whether an account exists use the authenticated `GET /api/auth/me` endpoint instead.
+
+---
+
+### 1.8 `POST /api/auth/reset-password`
+Verify the 6-digit reset code received via email and set a new password. The OTP record is destroyed immediately on success (single-use). The user's active session cookies are **not** invalidated automatically — the frontend should redirect to the login page.
+
+| Property | Value |
+|---|---|
+| **Auth required** | No |
+| **Rate limited** | Yes (`resetPasswordLimiter`: 10 per 15 min per IP) |
+
+**Request body**
+```json
+{
+  "email": "student@wmsu.edu.ph",
+  "otp": "847291",
+  "password": "NewStrongPassword1!",
+  "confirmPassword": "NewStrongPassword1!"
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `email` | string | **Yes** | The account's email address. |
+| `otp` | string | **Yes** | 6-digit code received via email. |
+| `password` | string | **Yes** | New password (minimum 8 characters). Also accepted as `new_password` or `newPassword`. |
+| `confirmPassword` | string | Optional | If provided, must match `password`. Also accepted as `confirm_password`. |
+
+**Success `200`**
+```json
+{
+  "message": "Password has been reset successfully. You may now log in."
+}
+```
+
+**Errors**
+| Code | Meaning |
+|---|---|
+| `400` | Missing fields, password too short, passwords don't match, invalid/expired OTP, or too many attempts |
+| `404` | No password reset request found for this email |
+| `429` | IP rate limit exceeded |
+
+> **OTP policy**: Codes expire after **10 minutes**. After **5 failed attempts** the code is invalidated and a new one must be requested via `forgot-password`.
+
+---
+
 ## 2. Student Dashboard
+
 
 ### `GET /api/me/dashboard`
 Returns the authenticated Student's dashboard data. The route requires a valid `auth_token` cookie and the `Student` role. It reads the current account, active-term COR, open requests, active loans, reservations, and most-borrowed books from the database.
@@ -293,7 +371,7 @@ List books with pagination, optional full-text search, and optional category fil
 | `page` | integer | `1` | Positive integer |
 | `limit` | integer | `20` | 1 to 100 |
 | `search` | string | — | Max 100 chars |
-| `category_id` | integer | — | Positive integer |
+| `category_id` | integer | — | Positive integer (also accepts `categoryId` or `category`) |
 
 **Success `200`**
 ```json
@@ -443,6 +521,287 @@ Each item matches the frontend `PopularBook` type (`bookId`, `title`, `loanCount
 |---|---|
 | `400` | `limit` is not a valid integer from 1 to 50 |
 | `401` | Not authenticated |
+
+---
+
+### 3.4 `POST /api/books`
+*(Role: Librarian, Admin)*  
+Create a new book title in the catalog. Validates ISBN uniqueness, author and category foreign keys. Optionally creates initial physical copies.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Librarian or Admin |
+
+**Request body**
+```json
+{
+  "title": "Clean Code",
+  "isbn": "978-0-13-235088-4",
+  "authorId": 7,
+  "categoryId": 3,
+  "publisher": "Prentice Hall",
+  "publicationYear": 2008,
+  "language": "English",
+  "price": 45.00,
+  "description": "A handbook of agile software craftsmanship.",
+  "coverImageUrl": "https://example.com/clean-code.jpg",
+  "initialCopies": 2
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `title` | string | **Yes** | Book title, 1–300 characters. |
+| `isbn` | string | Optional | Up to 20 characters. Must be unique across all books. Auto-generated if omitted. |
+| `authorId` | integer | **Yes** | ID of an existing author. Also accepts `authorIds: [id]` (first element used). |
+| `categoryId` | integer | Optional | ID of an existing category. |
+| `publisher` | string | Optional | Publisher name. |
+| `publicationYear` | integer | Optional | 4-digit year (1000–3000). |
+| `language` | string | Optional | Language of publication. |
+| `price` | number | Optional | Non-negative decimal price. |
+| `description` | string | Optional | Full book description. |
+| `coverImageUrl` | string | Optional | URL to cover image. |
+| `initialCopies` | integer | Optional | Number of `Available`/`Good` copies to create alongside the book record (default `0`). |
+
+**Success `201`**
+```json
+{
+  "message": "Book created successfully.",
+  "data": {
+    "id": 42,
+    "bookId": 42,
+    "title": "Clean Code",
+    "isbn": "978-0-13-235088-4",
+    "description": "A handbook of agile software craftsmanship.",
+    "publisher": "Prentice Hall",
+    "publicationYear": 2008,
+    "language": "English",
+    "price": "45.00",
+    "status": "Active",
+    "coverImageUrl": "https://example.com/clean-code.jpg",
+    "author": { "id": 7, "name": "Robert C. Martin" },
+    "authors": [{ "id": 7, "name": "Robert C. Martin" }],
+    "category": { "id": 3, "name": "Software Engineering" },
+    "availability": { "availableCopies": 2, "totalUsableCopies": 2 },
+    "isArchived": false
+  },
+  "book": { }
+}
+```
+
+**Errors**
+| Code | Meaning |
+|---|---|
+| `400` | Missing title, invalid year, or invalid price |
+| `401` | Authentication required |
+| `403` | Role is not Librarian or Admin |
+| `409` | ISBN already exists in catalog (`CONFLICT`) |
+| `422` | Author not found, or category not found (`VALIDATION_ERROR`) |
+
+---
+
+### 3.5 `PATCH /api/books/:id` (or `PUT /api/books/:id`)
+*(Role: Librarian, Admin)*  
+Update any subset of a book's details. All fields are optional (partial update). Also handles archival/restoration of a title.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Librarian or Admin |
+
+**Path parameter**: `id` — positive integer book ID.
+
+**Request body** (all fields optional)
+```json
+{
+  "title": "Clean Code: Revised Edition",
+  "isbn": "978-0-13-468599-1",
+  "authorId": 7,
+  "categoryId": 3,
+  "publisher": "Prentice Hall",
+  "publicationYear": 2024,
+  "language": "English",
+  "price": 55.00,
+  "description": "Updated edition with new chapters.",
+  "coverImageUrl": "https://example.com/clean-code-v2.jpg",
+  "isArchived": false
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `title` | string | Optional | Book title, 1–300 characters. |
+| `isbn` | string | Optional | Up to 20 characters. Must be unique (excluding this book's own ISBN). |
+| `authorId` | integer | Optional | Change the book's author. |
+| `categoryId` | integer | Optional | Change the book's category. Set to `null` to clear. |
+| `publisher` | string | Optional | Publisher name. Set to `null` to clear. |
+| `publicationYear` | integer | Optional | 4-digit year (1000–3000). Set to `null` to clear. |
+| `language` | string | Optional | Language. Set to `null` to clear. |
+| `price` | number | Optional | Non-negative decimal. |
+| `description` | string | Optional | Description. Set to `null` to clear. |
+| `coverImageUrl` | string | Optional | Cover image URL. Set to `null` to clear. |
+| `isArchived` | boolean | Optional | `true` to archive, `false` to restore. **Archiving is blocked if the book has active loans, pending requests, or active reservations.** |
+| `status` | string | Optional | Alias: `"Archived"` to archive, `"Active"` to restore. |
+
+**Success `200`**
+```json
+{
+  "message": "Book updated successfully.",
+  "data": {
+    "id": 42,
+    "bookId": 42,
+    "title": "Clean Code: Revised Edition",
+    "status": "Active",
+    "isArchived": false,
+    "author": { "id": 7, "name": "Robert C. Martin" },
+    "category": { "id": 3, "name": "Software Engineering" },
+    "availability": { "availableCopies": 2, "totalUsableCopies": 2 }
+  },
+  "book": { }
+}
+```
+
+**Errors**
+| Code | Meaning |
+|---|---|
+| `400` | Invalid title (empty), invalid year, or invalid price |
+| `401` | Authentication required |
+| `403` | Role is not Librarian or Admin |
+| `404` | Book not found |
+| `409` | ISBN conflict with another book (`CONFLICT`), or archiving blocked by active loans/requests/reservations (`INVALID_STATE`) |
+| `422` | Author or category does not exist (`VALIDATION_ERROR`) |
+
+---
+
+### 3.6 `GET /api/categories`
+List all available book categories, sorted alphabetically. Used to populate category dropdowns in the catalog and book creation/edit forms.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Any authenticated user |
+
+**Success `200`**
+```json
+{
+  "data": [
+    { "id": "1", "categoryId": 1, "category_id": 1, "name": "Computer Science", "category_name": "Computer Science", "description": null },
+    { "id": "2", "categoryId": 2, "category_id": 2, "name": "Mathematics", "category_name": "Mathematics", "description": "Pure and applied math" }
+  ],
+  "categories": [ /* same array of categories */ ]
+}
+```
+
+**Errors**
+| Code | Meaning |
+|---|---|
+| `401` | Authentication required |
+
+---
+
+### 3.7 `POST /api/categories`
+*(Role: Librarian, Admin)*  
+Add a new book category to the catalog. Validates uniqueness (case-insensitive).
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Librarian or Admin |
+
+**Request Body**
+```json
+{
+  "name": "Artificial Intelligence",
+  "description": "Books on AI, ML, robotics, and neural networks"
+}
+```
+*Note: Accepts either `name` or `category_name`.*
+
+**Success `201`**
+```json
+{
+  "message": "Category created successfully.",
+  "data": {
+    "id": "15",
+    "categoryId": 15,
+    "category_id": 15,
+    "name": "Artificial Intelligence",
+    "category_name": "Artificial Intelligence",
+    "description": "Books on AI, ML, robotics, and neural networks",
+    "created_at": "2026-10-24T12:00:00.000Z"
+  },
+  "category": { /* same category object */ }
+}
+```
+
+**Errors**
+| Code | Meaning |
+|---|---|
+| `400` | Name missing, empty, or exceeds 100 characters (`VALIDATION_ERROR`) |
+| `401` | Authentication required |
+| `403` | User does not have staff privileges |
+| `409` | Category name already exists (`CONFLICT`) |
+
+---
+
+### 3.8 `GET /api/categories/:id/books` & `GET /api/books/category/:id`
+Retrieve active books belonging to a specific category (useful for dropdown selections). Supports standard pagination (`page`, `limit`) and search.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Any authenticated user |
+
+**Success `200`**
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "bookId": 1,
+      "title": "Introduction to Algorithms",
+      "category": { "id": 2, "name": "Computer Science" },
+      "availability": { "availableCopies": 3, "totalUsableCopies": 3 }
+    }
+  ],
+  "books": [ /* same array of books */ ],
+  "pagination": { "page": 1, "limit": 20, "total": 1, "totalPages": 1 },
+  "meta": { "page": 1, "pageSize": 20, "total": 1 }
+}
+```
+
+**Errors**
+| Code | Meaning |
+|---|---|
+| `400` | Category ID is not a positive integer |
+| `401` | Authentication required |
+
+---
+
+### 3.9 `GET /api/authors`
+List all available authors, sorted alphabetically by first name then last name. Used to populate author selection in book creation/edit forms.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Any authenticated user |
+
+**Success `200`**
+```json
+{
+  "data": [
+    { "id": "7", "authorId": 7, "name": "Robert C. Martin", "firstName": "Robert", "lastName": "Martin" },
+    { "id": "3", "authorId": 3, "name": "Thomas Cormen", "firstName": "Thomas", "lastName": "Cormen" }
+  ],
+  "authors": [ ]
+}
+```
+
+**Errors**
+| Code | Meaning |
+|---|---|
+| `401` | Authentication required |
 
 ---
 
@@ -1061,6 +1420,181 @@ Reject handover by loan/borrow ID (`borrow_id`). Cancels the loan (`status = 'Ca
   "remarks": "[STUDENT_NOT_PRESENT] Student did not claim before counter close"
 }
 ```
+
+---
+
+### 5.6 `GET /api/borrowed-books/:id`
+*(Role: Librarian, Admin)* (Alias: `GET /api/staff/loans/:id`)  
+Retrieve comprehensive staff loan details for return inspection and processing. Includes full book details, copy barcode/condition, student profile and verified contact info, borrow and due dates, calculated overdue days, return history, and associated penalties.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Librarian or Admin |
+
+**Path parameter**: `id` — positive integer borrow ID (`borrow_id`).
+
+**Success `200`**
+```json
+{
+  "loan": {
+    "id": "55",
+    "borrowId": 55,
+    "requestId": 101,
+    "status": "Borrowed",
+    "borrowDate": "2026-10-10T08:00:00.000Z",
+    "dueDate": "2026-10-17",
+    "dueAt": "2026-10-17T23:59:59.000Z",
+    "isOverdue": false,
+    "overdueDays": 0,
+    "book": {
+      "id": 5,
+      "title": "Clean Architecture",
+      "isbn": "978-0134494164",
+      "author": "Robert C. Martin"
+    },
+    "copy": {
+      "id": 12,
+      "copyBarcode": "ACC-00012",
+      "accessionNo": "ACC-00012",
+      "condition": "GOOD",
+      "status": "Borrowed"
+    },
+    "student": {
+      "id": 9001,
+      "userId": 9001,
+      "studentNumber": "SN-2024-001",
+      "firstName": "Jane",
+      "lastName": "Doe",
+      "email": "jane@university.edu",
+      "college": "CCS",
+      "course": "BSCS"
+    },
+    "returnedRecord": null,
+    "penalties": []
+  }
+}
+```
+
+---
+
+### 5.7 `POST /api/borrowed-books/:id/return`
+*(Role: Librarian, Admin)* (Alias: `POST /api/staff/loans/:id/return`)  
+Accept a returned physical copy at the circulation desk. Never blocked by overdue, unpaid fines, or account suspension.
+- Evaluates days overdue: $\max\left(0, \left\lfloor \frac{\text{now} - \text{due\_date}}{86,400,000} \right\rfloor\right)$.
+- Inspects copy condition (`NEW`, `GOOD`, `FAIR`, `DAMAGED`, `UNUSABLE`).
+- If copy is usable (`NEW`, `GOOD`, `FAIR`), updates copy status to `Available` and triggers `processNextInReservationQueue(bookId)` to fulfill waiting reservations.
+- If copy is damaged (`DAMAGED`), updates copy status to `Maintenance` and records condition as `Damaged`.
+- If a damage fine is assessed (`fineType` & `fineAmount`), creates an `Unpaid` penalty record.
+- Issues a `LOAN_RETURNED` in-app notification to the student.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Librarian or Admin |
+
+**Path parameter**: `id` — positive integer borrow ID (`borrow_id`).
+
+**Request body**
+```json
+{
+  "condition": "GOOD",
+  "notes": "Book returned in excellent condition.",
+  "fineType": "DAMAGE_MINOR",
+  "fineAmount": 100
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `condition` | string | Yes | One of `NEW`, `GOOD`, `FAIR`, `DAMAGED`, `UNUSABLE`. |
+| `notes` | string | Optional | Inspection notes up to 2000 characters. |
+| `fineType` | string | Optional | `DAMAGE_MINOR` (₱100) or `DAMAGE_MAJOR` (₱200) if damage is assessed. |
+| `fineAmount` | number | Optional | Non-negative penalty amount to assess. |
+
+**Success `200`**
+```json
+{
+  "message": "Book return accepted successfully.",
+  "loan": {
+    "id": 55,
+    "borrowId": 55,
+    "status": "Returned",
+    "returnedAt": "2026-10-24T06:12:46.000Z",
+    "daysOverdue": 0
+  },
+  "copyStatus": "AVAILABLE",
+  "penalty": null
+}
+```
+
+**Errors**
+| Code | Meaning |
+|---|---|
+| `400` | Validation error (invalid condition or invalid fine amount) |
+| `401` | Authentication required |
+| `403` | Role not allowed (must be Librarian or Admin) |
+| `404` | Loan not found |
+| `409` | Loan is not in `Borrowed` status (`INVALID_STATE`) |
+
+---
+
+### 5.8 `POST /api/borrowed-books/:id/mark-lost`
+*(Role: Librarian, Admin, Student)* (Aliases: `POST /api/borrowed-books/:id/report-lost`, `POST /api/staff/loans/:id/mark-lost`)  
+Mark an active book loan as lost. Can be executed by library staff or **self-reported directly by the borrower student** (e.g. if the book was misplaced off-campus and the student will not be returning to the library).
+- When called by a `Student`, the system strictly validates that the loan belongs to the authenticated student (returns `403 Forbidden` if attempting to mark another student's loan).
+- Updates loan status to `Lost`.
+- Updates physical copy status to `Lost` and condition status to `Damaged`.
+- **Automatically assesses the standard ₱500 `Lost Book` fine** with status `Unpaid` on the student's account.
+- Issues an immediate `FINE_ASSESSED` notification to the student with settlement details.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Librarian, Admin, or Student |
+
+**Path parameter**: `id` — positive integer borrow ID (`borrow_id`).
+
+**Request body**
+```json
+{
+  "notes": "Borrower reported book lost during commute."
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `notes` | string | Optional | Notes/remarks describing the lost report up to 2000 characters. |
+
+**Success `200`**
+```json
+{
+  "message": "Loan marked as lost and ₱500 lost-book fine recorded.",
+  "loan": {
+    "id": 55,
+    "borrowId": 55,
+    "status": "Lost"
+  },
+  "penalty": {
+    "id": "8",
+    "fineType": "LOST_BOOK",
+    "amount": 500,
+    "paidAmount": 0,
+    "balance": 500,
+    "status": "UNPAID",
+    "notes": "Self-reported as lost: Borrower reported book lost during commute."
+  }
+}
+```
+
+**Errors**
+| Code | Meaning |
+|---|---|
+| `400` | Validation failure on notes |
+| `401` | Authentication required |
+| `403` | Role not allowed, or student attempting to report another student's loan (`FORBIDDEN`) |
+| `404` | Loan not found |
+| `409` | Loan is not in `Borrowed` status (`INVALID_STATE`) |
 
 ---
 

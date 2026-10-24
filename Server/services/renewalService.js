@@ -78,7 +78,7 @@ export async function createRenewal({ loanId, userId, requestedDurationDays = 7,
   const borrowerUserId = loan.request?.user_id;
 
   // Authorization: if Student, must own the loan
-  if (userRole === "Student" && borrowerUserId !== userId) {
+  if (userRole === "Student" && String(borrowerUserId) !== String(userId)) {
     throw new RenewalError(404, "NOT_FOUND", "We could not find that loan.");
   }
 
@@ -283,6 +283,9 @@ export async function createRenewal({ loanId, userId, requestedDurationDays = 7,
  * List renewal history for the current student.
  */
 export async function listMyRenewals(userId) {
+  if (!userId) {
+    return [];
+  }
   const renewals = await Renewal.findAll({
     include: [
       {
@@ -322,8 +325,9 @@ export async function listLoanRenewals(loanId, user) {
     throw new RenewalError(404, "NOT_FOUND", "We could not find that loan.");
   }
 
-  const isStaff = user.role === "Admin" || user.role === "Librarian";
-  if (!isStaff && loan.request?.user_id !== user.user_id) {
+  const isStaff = user?.role === "Admin" || user?.role === "Librarian";
+  const currentUserId = user?.id ?? user?.user_id;
+  if (!isStaff && String(loan.request?.user_id) !== String(currentUserId)) {
     throw new RenewalError(404, "NOT_FOUND", "We could not find that loan.");
   }
 
@@ -416,6 +420,12 @@ export async function listStaffRenewals({ search = "" } = {}) {
   );
 }
 
+function safeIsoDate(val) {
+  if (!val) return null;
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? null : d.toISOString();
+}
+
 function formatRenewalView(r) {
   const statusMap = {
     Approved: "APPROVED",
@@ -429,10 +439,10 @@ function formatRenewalView(r) {
     bookTitle: r.borrow?.book?.title || "",
     requestedDurationDays: r.requested_duration_days,
     status: statusMap[r.renewal_status] || r.renewal_status,
-    requestedAt: r.requested_at ? new Date(r.requested_at).toISOString() : new Date().toISOString(),
-    approvedAt: r.reviewed_at ? new Date(r.reviewed_at).toISOString() : null,
-    oldDueAt: r.old_due_date ? new Date(r.old_due_date).toISOString() : null,
-    newDueAt: r.new_due_date ? new Date(r.new_due_date).toISOString() : null,
+    requestedAt: safeIsoDate(r.requested_at) || new Date().toISOString(),
+    approvedAt: safeIsoDate(r.reviewed_at),
+    oldDueAt: safeIsoDate(r.old_due_date),
+    newDueAt: safeIsoDate(r.new_due_date),
     decisionReason: r.renewal_status === "Rejected" ? r.remarks : null,
   };
 }

@@ -1,14 +1,39 @@
 // Server/routes/bookRoutes.js
 import { Router } from "express";
 import authMiddleware from "../middleware/authMiddleware.js";
-import { getBook, getBooks, getTopBooks } from "../controllers/bookController.js";
-import { validateBookId, validateBookListQuery } from "../validators/bookValidator.js";
+import requireRole from "../middleware/roleMiddleware.js";
+import {
+  createBookHandler,
+  getAuthorsHandler,
+  getBook,
+  getBooks,
+  getCategoriesHandler,
+  getTopBooks,
+  updateBookHandler,
+} from "../controllers/bookController.js";
+import {
+  validateBookId,
+  validateBookListQuery,
+  validateCreateBook,
+  validateUpdateBook,
+} from "../validators/bookValidator.js";
 
 const router = Router();
+const staffOnly = requireRole(["Admin", "Librarian"]);
+
 router.use(authMiddleware);
+
+// Public catalog reads (any authenticated user)
 router.get("/", validateBookListQuery, getBooks);
 // Top borrowed books — must be before /:id so "top" is not parsed as a book id
 router.get("/top", getTopBooks);
+// Get books by category ID
+router.get("/category/:id", validateBookListQuery, getBooks);
 router.get("/:id", validateBookId, getBook);
+
+// Staff catalog writes
+router.post("/", staffOnly, validateCreateBook, createBookHandler);
+router.patch("/:id", staffOnly, validateBookId, validateUpdateBook, updateBookHandler);
+router.put("/:id", staffOnly, validateBookId, validateUpdateBook, updateBookHandler);
 
 export default router;

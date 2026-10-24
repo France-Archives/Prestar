@@ -4,15 +4,20 @@ import authMiddleware from "../middleware/authMiddleware.js";
 import requireRole from "../middleware/roleMiddleware.js";
 import {
   getPickupCheckDetails,
+  getStaffLoanDetailsHandler,
   listMyLoans,
   listStaffLoans,
+  markLoanLostHandler,
   pickupLoan,
   rejectPickupLoan,
+  returnLoanHandler,
 } from "../controllers/borrowedBookController.js";
 import {
   validateBorrowId,
   validateBorrowedBookStaffQuery,
+  validateMarkLost,
   validateMyLoansQuery,
+  validateReturnLoan,
 } from "../validators/borrowedBookValidator.js";
 import { validateRejectPickup } from "../validators/borrowRequestValidator.js";
 import { handleCreateRenewal } from "../controllers/renewalController.js";
@@ -59,6 +64,36 @@ router.post(
   validateBorrowId,
   validateCreateRenewal,
   handleCreateRenewal,
+);
+
+// 11. GET /api/borrowed-books/:id [Librarian, Admin] - view specific book/loan details
+router.get("/:id", staffOnly, validateBorrowId, getStaffLoanDetailsHandler);
+
+// 12. POST /api/borrowed-books/:id/return [Librarian, Admin] - accept / receive return
+router.post(
+  "/:id/return",
+  staffOnly,
+  validateBorrowId,
+  validateReturnLoan,
+  returnLoanHandler,
+);
+
+// 13. POST /api/borrowed-books/:id/mark-lost [Librarian, Admin, Student] - mark/report copy lost & assess penalty
+router.post(
+  "/:id/mark-lost",
+  requireRole(["Admin", "Librarian", "Student"]),
+  validateBorrowId,
+  validateMarkLost,
+  markLoanLostHandler,
+);
+
+// 14. POST /api/borrowed-books/:id/report-lost [Student, Librarian, Admin] - alias for self-reporting lost
+router.post(
+  "/:id/report-lost",
+  requireRole(["Admin", "Librarian", "Student"]),
+  validateBorrowId,
+  validateMarkLost,
+  markLoanLostHandler,
 );
 
 export default router;

@@ -13,9 +13,12 @@ import verificationRoutes from "./routes/verificationRoutes.js";
 import reservationRoutes from "./routes/reservationRoutes.js";
 import studentDashboardRoutes from "./routes/studentDashboardRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
+import categoryRoutes from "./routes/categoryRoutes.js";
 import staffDashboardRoutes from "./routes/staffDashboardRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import renewalRoutes from "./routes/renewalRoutes.js";
+import authMiddleware from "./middleware/authMiddleware.js";
+import { getAuthorsHandler } from "./controllers/bookController.js";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -46,6 +49,7 @@ app.use("/api/books", bookRoutes);
 app.use("/api/borrow-requests", borrowRequestRoutes);
 app.use("/api/borrowing-requests", borrowRequestRoutes);
 app.use("/api/borrowed-books", borrowedBookRoutes);
+app.use("/api/staff/loans", borrowedBookRoutes);
 app.use("/api/otp", otpRoutes);
 app.use("/api/reservations", reservationRoutes);
 app.use("/api/admin", adminRoutes);
@@ -54,6 +58,12 @@ app.use("/api/renewals", renewalRoutes);
 app.use("/api", studentDashboardRoutes);
 app.use("/api", staffDashboardRoutes);
 app.use("/api", verificationRoutes);
+
+// Category routes (listing categories, creating categories, and books by category)
+app.use("/api/categories", categoryRoutes);
+
+// Catalog helper lists (authenticated, any role)
+app.get("/api/authors", authMiddleware, getAuthorsHandler);
 
 app.use((req, res) => {
 	res.status(404).json({ error: "Route not found." });

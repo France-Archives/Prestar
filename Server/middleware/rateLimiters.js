@@ -67,3 +67,30 @@ export const otpVerifyLimiter = rateLimit({
   legacyHeaders: false,
   handler: rateLimitResponse,
 });
+
+/**
+ * Rate limiter for forgot-password requests: 5 per 15 minutes per IP.
+ */
+export const forgotPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    res.status(429).json({
+      error: "Too many password reset requests. Please wait 15 minutes before trying again.",
+    });
+  },
+});
+
+/**
+ * Rate limiter for reset-password (OTP verify + new password): 10 per 15 minutes per IP.
+ */
+export const resetPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  handler: rateLimitResponse,
+});
+

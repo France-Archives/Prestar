@@ -104,7 +104,8 @@ BorrowedBook.hasMany(Renewal, { foreignKey: "borrow_id", as: "renewals" });
 
 // Returned Books
 ReturnedBook.belongsTo(BorrowedBook, { foreignKey: "borrow_id", as: "borrow" });
-BorrowedBook.hasOne(ReturnedBook, { foreignKey: "returnRecord" });
+BorrowedBook.hasOne(ReturnedBook, { foreignKey: "borrow_id", as: "returnRecord" });
+ReturnedBook.belongsTo(User, { foreignKey: "received_by", as: "receiver" });
 
 // Reservations
 Reservation.belongsTo(User, { foreignKey: "user_id", as: "student" });
