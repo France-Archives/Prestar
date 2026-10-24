@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
-import { Activity, LibraryBig, PackageCheck, Scale, ScrollText, FileCheck, Undo2, UserCog, UsersRound } from "lucide-react";
-import Alert from "@/components/feedback/Alert";
+import { useState } from "react";
+import { PackageCheck, Scale, ScrollText, FileCheck, Undo2, UserCog } from "lucide-react";
 import LoadingState from "@/components/feedback/LoadingState";
 import ErrorState from "@/components/feedback/ErrorState";
 import PageHero from "@/components/layout/PageHero";
@@ -9,9 +9,8 @@ import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import * as reportsService from "@/services/reportsService";
 import OperationalCountCards from "@/features/dashboard/OperationalCountCards";
-import { ChartPanel, KpiCard, RankedBars, RatioRing } from "@/features/dashboard/DashboardVisuals";
+import { AdminKpiStrip, AdminMoneyFigure, ActivityHeatStrip, ChartPanel, RankedBars, RatioRing } from "@/features/dashboard/DashboardVisuals";
 import { ActivityChart, CopyStatusDonut } from "@/features/admin/components/SystemActivityChart";
-import { formatPeso } from "@/utils/formatCurrency";
 
 const QUICK = [
   { label: "Books to Release", to: ROUTES.staff.booksToRelease, icon: PackageCheck },
@@ -24,6 +23,7 @@ const QUICK = [
 
 export default function AdminDashboardPage() {
   const dash = useAsync(() => reportsService.getAdminDashboard(), []);
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
   if (dash.loading && !dash.data) {
     return (
@@ -54,6 +54,7 @@ export default function AdminDashboardPage() {
   }
 
   const d = dash.data;
+  const activeSelectedDay = selectedDay ?? d.activityLast7Days[d.activityLast7Days.length - 1]?.date ?? null;
 
   return (
     <div className="page">
@@ -65,18 +66,8 @@ export default function AdminDashboardPage() {
         actions={<div className="dashboard-actions">{QUICK.slice(0, 2).map(({ label, to }) => <Link key={to} to={to}>{label}</Link>)}</div>}
       />
       <div className="dashboard-layout">
-        <OperationalCountCards />
-        {d.pendingCorReviews > 0 && (
-          <Alert kind="warn">
-            {d.pendingCorReviews} COR {d.pendingCorReviews === 1 ? "submission is" : "submissions are"} waiting.{" "}
-            <Link to={ROUTES.staff.corReview}>Review now</Link>
-          </Alert>
-        )}
-        <div className="dashboard-kpi-strip">
-          <KpiCard icon={UsersRound} label="Students" value={d.totalStudents} to={ROUTES.admin.users} tone="forest" index={0} />
-          <KpiCard icon={LibraryBig} label="Librarians" value={d.totalLibrarians} to={ROUTES.admin.librarians} tone="teal" index={1} />
-          <KpiCard icon={Activity} label="Overdue loans" value={d.overdueLoans} to={ROUTES.staff.returns} tone="brick" index={2} />
-        </div>
+        <div className="admin-dashboard__legacy-counts" aria-hidden="true"><OperationalCountCards /></div>
+        <AdminKpiStrip data={d} />
         <section className="dashboard-shortcuts" aria-label="Administration shortcuts">
           {QUICK.slice(2).map(({ label, to, icon: Icon }) => (
             <Link key={to} to={to}>
@@ -85,28 +76,28 @@ export default function AdminDashboardPage() {
             </Link>
           ))}
         </section>
-        <div className="dashboard-grid-main">
-          <ChartPanel title="Library activity" note="Loans issued and returns, day by day." className="dashboard-panel--feature">
-            <ActivityChart days={d.activityLast7Days} />
+        <div className="dashboard-grid-main admin-dashboard__charts">
+          <ChartPanel title="Library activity" note="Loans issued and returns, day by day." className="dashboard-panel--feature admin-dashboard__activity-panel">
+            <ActivityChart days={d.activityLast7Days} selectedDay={activeSelectedDay} onSelectDay={setSelectedDay} />
           </ChartPanel>
-          <ChartPanel title="Copies by status" note="Collection distribution across copy states.">
+          <ChartPanel title="Copies by status" note="Collection distribution across copy states." className="admin-dashboard__copies-panel">
             <CopyStatusDonut counts={d.copiesByStatus} />
           </ChartPanel>
         </div>
-        <div className="dashboard-grid-support">
-          <ChartPanel title="Most borrowed" note="Ranked titles by loan count.">
+        <div className="dashboard-grid-support admin-dashboard__support">
+          <ChartPanel title="Most borrowed" note="Ranked titles by loan count." className="admin-dashboard__books-panel">
             <RankedBars books={d.popularBooks} />
           </ChartPanel>
-          <ChartPanel title="Unpaid fines" note="Outstanding balance across unpaid and partially paid fines.">
-            <div className="dashboard-focal-figure">
-              <strong>{formatPeso(d.unpaidFineBalance)}</strong>
-              <Link to={ROUTES.admin.finesAndPayments}>Review fines and payments</Link>
-            </div>
+          <ChartPanel title="Unpaid fines" note="Outstanding balance across unpaid and partially paid fines." className="admin-dashboard__fines-panel">
+            <AdminMoneyFigure amount={d.unpaidFineBalance} to={ROUTES.admin.finesAndPayments} />
           </ChartPanel>
-          <ChartPanel title="Overdue share" note="Overdue loans compared with active loans.">
+          <ChartPanel title="Overdue share" note="Overdue loans compared with active loans." className="admin-dashboard__ratio-panel">
             <RatioRing active={d.activeLoans} overdue={d.overdueLoans} />
           </ChartPanel>
         </div>
+        <ChartPanel title="Seven-day intensity" note="Daily circulation volume across the same activity period." className="admin-dashboard__heat-panel">
+          <ActivityHeatStrip days={d.activityLast7Days} selectedDay={activeSelectedDay} onSelectDay={setSelectedDay} />
+        </ChartPanel>
       </div>
     </div>
   );

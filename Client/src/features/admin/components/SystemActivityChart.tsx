@@ -3,8 +3,16 @@ import { ActivityChart as ActivityVisualization, DonutChart } from "@/features/d
 
 type Day = AdminDashboardData["activityLast7Days"][number];
 
-export function ActivityChart({ days }: { days: Day[] | null }) {
-  return <ActivityVisualization days={days} />;
+export function ActivityChart({
+  days,
+  selectedDay,
+  onSelectDay,
+}: {
+  days: Day[] | null;
+  selectedDay: string | null;
+  onSelectDay: (date: string) => void;
+}) {
+  return <ActivityVisualization days={days} selectedDay={selectedDay} onSelectDay={onSelectDay} />;
 }
 
 export function CopyStatusBars({ counts }: { counts: Record<BookCopyStatus, number> | null }) {
