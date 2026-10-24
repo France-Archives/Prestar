@@ -7,6 +7,7 @@ import {
   createLibrarianAccount,
 } from "../controllers/adminController.js";
 import { getAdminDashboard } from "../controllers/adminDashboardController.js";
+import { getUsers } from "../controllers/userController.js";
 import {
   approveVerificationHandler,
   getStaffQueue,
@@ -22,6 +23,9 @@ router.use(authMiddleware, requireRole(["Admin"]));
 
 // Admin dashboard endpoint
 router.get("/dashboard", getAdminDashboard);
+
+// User listing endpoint (sorted by role and status)
+router.get("/users", getUsers);
 
 // Librarian creation endpoints
 router.post("/librarians", createLibrarianAccount);

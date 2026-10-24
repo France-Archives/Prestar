@@ -24,7 +24,7 @@ const bookIncludes = [
  * into the shape the frontend BookSummary / BookDetail types expect,
  * providing both camelCase and snake_case keys.
  */
-function formatBookRow(row, availableCopiesOverride) {
+export function formatBookRow(row, availableCopiesOverride) {
   const plain = typeof row.get === "function" ? row.get({ plain: true }) : row;
   const author = plain.author;
   const authorName = author

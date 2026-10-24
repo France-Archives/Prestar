@@ -10,15 +10,20 @@
 ## Table of Contents
 
 1. [Auth](#1-auth)
+   - [Reading Interests & Personalized Recommendations](#19-reading-interests--personalized-recommendations)
 2. [Student Dashboard](#2-student-dashboard)
 3. [Books](#3-books)
+   - [Categories (`GET /api/categories`, `POST /api/categories`)](#36-get-apicategories)
+   - [Books by Category (`GET /api/categories/:id/books`)](#38-get-apicategoriesidbooks--get-apibookscategoryid)
 4. [Borrow Requests](#4-borrow-requests)
 5. [Borrowed Books](#5-borrowed-books)
 6. [Common Error Responses](#6-common-error-responses)
 7. [Academic Terms & COR Verification](#7-academic-terms--cor-verification)
 8. [Reservations (FIFO Queue System)](#8-reservations-fifo-queue-system)
+   - [Renewals](#8b-renewals)
 9. [Notifications](#9-notifications)
 10. [Admin Account Management](#10-admin-account-management)
+11. [Users](#11-users)
 
 ---
 
@@ -312,6 +317,113 @@ Verify the 6-digit reset code received via email and set a new password. The OTP
 
 ---
 
+### 1.9 Reading Interests & Personalized Recommendations
+
+#### `GET /api/interests`
+List all available reading interests (categories from the catalog).
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Any authenticated user |
+
+**Success `200`**
+```json
+{
+  "data": [
+    { "id": "1", "categoryId": 1, "name": "Computer Science", "description": null },
+    { "id": "2", "categoryId": 2, "name": "Mathematics", "description": null }
+  ],
+  "interests": [ /* same array */ ]
+}
+```
+
+---
+
+#### `GET /api/me/interests`
+Retrieve the current student's selected category interests from `user_category_preferences`.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Student |
+
+**Success `200`**
+```json
+{
+  "data": [
+    { "id": "1", "categoryId": 1, "name": "Computer Science" }
+  ],
+  "interests": [ /* same array */ ]
+}
+```
+
+---
+
+#### `PUT /api/me/interests`
+Update the student's selected category interests.
+**Rule:** The user must choose **at least 1 interest** (`interestIds.length >= 1`). All selected IDs must exist in the `categories` table.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Student |
+
+**Request body**
+```json
+{
+  "interestIds": [1, 2, 5]
+}
+```
+
+**Success `200`**
+```json
+{
+  "message": "Interests updated successfully.",
+  "data": [
+    { "id": "1", "categoryId": 1, "name": "Computer Science" },
+    { "id": "2", "categoryId": 2, "name": "Mathematics" },
+    { "id": "5", "categoryId": 5, "name": "Artificial Intelligence" }
+  ],
+  "interests": [ /* same array */ ]
+}
+```
+
+**Errors**
+| Code | Meaning |
+|---|---|
+| `400` | At least 1 interest must be chosen (`VALIDATION_ERROR`) |
+| `401` | Authentication required |
+| `422` | One or more of the selected category IDs do not exist (`VALIDATION_ERROR`) |
+
+---
+
+#### `GET /api/me/recommended-books`
+Retrieve personalized active book recommendations filtered to the student's chosen category interests. This same array is also returned dynamically in the student dashboard response (`GET /api/me/dashboard` ➔ `data.recommended`).
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Student |
+
+**Success `200`**
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "bookId": 1,
+      "title": "Introduction to Algorithms",
+      "category": { "id": 2, "name": "Mathematics" },
+      "availability": { "availableCopies": 3, "totalUsableCopies": 3 }
+    }
+  ],
+  "books": [ /* same array */ ]
+}
+```
+
+---
+
 ## 2. Student Dashboard
 
 
@@ -533,7 +645,11 @@ Create a new book title in the catalog. Validates ISBN uniqueness, author and ca
 | **Auth required** | Yes |
 | **Role** | Librarian or Admin |
 
-**Request body**
+**Content Types Supported**
+- `application/json`
+- `multipart/form-data` (recommended when uploading an image file directly)
+
+**Request body (JSON format)**
 ```json
 {
   "title": "Clean Code",
@@ -550,6 +666,10 @@ Create a new book title in the catalog. Validates ISBN uniqueness, author and ca
 }
 ```
 
+**Request body (`multipart/form-data` format)**
+- Fields: `title`, `isbn`, `authorId`, `categoryId`, `publisher`, `publicationYear`, `language`, `price`, `description`, `initialCopies`
+- File field: `coverImage` (or `cover_image`) — Image file (JPEG, PNG, WebP, max 5MB). The image will be uploaded to Supabase Storage and its public URL saved as the book's cover image.
+
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `title` | string | **Yes** | Book title, 1–300 characters. |
@@ -561,7 +681,8 @@ Create a new book title in the catalog. Validates ISBN uniqueness, author and ca
 | `language` | string | Optional | Language of publication. |
 | `price` | number | Optional | Non-negative decimal price. |
 | `description` | string | Optional | Full book description. |
-| `coverImageUrl` | string | Optional | URL to cover image. |
+| `coverImageUrl` | string | Optional | URL to cover image (used if not uploading a file). |
+| `coverImage` | file | Optional | File upload (`multipart/form-data` only). Automatically uploaded to Supabase Storage. Supports JPEG, PNG, WebP up to 5MB. |
 | `initialCopies` | integer | Optional | Number of `Available`/`Good` copies to create alongside the book record (default `0`). |
 
 **Success `201`**
@@ -612,7 +733,11 @@ Update any subset of a book's details. All fields are optional (partial update).
 
 **Path parameter**: `id` — positive integer book ID.
 
-**Request body** (all fields optional)
+**Content Types Supported**
+- `application/json`
+- `multipart/form-data` (recommended when uploading a new cover image file)
+
+**Request body (JSON format, all fields optional)**
 ```json
 {
   "title": "Clean Code: Revised Edition",
@@ -629,6 +754,10 @@ Update any subset of a book's details. All fields are optional (partial update).
 }
 ```
 
+**Request body (`multipart/form-data` format)**
+- Fields: Any subset of `title`, `isbn`, `authorId`, `categoryId`, `publisher`, `publicationYear`, `language`, `price`, `description`, `isArchived`, `status`
+- File field: `coverImage` (or `cover_image`) — Image file (JPEG, PNG, WebP, max 5MB). Uploads to Supabase Storage, replaces `cover_image` URL, and automatically removes the previous Supabase image file.
+
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `title` | string | Optional | Book title, 1–300 characters. |
@@ -641,6 +770,7 @@ Update any subset of a book's details. All fields are optional (partial update).
 | `price` | number | Optional | Non-negative decimal. |
 | `description` | string | Optional | Description. Set to `null` to clear. |
 | `coverImageUrl` | string | Optional | Cover image URL. Set to `null` to clear. |
+| `coverImage` | file | Optional | File upload (`multipart/form-data` only). Automatically uploaded to Supabase Storage. Replaces existing cover and cleans up old Supabase file. |
 | `isArchived` | boolean | Optional | `true` to archive, `false` to restore. **Archiving is blocked if the book has active loans, pending requests, or active reservations.** |
 | `status` | string | Optional | Alias: `"Archived"` to archive, `"Active"` to restore. |
 
@@ -2580,6 +2710,55 @@ Creates a new Admin account. Same validation and behavior as Librarian creation,
 | `401` | Not authenticated |
 | `403` | Not an Admin |
 | `409` | Email already registered |
+
+---
+
+## 11. Users
+
+**Prefix**: `/api/users` (staff) or `/api/admin/users` (admin only)
+
+### 11.1 `GET /api/users`
+*(Also available at `GET /api/admin/users` — Admin only)*
+
+Retrieve all users in the system. Returns only **name**, **status**, and **role** for each user. Results are sorted by role then status by default.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | `/api/users` → Admin or Librarian; `/api/admin/users` → Admin only |
+
+**Query parameters**
+
+| Param | Type | Default | Description |
+|---|---|---|---|
+| `sort_by` | string | `role` | Primary sort field. `role` or `status`. Also accepts `sortBy`. |
+| `role_order` | string | `ASC` | Sort direction for role column (`ASC` or `DESC`). Also accepts `roleOrder`. |
+| `status_order` | string | `ASC` | Sort direction for status column (`ASC` or `DESC`). Also accepts `statusOrder`. |
+| `role` | string | — | Filter by role (e.g. `Student`, `Librarian`, `Admin`). |
+| `status` | string | — | Filter by status (e.g. `Active`, `Inactive`, `Suspended`). |
+| `page` | integer | — | Page number (pagination only applies when `limit` is set). |
+| `limit` | integer | — | Results per page. |
+
+**Success `200`**
+```json
+{
+  "data": [
+    { "name": "Juan Dela Cruz", "status": "Active", "role": "Admin" },
+    { "name": "Maria Santos", "status": "Active", "role": "Librarian" },
+    { "name": "Jose Rizal", "status": "Active", "role": "Student" },
+    { "name": "Ana Reyes", "status": "Inactive", "role": "Student" }
+  ],
+  "users": [ /* same array */ ]
+}
+```
+
+> Each user object contains exactly three fields: `name` (full name), `status`, and `role`. No IDs, emails, or other PII are exposed.
+
+**Errors**
+| Code | Meaning |
+|---|---|
+| `401` | Authentication required |
+| `403` | Role is not Admin or Librarian (for `/api/users`) or not Admin (for `/api/admin/users`) |
 
 ---
 

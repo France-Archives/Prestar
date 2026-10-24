@@ -17,8 +17,15 @@ import categoryRoutes from "./routes/categoryRoutes.js";
 import staffDashboardRoutes from "./routes/staffDashboardRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import renewalRoutes from "./routes/renewalRoutes.js";
+import interestRoutes from "./routes/interestRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
 import authMiddleware from "./middleware/authMiddleware.js";
 import { getAuthorsHandler } from "./controllers/bookController.js";
+import {
+  getMyInterestsHandler,
+  updateMyInterestsHandler,
+  getRecommendedBooksHandler,
+} from "./controllers/interestController.js";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -53,6 +60,7 @@ app.use("/api/staff/loans", borrowedBookRoutes);
 app.use("/api/otp", otpRoutes);
 app.use("/api/reservations", reservationRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/users", userRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/renewals", renewalRoutes);
 app.use("/api", studentDashboardRoutes);
@@ -61,6 +69,13 @@ app.use("/api", verificationRoutes);
 
 // Category routes (listing categories, creating categories, and books by category)
 app.use("/api/categories", categoryRoutes);
+
+// Reading interests & personalized book recommendations
+app.use("/api/interests", interestRoutes);
+app.get("/api/me/interests", authMiddleware, getMyInterestsHandler);
+app.put("/api/me/interests", authMiddleware, updateMyInterestsHandler);
+app.post("/api/me/interests", authMiddleware, updateMyInterestsHandler);
+app.get("/api/me/recommended-books", authMiddleware, getRecommendedBooksHandler);
 
 // Catalog helper lists (authenticated, any role)
 app.get("/api/authors", authMiddleware, getAuthorsHandler);

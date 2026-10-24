@@ -10,6 +10,7 @@ import {
 } from "../models/index.js";
 import { MAX_ACTIVE_BORROWS } from "../config/libraryRules.js";
 import { getTopBorrowedBooks } from "./bookService.js";
+import { getRecommendedBooksForUser } from "./interestService.js";
 
 const toId = (value) => String(value);
 
@@ -75,8 +76,16 @@ export async function getStudentDashboardData(userId) {
     : null;
   const today = new Date().toISOString().slice(0, 10);
 
-  const [pickupRequests, loans, reservations, openRequestCount, activeLoanCount, activeReservationCount, popularBooks] =
-    await Promise.all([
+  const [
+    pickupRequests,
+    loans,
+    reservations,
+    openRequestCount,
+    activeLoanCount,
+    activeReservationCount,
+    popularBooks,
+    recommendedBooks,
+  ] = await Promise.all([
       BorrowRequest.findAll({
         where: {
           user_id: userId,
@@ -124,6 +133,7 @@ export async function getStudentDashboardData(userId) {
         where: { user_id: userId, status: { [Op.in]: ["Waiting", "Ready"] } },
       }),
       getTopBorrowedBooks(5, new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)),
+      getRecommendedBooksForUser(userId, 8),
     ]);
 
   const currentTerm = activeTerm
@@ -164,7 +174,7 @@ export async function getStudentDashboardData(userId) {
     })),
     recentNotifications: null,
     unreadCount: null,
-    recommended: null,
+    recommended: recommendedBooks.length > 0 ? recommendedBooks : null,
     mostBorrowed: popularBooks.map(formatPopularBook),
   };
 }
