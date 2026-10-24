@@ -78,7 +78,7 @@ export interface HoldHandoverRequest {
 /** H4 POST /staff/borrowing-requests/:id/reject-handover (reason required) */
 export interface RejectHandoverRequest {
   reasonCode: string;
-  notes: string;
+  notes?: string;
 }
 /** H5 POST /staff/borrowing-requests/:id/claim */
 export interface ClaimRequest {

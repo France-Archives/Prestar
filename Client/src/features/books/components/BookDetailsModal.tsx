@@ -6,13 +6,17 @@ import Alert from "@/components/feedback/Alert";
 import Button from "@/components/common/Button";
 import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
+import Modal from "@/components/ui/Modal";
+import { SelectField } from "@/components/forms/FormField";
 import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
 import * as booksService from "@/services/booksService";
+import * as borrowingService from "@/services/borrowingService";
 import * as reservationsService from "@/services/reservationsService";
-import type { BookDetail } from "@/types";
+import type { AllowedDurationDays, BookDetail } from "@/types";
+import { DURATION_OPTIONS } from "@/utils/constants";
 import { describeError } from "@/utils/errors";
 import { can } from "@/utils/permissions";
 import { useBorrowList } from "@/context/BorrowListContext";
@@ -39,11 +43,13 @@ export function BookDetailsContent({ book, reload, onNavigate, large = false, mo
   const { addBook } = useBorrowList();
   const [busy, setBusy] = useState(false);
   const [added, setAdded] = useState(false);
+  const [borrowDialogOpen, setBorrowDialogOpen] = useState(false);
+  const [duration, setDuration] = useState<AllowedDurationDays>(7);
   const [problem, setProblem] = useState<{ message: string; code?: string } | null>(null);
 
   const isStudent = user?.role === "STUDENT";
-  const { availableCopies, totalUsableCopies } = book.availability;
-  const mode: "request" | "reserve" | "none" = availableCopies > 0 ? "request" : totalUsableCopies > 0 ? "reserve" : "none";
+  const { availableCopies } = book.availability;
+  const mode: "request" | "reserve" = availableCopies > 0 ? "request" : "reserve";
 
   const go = (to: string) => {
     onNavigate?.();
@@ -74,6 +80,23 @@ export function BookDetailsContent({ book, reload, onNavigate, large = false, mo
     }
   };
 
+  const borrow = async () => {
+    setBusy(true);
+    setProblem(null);
+    try {
+      const request = await borrowingService.createBorrowingRequest({
+        bookId: book.id,
+        requestedDurationDays: duration,
+      });
+      toast.success(request.message);
+      setBorrowDialogOpen(false);
+    } catch (e) {
+      setProblem({ message: describeError(e), code: (e as { code?: string }).code });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const facts: [string, string][] = [
     ["ISBN", book.isbn ?? "—"],
     ["Publisher", book.publisher ?? "—"],
@@ -85,8 +108,7 @@ export function BookDetailsContent({ book, reload, onNavigate, large = false, mo
 
   const studentActions = isStudent && (
     <section className="bk-action" aria-label={mode === "reserve" ? "Reserve this book" : "Borrow this book"}>
-      {mode === "reserve" && <p className="subtle">All copies are out. You join a first-in, first-out queue. When a copy is free it is held for you for 3 days.</p>}
-      {mode === "none" && <Alert kind="info">There are no copies in circulation right now.</Alert>}
+      {mode === "reserve" && <p className="subtle">No copies are available. Join the reservation queue to be notified when one is offered.</p>}
       {problem && (
         <Alert kind="error">
           {problem.message}
@@ -100,14 +122,20 @@ export function BookDetailsContent({ book, reload, onNavigate, large = false, mo
       )}
       <div className="bk-action__buttons">
         {mode === "request" && (
-          <Button onClick={addToBorrowList} className={added ? "bk-modal__action-button is-added" : "bk-modal__action-button"}>
-            {added ? <Check size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
-            {added ? "Added to My Borrow List" : "Add to My Borrow List"}
-          </Button>
+          <>
+            {modal && (
+              <Button onClick={() => { setDuration(7); setBorrowDialogOpen(true); }} disabled={busy} className="bk-modal__action-button">
+                Borrow
+              </Button>
+            )}
+            <Button onClick={addToBorrowList} disabled={busy} className={added ? "bk-modal__action-button is-added" : "bk-modal__action-button"}>
+              {added ? <Check size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
+              {added ? "Added to My Borrow List" : "Add to My Borrow List"}
+            </Button>
+          </>
         )}
         {mode === "reserve" && (
           <Button onClick={act} loading={busy} className="bk-modal__action-button">
-            <Plus size={16} aria-hidden="true" />
             Join the reservation queue
           </Button>
         )}
@@ -124,6 +152,22 @@ export function BookDetailsContent({ book, reload, onNavigate, large = false, mo
           <Info size={15} aria-hidden="true" />
           <span>Add titles to your borrow list, review each quantity and duration, then submit. Approved copies are held for pickup; loans start at handover.</span>
         </p>
+      )}
+      {borrowDialogOpen && modal && (
+        <Modal
+          title={`Borrow ${book.title}`}
+          onClose={busy ? () => undefined : () => setBorrowDialogOpen(false)}
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setBorrowDialogOpen(false)} disabled={busy}>Cancel</Button>
+              <Button onClick={() => void borrow()} loading={busy}>Confirm Borrow</Button>
+            </>
+          }
+        >
+          <SelectField label="Loan duration" value={duration} onChange={(event) => setDuration(Number(event.target.value) as AllowedDurationDays)}>
+            {DURATION_OPTIONS.map((days) => <option key={days} value={days}>{days} days</option>)}
+          </SelectField>
+        </Modal>
       )}
       {mode === "request" && !modal && <p className="subtle">Add titles to your borrow list, review each quantity and duration, then submit. Approved copies are held for pickup; loans start at handover.</p>}
     </section>
@@ -189,7 +233,7 @@ export function BookDetailsContent({ book, reload, onNavigate, large = false, mo
             <div className="bk-modal__availability-row">
               <span className="bk-modal__availability-status">
                 {available > 0 && <span className="bk-modal__availability-dot" aria-hidden="true" />}
-                {available > 0 ? "Available now" : total > 0 ? "All copies out · reserve" : "No copies in circulation"}
+                {available > 0 ? "Available now" : "Unavailable · reserve"}
               </span>
               {total > 0 && <span className="bk-modal__availability-count">{available} of {total} copies</span>}
               {book.isArchived && <span className="badge badge-neutral">Archived</span>}
@@ -255,8 +299,7 @@ export function BookDetailsContent({ book, reload, onNavigate, large = false, mo
         {isStudent && (
           <section className="bk-action" aria-label={mode === "reserve" ? "Reserve this book" : "Borrow this book"}>
             {mode === "request" && <p className="subtle">Add titles to your borrow list, review each quantity and duration, then submit. Approved copies are held for pickup; loans start at handover.</p>}
-            {mode === "reserve" && <p className="subtle">All copies are out. You join a first-in, first-out queue. When a copy is free it is held for you for 3 days.</p>}
-            {mode === "none" && <Alert kind="info">There are no copies in circulation right now.</Alert>}
+            {mode === "reserve" && <p className="subtle">No copies are available. Join the reservation queue to be notified when one is offered.</p>}
             {problem && (
               <Alert kind="error">
                 {problem.message}

@@ -2,7 +2,7 @@ import { useState } from "react";
 import Alert from "@/components/feedback/Alert";
 import Button from "@/components/common/Button";
 import Card from "@/components/ui/Card";
-import { CheckboxField, InputField } from "@/components/forms/FormField";
+import { CheckboxField } from "@/components/forms/FormField";
 import { useToast } from "@/hooks/useToast";
 import * as librarianService from "@/services/librarianService";
 import type { BookToRelease, PenaltyCheck } from "@/types";
@@ -21,7 +21,6 @@ interface HandoverChecklistProps {
 export default function HandoverChecklist({ item, onChanged }: HandoverChecklistProps) {
   const toast = useToast();
   const [check, setCheck] = useState<PenaltyCheck | null>(null);
-  const [barcode, setBarcode] = useState("");
   const [idOk, setIdOk] = useState(false);
   const [copyOk, setCopyOk] = useState(false);
   const [busy, setBusy] = useState<"check" | "claim" | null>(null);
@@ -44,7 +43,7 @@ export default function HandoverChecklist({ item, onChanged }: HandoverChecklist
     setBusy("claim");
     setError(null);
     try {
-      await librarianService.claimHandover(item.requestId, { copyBarcode: barcode.trim() });
+      await librarianService.claimHandover(item.requestId, { copyBarcode: item.copy.barcode });
       toast.success("Handover confirmed. The loan has started.");
       onChanged();
     } catch (e) {
@@ -55,7 +54,7 @@ export default function HandoverChecklist({ item, onChanged }: HandoverChecklist
     }
   };
 
-  const canConfirm = Boolean(check?.eligible) && idOk && copyOk && barcode.trim().length > 0;
+  const canConfirm = Boolean(check?.eligible) && idOk && copyOk;
 
   return (
     <Card title="Handover" note="Step 1: Check Penalties. Step 2: verify the student and the copy. Step 3: Confirm Handover.">
@@ -70,13 +69,7 @@ export default function HandoverChecklist({ item, onChanged }: HandoverChecklist
         <hr style={{ border: 0, borderTop: "1px solid var(--color-line)" }} />
 
         <CheckboxField label="I checked the student's school ID against the name and student number on this request." checked={idOk} onChange={(e) => setIdOk(e.target.checked)} />
-        <CheckboxField label="The copy in my hand is in usable condition." checked={copyOk} onChange={(e) => setCopyOk(e.target.checked)} />
-        <InputField
-          label="Copy barcode"
-          hint={`Scan or type the barcode of the assigned copy (${item.copy.barcode}).`}
-          value={barcode}
-          onChange={(e) => setBarcode(e.target.value)}
-        />
+        <CheckboxField label={`I checked that the assigned copy (${item.copy.barcode}) is in my hand and in usable condition.`} checked={copyOk} onChange={(e) => setCopyOk(e.target.checked)} />
 
         {error && <Alert kind="error">{error}</Alert>}
 
@@ -117,6 +110,7 @@ export default function HandoverChecklist({ item, onChanged }: HandoverChecklist
           reasons={REJECT_REASONS}
           confirmLabel="Reject handover"
           danger
+          notesRequired={false}
           onClose={() => setDialog(null)}
           onSubmit={async (reasonCode, notes) => {
             await librarianService.rejectHandover(item.requestId, { reasonCode, notes });

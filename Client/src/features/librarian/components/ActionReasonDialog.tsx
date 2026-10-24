@@ -32,11 +32,12 @@ interface ActionReasonDialogProps {
   reasons: ReasonOption[];
   confirmLabel: string;
   danger?: boolean;
+  notesRequired?: boolean;
   onSubmit: (reasonCode: string, notes: string) => Promise<void>;
   onClose: () => void;
 }
 
-export default function ActionReasonDialog({ title, intro, reasons, confirmLabel, danger = false, onSubmit, onClose }: ActionReasonDialogProps) {
+export default function ActionReasonDialog({ title, intro, reasons, confirmLabel, danger = false, notesRequired = true, onSubmit, onClose }: ActionReasonDialogProps) {
   const [code, setCode] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
@@ -44,7 +45,7 @@ export default function ActionReasonDialog({ title, intro, reasons, confirmLabel
 
   const submit = async () => {
     if (!code) return setError("Choose a reason.");
-    if (!notes.trim()) return setError("Add notes explaining the decision.");
+    if (notesRequired && !notes.trim()) return setError("Add notes explaining the decision.");
     setBusy(true);
     setError(null);
     try {
@@ -80,7 +81,7 @@ export default function ActionReasonDialog({ title, intro, reasons, confirmLabel
           </option>
         ))}
       </SelectField>
-      <TextareaField label="Notes (shown to the student)" value={notes} onChange={(e) => setNotes(e.target.value)} required />
+      <TextareaField label={notesRequired ? "Notes (shown to the student)" : "Message (optional)"} value={notes} onChange={(e) => setNotes(e.target.value)} required={notesRequired} />
       {error && <Alert kind="error">{error}</Alert>}
     </Modal>
   );

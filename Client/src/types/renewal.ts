@@ -1,12 +1,12 @@
 import type { ISODateTime, UUID } from "./api";
-import type { AllowedDurationDays, RenewalStatus } from "./enums";
+import type { RenewalStatus } from "./enums";
 import type { StudentRef } from "./user";
 
 // renewal_requests -> RenewalRequest
 export interface RenewalRequest {
   id: UUID;
   loanId: UUID;
-  requestedDurationDays: AllowedDurationDays;
+  requestedDurationDays: number;
   status: RenewalStatus;
   requestedAt: ISODateTime;
   approvedAt: ISODateTime | null;
@@ -15,17 +15,17 @@ export interface RenewalRequest {
   decisionReason: string | null;
 }
 
-/** RenewalRequest joined with its title, for list pages. */
+/** Renewal record joined with its title, as returned by the Server. */
 export interface RenewalView extends RenewalRequest {
   bookTitle: string;
 }
 
-/** Staff view (renewal management). Renewals are decided automatically; staff only see them. */
+/** Staff view from GET /renewals. Renewals are decided automatically; staff only see them. */
 export interface StaffRenewalView extends RenewalView {
   student: StudentRef;
 }
 
-/** B6 POST /loans/:loanId/renewals */
+/** POST /renewals/loan/:loanId. */
 export interface CreateRenewalRequest {
-  requestedDurationDays: AllowedDurationDays;
+  requestedDurationDays: number;
 }

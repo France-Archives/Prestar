@@ -1,7 +1,7 @@
-import type { CreateReservationRequest, Loan, Reservation, ReservationStatus, StaffReservation, UUID } from "@/types";
+import type { CreateReservationRequest, Loan, Reservation, ReservationCancellation, ReservationStatus, StaffReservation, UUID } from "@/types";
 import { apiClient } from "@/services/apiClient";
 import { USE_MOCKS } from "@/utils/constants";
-import { ApiError, fail } from "@/utils/errors";
+import { ApiError, fail, unsupportedOperation } from "@/utils/errors";
 import { isPast } from "@/utils/formatDate";
 import { validateDuration } from "@/utils/validators";
 import {
@@ -37,6 +37,7 @@ function reservationStatus(value: unknown): ReservationStatus {
     WAITING: "WAITING",
     READY: "OFFERED",
     OFFERED: "OFFERED",
+    FULFILLED: "COLLECTED",
     COLLECTED: "COLLECTED",
     EXPIRED: "EXPIRED",
     CANCELLED: "CANCELLED",
@@ -76,6 +77,17 @@ function positiveIntegerId(value: UUID, label: string): number {
     fail("VALIDATION_ERROR", `${label} must be a positive integer.`, 400);
   }
   return Number(value);
+}
+
+function backendStatus(status: ReservationStatus): string {
+  const statuses: Record<ReservationStatus, string> = {
+    WAITING: "Waiting",
+    OFFERED: "Ready",
+    COLLECTED: "Fulfilled",
+    EXPIRED: "Expired",
+    CANCELLED: "Cancelled",
+  };
+  return statuses[status];
 }
 
 // Reservation eligibility, queue position, and copy assignment remain server decisions in live mode.
@@ -120,11 +132,16 @@ export async function createReservation(req: CreateReservationRequest): Promise<
   return out(toReservation(reservation));
 }
 
-/** B5 GET /me/reservations */
+/** GET /reservations/mine */
 export async function listMyReservations(params: { status?: ReservationStatus } = {}): Promise<Reservation[]> {
   if (!USE_MOCKS) {
-    const response = backendRow((await apiClient.get("/reservations/mine")).data);
-    const rows = Array.isArray(response.reservations) ? response.reservations : [];
+    const response = backendRow((await (params.status
+      ? apiClient.get("/reservations/mine", { params: { status: backendStatus(params.status) } })
+      : apiClient.get("/reservations/mine"))).data);
+    if (!Array.isArray(response.reservations)) {
+      throw new ApiError("UNKNOWN", "The Server returned an invalid reservation list.");
+    }
+    const rows = response.reservations as unknown[];
     const reservations = rows.map((row) => mapBackendReservation(row));
     return params.status ? reservations.filter((reservation) => reservation.status === params.status) : reservations;
   }
@@ -138,14 +155,20 @@ export async function listMyReservations(params: { status?: ReservationStatus } 
   );
 }
 
-/** P7 POST /reservations/:id/cancel (proposed). Cancelling an OFFERED reservation passes the copy on. */
-export async function cancelMyReservation(reservationId: UUID): Promise<Reservation> {
+/** POST /reservations/:id/cancel. The UI offers cancellation only while a reservation is WAITING. */
+export async function cancelMyReservation(reservationId: UUID): Promise<ReservationCancellation> {
   if (!USE_MOCKS) {
     const id = positiveIntegerId(reservationId, "Reservation id");
-    await apiClient.post(`/reservations/${id}/cancel`);
-    const updated = (await listMyReservations()).find((reservation) => reservation.id === String(id));
-    if (!updated) throw new ApiError("UNKNOWN", "The Server cancelled the reservation but it was not present in the refreshed reservation list.");
-    return updated;
+    const response = backendRow((await apiClient.post<unknown>(`/reservations/${id}/cancel`)).data);
+    const status = reservationStatus(response.status);
+    if (status !== "CANCELLED" || typeof response.message !== "string") {
+      throw new ApiError("UNKNOWN", "The Server returned an invalid reservation cancellation response.");
+    }
+    return {
+      message: response.message,
+      reservationId: String(response.reservationId ?? response.reservation_id ?? id),
+      status,
+    };
   }
   await begin();
   const { student } = requireStudent();
@@ -156,36 +179,45 @@ export async function cancelMyReservation(reservationId: UUID): Promise<Reservat
   reservation.status = "CANCELLED";
   if (copy && copy.status === "RESERVED") releaseCopy(copy);
   commit();
-  return out(toReservation(reservation));
+  return out({ message: "Reservation cancelled successfully.", reservationId: reservation.id, status: "CANCELLED" });
 }
 
 // ---------- staff (Librarian + Admin) ----------
 
-/** P5 GET /staff/reservations (proposed) */
+/** GET /reservations for Librarians and Admins. */
 export async function listStaffReservations(params: { status?: ReservationStatus; search?: string } = {}): Promise<StaffReservation[]> {
   if (!USE_MOCKS) {
     const response = backendRow((await apiClient.get("/reservations")).data);
-    const rows = Array.isArray(response.reservations) ? response.reservations : [];
+    if (!Array.isArray(response.reservations)) {
+      throw new ApiError("UNKNOWN", "The Server returned an invalid staff reservation list.");
+    }
+    const rows = response.reservations as unknown[];
     const mapped = rows.map((value): StaffReservation => {
       const row = backendRow(value);
       const student = row.student && typeof row.student === "object" ? row.student as BackendRow : {};
-      const user = row.user && typeof row.user === "object" ? row.user as BackendRow : student;
+      const book = row.book && typeof row.book === "object" ? row.book as BackendRow : {};
       const reservation = mapBackendReservation(row);
-      const name = String(student.name ?? `${user.first_name ?? ""} ${user.last_name ?? ""}`).trim();
+      const name = String(student.name ?? `${student.first_name ?? ""} ${student.last_name ?? ""}`).trim();
       return {
         ...reservation,
+        bookId: String(row.bookId ?? row.book_id ?? book.book_id ?? reservation.bookId),
+        bookTitle: String(row.bookTitle ?? book.title ?? reservation.bookTitle),
         student: {
           id: String(student.id ?? student.user_id ?? row.user_id ?? ""),
-          studentNumber: String(student.studentNumber ?? student.student_number ?? ""),
-          firstName: String(student.firstName ?? user.first_name ?? name.split(" ")[0] ?? ""),
-          lastName: String(student.lastName ?? user.last_name ?? name.split(" ").slice(1).join(" ")),
+          studentNumber: typeof (student.studentNumber ?? student.student_number) === "string"
+            ? String(student.studentNumber ?? student.student_number)
+            : null,
+          firstName: String(student.firstName ?? student.first_name ?? name.split(" ")[0] ?? ""),
+          lastName: String(student.lastName ?? student.last_name ?? name.split(" ").slice(1).join(" ")),
         },
         queuePosition: Number(row.queuePosition ?? 0),
         offeredCopy: null,
       };
     });
     const ordered = [...mapped].sort((a, b) =>
-      a.bookId.localeCompare(b.bookId) || a.reservedAt.localeCompare(b.reservedAt),
+      a.bookId.localeCompare(b.bookId)
+      || a.reservedAt.localeCompare(b.reservedAt)
+      || Number(a.id) - Number(b.id),
     );
     const positions = new Map<string, number>();
     ordered.forEach((reservation) => {
@@ -220,10 +252,10 @@ export async function listStaffReservations(params: { status?: ReservationStatus
 }
 
 /**
- * P6 POST /staff/reservations/:id/claim (proposed): issue an OFFERED reservation from Books to Release.
- * The selected duration is stored with the reservation and starts on the actual issuance date.
+ * Mock-only reservation claim. The live Server uses the borrowing-request handover workflow instead.
  */
 export async function claimReservation(reservationId: UUID): Promise<Loan> {
+  if (!USE_MOCKS) unsupportedOperation("Claiming a reservation");
   await begin();
   const staff = requireCapability("STAFF_AREA");
   const reservation = db.reservations.find((r) => r.id === reservationId);

@@ -30,7 +30,7 @@ export default function AdminDashboardPage() {
       <div className="page">
         <PageHero
           eyebrow="Admin"
-          title="Admin dashboard"
+          title="Dashboard"
           description="Live circulation counts and administration shortcuts."
           leading={<BackButton fallback={ROUTES.admin.dashboard} />}
         />
@@ -44,7 +44,7 @@ export default function AdminDashboardPage() {
       <div className="page">
         <PageHero
           eyebrow="Admin"
-          title="Admin dashboard"
+          title="Dashboard"
           description="Live circulation counts and administration shortcuts."
           leading={<BackButton fallback={ROUTES.admin.dashboard} />}
         />
@@ -59,7 +59,7 @@ export default function AdminDashboardPage() {
     <div className="page">
       <PageHero
         eyebrow="Admin"
-        title="Admin dashboard"
+        title="Dashboard"
         description="Live circulation counts and administration shortcuts."
         leading={<BackButton fallback={ROUTES.admin.dashboard} />}
         actions={<div className="dashboard-actions">{QUICK.slice(0, 2).map(({ label, to }) => <Link key={to} to={to}>{label}</Link>)}</div>}

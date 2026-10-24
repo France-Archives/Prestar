@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { ClipboardCheck, PackageCheck } from "lucide-react";
 import PageHero from "@/components/layout/PageHero";
 import BackButton from "@/components/navigation/BackButton";
@@ -9,6 +9,8 @@ import { useAuth } from "@/hooks/useAuth";
 export default function LibrarianDashboardPage() {
   const { user } = useAuth();
   const adminView = user?.role === "ADMIN";
+
+  if (adminView) return <Navigate to={ROUTES.admin.dashboard} replace />;
 
   return (
     <div className="page">

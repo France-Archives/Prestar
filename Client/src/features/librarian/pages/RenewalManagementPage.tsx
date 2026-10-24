@@ -10,7 +10,6 @@ import BackButton from "@/components/navigation/BackButton";
 import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import * as renewalsService from "@/services/renewalsService";
-import { USE_MOCKS } from "@/utils/constants";
 import type { StaffRenewalView } from "@/types";
 import { formatDate } from "@/utils/formatDate";
 
@@ -25,25 +24,18 @@ const COLUMNS: Column<StaffRenewalView>[] = [
   { key: "decisionReason", header: "Reason", render: (r) => r.decisionReason ?? "—" },
 ];
 
-// Staff observe renewals. They are decided automatically (eligible, nobody waiting, renewal limit). A manual-review state is TO CONFIRM (TC-07).
+// Staff observe renewals. The Server decides them automatically.
 export default function RenewalManagementPage() {
   const [search, setSearch] = useState("");
-  const list = useAsync(
-    () => USE_MOCKS
-      ? renewalsService.listStaffRenewals({ search: search || undefined })
-      : Promise.resolve(null),
-    [search],
-  );
+  const list = useAsync(() => renewalsService.listStaffRenewals({ search: search || undefined }), [search]);
   return (
     <div className="page">
       <PageHero eyebrow="Circulation" title="Renewals" description="History of renewal decisions. The new due date counts from the approval date." leading={<BackButton fallback={ROUTES.staff.dashboard} />} compact />
-      {USE_MOCKS && <Alert kind="info">Renewals are approved or rejected automatically by the system, so there is nothing to approve here.</Alert>}
-      {USE_MOCKS && <div className="toolbar">
+      <Alert kind="info">Renewals are approved or rejected automatically by the system, so there is nothing to approve here.</Alert>
+      <div className="toolbar">
         <SearchInput value={search} onChange={setSearch} placeholder="Search student or book…" />
-      </div>}
-      {!USE_MOCKS ? (
-        <Alert kind="info">Renewal history is not available from the live Server API yet.</Alert>
-      ) : list.loading ? (
+      </div>
+      {list.loading ? (
         <LoadingState rows={4} />
       ) : list.error ? (
         <ErrorState message={list.error} onRetry={() => void list.reload()} />

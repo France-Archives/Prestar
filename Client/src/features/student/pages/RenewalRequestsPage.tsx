@@ -9,8 +9,6 @@ import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import { matchesSearch, useSearchTerm } from "@/hooks/useSearchTerm";
 import * as renewalsService from "@/services/renewalsService";
-import { USE_MOCKS } from "@/utils/constants";
-import Alert from "@/components/feedback/Alert";
 import type { RenewalView } from "@/types";
 import { statusLabel } from "@/utils/constants";
 import { formatDate } from "@/utils/formatDate";
@@ -27,10 +25,7 @@ const COLUMNS: Column<RenewalView>[] = [
 
 // Renewals are decided automatically. To renew, use "Renew" on an active loan.
 export default function RenewalRequestsPage() {
-  const list = useAsync(
-    () => USE_MOCKS ? renewalsService.listMyRenewals() : Promise.resolve(null),
-    [],
-  );
+  const list = useAsync(() => renewalsService.listMyRenewals(), []);
   const [q] = useSearchTerm(); // from the navbar search box (?q=)
 
   // Search runs on the loaded renewal records (book, result, reason).
@@ -38,10 +33,8 @@ export default function RenewalRequestsPage() {
 
   return (
     <div className="page">
-      <PageHero eyebrow="Student" title="Renewal history" description="Renewals are approved automatically when you are eligible and nobody is waiting for the title. The new due date counts from the approval date." leading={<BackButton fallback={ROUTES.student.dashboard} />} actions={USE_MOCKS ? <Link to={ROUTES.student.borrowings} className="btn btn-primary" style={{ textDecoration: "none", color: "#fff" }}>Renew a loan</Link> : undefined} />
-      {!USE_MOCKS ? (
-        <Alert kind="info">Renewal history and renewal requests are not available from the live Server API yet.</Alert>
-      ) : list.loading ? (
+      <PageHero eyebrow="Student" title="Renewal history" description="Renewals are approved automatically when you are eligible and nobody is waiting for the title. The new due date counts from the approval date." leading={<BackButton fallback={ROUTES.student.dashboard} />} actions={<Link to={ROUTES.student.borrowings} className="btn btn-primary" style={{ textDecoration: "none", color: "#fff" }}>Renew a loan</Link>} />
+      {list.loading ? (
         <LoadingState rows={3} />
       ) : list.error ? (
         <ErrorState message={list.error} onRetry={() => void list.reload()} />

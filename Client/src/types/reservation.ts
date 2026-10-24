@@ -3,6 +3,12 @@ import type { AllowedDurationDays, ReservationStatus } from "./enums";
 import type { CopyRef } from "./book";
 import type { StudentRef } from "./user";
 
+export interface ReservationCancellation {
+  message: string;
+  reservationId: UUID;
+  status: Extract<ReservationStatus, "CANCELLED">;
+}
+
 // reservations -> Reservation
 export interface Reservation {
   id: UUID;
@@ -16,14 +22,14 @@ export interface Reservation {
   offeredCopyId?: UUID | null;
 }
 
-/** P5 GET /staff/reservations (proposed). */
+/** GET /reservations for Librarians and Admins. */
 export interface StaffReservation extends Reservation {
-  student: StudentRef;
+  student: Omit<StudentRef, "studentNumber"> & { studentNumber: string | null };
   queuePosition: number;
   offeredCopy: CopyRef | null;
 }
 
-/** B4 POST /reservations. Allowed only when no copy is available (else 409 COPY_AVAILABLE). */
+/** POST /reservations. Allowed only when no copy is available (else 409 COPY_AVAILABLE). */
 export interface CreateReservationRequest {
   bookId: UUID;
   requestedDurationDays: AllowedDurationDays;

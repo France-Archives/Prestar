@@ -32,12 +32,22 @@ describe("staff access and navigation", () => {
 
   it("keeps Admin navigation and staff access while avoiding duplicate COR and book links", () => {
     const paths = navPaths("ADMIN");
+    const sections = getNavSections(sessionUser("ADMIN"));
+    const firstItem = sections[0]?.items[0];
     expect(can(sessionUser("ADMIN"), "COR_REVIEW")).toBe(true);
     expect(paths).toContain(ROUTES.staff.corReview);
     expect(paths).toContain(ROUTES.staff.books);
     expect(paths).not.toContain(ROUTES.admin.cor);
     expect(paths).not.toContain(ROUTES.admin.books);
-    expect(paths).toContain(ROUTES.admin.dashboard);
+    expect(firstItem).toMatchObject({ label: "Dashboard", to: ROUTES.admin.dashboard });
+    expect(paths.filter((path) => path === ROUTES.admin.dashboard)).toHaveLength(1);
+    expect(paths).not.toContain(ROUTES.staff.dashboard);
+    expect(sections.flatMap((section) => section.items.map((item) => item.label))).not.toContain("Admin dashboard");
+  });
+
+  it("keeps the Librarian dashboard as the first navigation item", () => {
+    const firstItem = getNavSections(sessionUser("LIBRARIAN"))[0]?.items[0];
+    expect(firstItem).toMatchObject({ label: "Dashboard", to: ROUTES.staff.dashboard });
   });
 
   it("does not grant Students access to the staff area", () => {

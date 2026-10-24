@@ -9,7 +9,6 @@ interface Props {
 }
 
 export default function ReservationStatus({ reservation: r, onCancel, highlighted = false }: Props) {
-  const open = r.status === "WAITING" || r.status === "OFFERED";
   return (
     <article id={`reservation-${r.id}`} tabIndex={-1} className="card card-pad" style={{ display: "flex", flexDirection: "column", gap: 6, borderLeft: highlighted ? "4px solid var(--color-amber)" : r.status === "OFFERED" ? "4px solid var(--color-amber)" : undefined }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
@@ -24,7 +23,7 @@ export default function ReservationStatus({ reservation: r, onCancel, highlighte
       )}
       {r.status === "EXPIRED" && <p className="subtle">The offer was not collected in time and was passed on.</p>}
       {r.status === "COLLECTED" && <p className="subtle">Collected. See it under My loans.</p>}
-      {open && onCancel && (
+      {r.status === "WAITING" && onCancel && (
         <div>
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => onCancel(r)}>
             Cancel reservation

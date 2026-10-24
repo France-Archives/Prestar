@@ -95,7 +95,7 @@ export default function AppNavbar({ collapsed, drawerOpen, isDesktop, onToggleMe
               <span className="badge badge-neutral">{user.role}</span>
               {isStaffArea && (
                 <Link className="btn btn-ghost btn-sm" to={user.role === "ADMIN" ? ROUTES.admin.dashboard : ROUTES.staff.dashboard}>
-                  {user.role === "ADMIN" ? "Admin dashboard" : "Staff dashboard"}
+                  {user.role === "ADMIN" ? "Dashboard" : "Staff dashboard"}
                 </Link>
               )}
             </>

@@ -376,28 +376,29 @@ export async function rejectHandover(requestId: UUID, req: RejectHandoverRequest
     if (!request) fail("NOT_FOUND", "We could not find an approved request awaiting handover.");
     const response = backendRow((await apiClient.post<unknown>(`/borrow-requests/${id}/reject-handover`, {
       reason_code: req.reasonCode,
-      remarks: req.notes,
+      ...(req.notes?.trim() ? { remarks: req.notes.trim() } : {}),
     })).data);
     return {
       ...request,
       status: requestStatus(response.status ?? "Rejected"),
-      decisionReason: String(response.remarks ?? req.notes),
+      decisionReason: String(response.remarks ?? req.notes ?? req.reasonCode),
     };
   }
   await begin();
   const staff = requireCapability("STAFF_AREA");
   const reasonCode = need(req.reasonCode, "Choose a reason.");
-  const notes = need(req.notes, "Add notes explaining the rejection.");
+  const notes = req.notes?.trim() ?? "";
   const request = findRequest(requestId);
   if (request.status !== "APPROVED" && request.status !== "ON_HOLD") fail("INVALID_STATE", "This request is no longer awaiting release.", 409);
   request.status = "RELEASE_REJECTED";
-  request.decisionReason = notes;
+  request.decisionReason = notes || reasonCode;
   recordAttempt(request.id, "REJECTED", staff, reasonCode, notes);
   // TC-10 baseline: the copy is released (offered to the queue or made AVAILABLE) and the student must request again. TO CONFIRM.
   const copy = request.assignedCopyId ? copyById(request.assignedCopyId) : undefined;
   if (copy && copy.status === "RESERVED") releaseCopy(copy);
-  notify(studentUserId(request.studentId), "HANDOVER_REJECTED", "Handover not possible", `The library could not release ${request.bookTitle}: ${notes}. Contact the library for next steps.`, ["BORROWING_REQUEST", request.id]);
-  audit(staff, "HANDOVER_REJECTED", "BORROWING_REQUEST", request.id, `Rejected the handover of ${request.bookTitle} to ${studentName(request.studentId)}: ${notes}`);
+  const decision = notes || reasonCode;
+  notify(studentUserId(request.studentId), "HANDOVER_REJECTED", "Handover not possible", `The library could not release ${request.bookTitle}: ${decision}. Contact the library for next steps.`, ["BORROWING_REQUEST", request.id]);
+  audit(staff, "HANDOVER_REJECTED", "BORROWING_REQUEST", request.id, `Rejected the handover of ${request.bookTitle} to ${studentName(request.studentId)}: ${decision}`);
   commit();
   return out(toStaffRequest(request));
 }
@@ -589,6 +590,7 @@ export async function listStaffLoans(params: { status?: LoanStatus; overdueOnly?
 
 /** H6 POST /staff/loans/:loanId/return. Never blocked by overdue, fines or suspension. */
 export async function returnLoan(loanId: UUID, req: ReturnRequest): Promise<ReturnResult> {
+  if (!USE_MOCKS) unsupportedOperation("Loan returns");
   await begin();
   const staff = requireCapability("STAFF_AREA");
   const loan = db.loans.find((l) => l.id === loanId);

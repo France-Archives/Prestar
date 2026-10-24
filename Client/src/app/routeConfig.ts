@@ -186,7 +186,6 @@ const ADMIN_SECTIONS: NavSection[] = [
     id: "admin-overview",
     title: "Administration",
     items: [
-      { label: "Admin dashboard", to: A.dashboard, capability: "ADMIN_AREA" },
       { label: "Circulation overview", to: A.circulation, capability: "ADMIN_AREA" },
       { label: "Reports", to: A.reports, capability: "ADMIN_AREA" },
       { label: "Audit logs", to: A.auditLogs, capability: "ADMIN_AREA" },
@@ -217,6 +216,13 @@ const ADMIN_SECTIONS: NavSection[] = [
 export function getNavSections(user: SessionUser): NavSection[] {
   const sections = user.role === "STUDENT" ? STUDENT_SECTIONS : [...STAFF_SECTIONS, ...ADMIN_SECTIONS];
   return sections
-    .map((s) => ({ ...s, items: s.items.filter((i) => can(user, i.capability)) }))
+    .map((s) => ({
+      ...s,
+      items: s.items
+        .map((item) => user.role === "ADMIN" && item.to === T.dashboard
+          ? { ...item, to: A.dashboard }
+          : item)
+        .filter((item) => can(user, item.capability)),
+    }))
     .filter((s) => s.items.length > 0);
 }
