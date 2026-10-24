@@ -12,7 +12,7 @@ vi.mock("./reportsService", () => ({
 }));
 
 import { apiClient } from "@/services/apiClient";
-import { approveCor, listAcademicTerms, listMyVerifications, submitCor } from "./verificationService";
+import { approveCor, getCorDocument, listAcademicTerms, listCorQueue, listMyVerifications, rejectCor, submitCor } from "./verificationService";
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -107,5 +107,62 @@ describe("live verification service", () => {
       validUntil: "2026-12-31",
     });
     expect(apiClient.post).toHaveBeenCalledWith("/staff/verifications/30/approve", {});
+  });
+
+  it("loads the real staff verification queue with the requested status", async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({
+      data: [{
+        verification_id: 30,
+        term_id: 6,
+        termName: "Current term",
+        status: "Pending",
+        submitted_at: "2026-10-20T12:00:00.000Z",
+        student: { id: 9, name: "Example Student", student_number: "S-009" },
+      }],
+    });
+
+    await expect(listCorQueue({ status: "PENDING" })).resolves.toMatchObject([{
+      id: "30",
+      status: "PENDING",
+      student: { id: "9", name: "Example Student", studentNumber: "S-009" },
+    }]);
+    expect(apiClient.get).toHaveBeenCalledWith("/staff/verifications", {
+      params: { status: "Pending" },
+    });
+  });
+
+  it("requires a rejection reason and sends it to the real staff endpoint", async () => {
+    await expect(rejectCor("30", { reason: "  " })).rejects.toMatchObject({
+      message: "A reason is required to reject a COR.",
+    });
+    expect(apiClient.post).not.toHaveBeenCalled();
+
+    vi.mocked(apiClient.post).mockResolvedValue({
+      data: {
+        verification_id: 30,
+        term_id: 6,
+        termName: "Current term",
+        status: "Rejected",
+        remarks: "Missing signature",
+      },
+    });
+    await expect(rejectCor("30", { reason: "Missing signature" })).resolves.toMatchObject({
+      id: "30",
+      status: "REJECTED",
+      rejectionReason: "Missing signature",
+    });
+    expect(apiClient.post).toHaveBeenCalledWith("/staff/verifications/30/reject", {
+      reason: "Missing signature",
+    });
+  });
+
+  it("fetches the private COR document from the staff document endpoint", async () => {
+    const document = new Blob(["cor contents"], { type: "application/pdf" });
+    vi.mocked(apiClient.get).mockResolvedValue({ data: document });
+
+    await expect(getCorDocument("30")).resolves.toBe(document);
+    expect(apiClient.get).toHaveBeenCalledWith("/staff/verifications/30/document", {
+      responseType: "blob",
+    });
   });
 });

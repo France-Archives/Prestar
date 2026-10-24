@@ -198,14 +198,12 @@ const ADMIN_SECTIONS: NavSection[] = [
     items: [
       { label: "Users", to: A.users, capability: "ADMIN_AREA" },
       { label: "Librarians", to: A.librarians, capability: "MANAGE_LIBRARIANS" },
-      { label: "COR administration", to: A.cor, capability: "ADMIN_AREA" },
     ],
   },
   {
     id: "admin-system",
     title: "System",
     items: [
-      { label: "Book management", to: A.books, capability: "ADMIN_AREA" },
       { label: "Academic terms", to: A.terms, capability: "ADMIN_AREA" },
       { label: "Borrowing policies", to: A.policies, capability: "ADMIN_AREA" },
       { label: "System settings", to: A.settings, capability: "ADMIN_AREA" },

@@ -174,7 +174,7 @@ export async function submitCor(input: SubmitCorInput): Promise<CorVerification>
   return out(toCor(record));
 }
 
-// ---------- staff review (Admin, or Librarian with COR_REVIEW) ----------
+// ---------- staff review (Admin and Librarian) ----------
 
 /** V1 GET /staff/verifications */
 export async function listCorQueue(params: { status?: VerificationStatus; search?: string } = {}): Promise<StaffCorVerification[]> {
@@ -243,6 +243,7 @@ export async function approveCor(id: UUID): Promise<CorVerification> {
 
 /** V3 POST /staff/verifications/:id/reject. The reason is required and kept; the student may resubmit. */
 export async function rejectCor(id: UUID, req: ReviewCorRejectRequest): Promise<CorVerification> {
+  if (!req.reason.trim()) fail("VALIDATION_ERROR", "A reason is required to reject a COR.", 422);
   if (!USE_MOCKS) {
     const response = (await apiClient.post<unknown>(`/staff/verifications/${encodeURIComponent(id)}/reject`, {
       reason: req.reason,
@@ -251,7 +252,6 @@ export async function rejectCor(id: UUID, req: ReviewCorRejectRequest): Promise<
   }
   await begin();
   const staff = requireCapability("COR_REVIEW");
-  if (!req.reason.trim()) fail("VALIDATION_ERROR", "A reason is required to reject a COR.", 422);
   const record = pendingRecord(id);
   record.status = "REJECTED";
   record.rejectionReason = req.reason.trim();
@@ -263,12 +263,12 @@ export async function rejectCor(id: UUID, req: ReviewCorRejectRequest): Promise<
   return out(toCor(record));
 }
 
-/** P3 GET /staff/verifications/:id/document (proposed). The real API streams the PRIVATE file; the mock has no file. */
-export async function getCorDocumentInfo(id: UUID): Promise<{ fileName: string; simulated: true }> {
-  if (!USE_MOCKS) unsupportedOperation("Viewing submitted COR documents");
-  await begin();
-  requireCapability("COR_REVIEW");
-  const record = db.cors.find((c) => c.id === id);
-  if (!record) fail("NOT_FOUND", "We could not find that COR submission.");
-  return { fileName: record.originalFileName, simulated: true };
+/** GET /staff/verifications/:id/document streams the private file to authorized reviewers. */
+export async function getCorDocument(id: UUID): Promise<Blob> {
+  if (USE_MOCKS) unsupportedOperation("Viewing submitted COR documents");
+  const response = await apiClient.get<Blob>(
+    `/staff/verifications/${encodeURIComponent(id)}/document`,
+    { responseType: "blob" },
+  );
+  return response.data;
 }

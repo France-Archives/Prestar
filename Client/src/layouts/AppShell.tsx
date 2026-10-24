@@ -13,7 +13,7 @@ const COLLAPSED_KEY = "prestar:sidebar-rail";
 const getCollapsedKey = (userId?: string) => `${COLLAPSED_KEY}:${userId ?? "guest"}`;
 
 /** Shared signed-in shell: header on top, sidebar and content below in one grid. Student, Staff and Admin layouts use it. */
-export default function AppShell({ areaLabel }: { areaLabel: string }) {
+export default function AppShell() {
   const { user } = useAuth();
   const { pathname } = useLocation();
   const isDesktop = useMediaQuery("(min-width: 768px)");
@@ -78,7 +78,6 @@ export default function AppShell({ areaLabel }: { areaLabel: string }) {
   return (
     <div className="app-shell" data-collapsed={collapsed} data-drawer={drawerOpen ? "open" : "closed"}>
       <AppNavbar
-        areaLabel={areaLabel}
         collapsed={collapsed}
         drawerOpen={drawerOpen}
         isDesktop={isDesktop}

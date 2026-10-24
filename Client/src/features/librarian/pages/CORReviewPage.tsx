@@ -15,7 +15,7 @@ import CORReviewPanel from "../components/CORReviewPanel";
 
 type Tab = "PENDING" | "APPROVED" | "REJECTED" | "ALL";
 
-// Also used by the Admin COR administration page. Needs Admin or a Librarian with the COR_REVIEW permission.
+// Also used by the Admin COR route. Available to Admins and Librarians.
 export default function CORReviewPage() {
   const [tab, setTab] = useState<Tab>("PENDING");
   const [search, setSearch] = useState("");
