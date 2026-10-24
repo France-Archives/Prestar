@@ -7,7 +7,7 @@ export interface AuthUser {
   email: string;
   role: UserRole;
   accountStatus: AccountStatus;
-  emailVerifiedAt: ISODateTime | null; // null = unverified
+  emailVerifiedAt: ISODateTime | null; // The backend exposes a boolean, not a verification timestamp.
 }
 
 // students -> StudentProfile
@@ -38,6 +38,7 @@ export interface LibrarianProfile {
  * so this is a frontend convenience that merges AuthUser with the matching profile. TO CONFIRM.
  */
 export interface SessionUser extends AuthUser {
+  emailVerified: boolean;
   displayName: string;
   student: StudentProfile | null;
   librarian: LibrarianProfile | null;
@@ -74,9 +75,11 @@ export interface RegisterStudentRequest {
   middleName?: string | null;
   lastName: string;
   suffix?: string | null;
-  college?: string | null;
-  program?: string | null; // the selected course
-  yearLevel?: number | null;
+  college: string;
+  program: string; // the selected course
+  yearLevel: number;
+  termsAccepted: boolean;
+  privacyPolicyAccepted: boolean;
 }
 
 export interface LoginRequest {
@@ -100,8 +103,10 @@ export interface ForgotPasswordRequest {
   email: string;
 }
 export interface ResetPasswordRequest {
-  token: string;
+  email: string;
+  otp: string;
   password: string;
+  confirmPassword: string;
 }
 /** P2 POST /auth/accept-invitation (proposed). */
 export interface AcceptInvitationRequest {

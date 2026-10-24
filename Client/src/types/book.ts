@@ -4,6 +4,7 @@ import type { AvailabilityFilter, BookCopyStatus, CopyCondition } from "./enums"
 export interface CategorySummary {
   id: UUID;
   name: string;
+  description?: string | null;
 }
 
 export interface AuthorSummary {
@@ -114,9 +115,10 @@ export interface UpdateCopyRequest {
   notes?: string | null;
 }
 
-/** Category / author management endpoints are not in the source. Mock only. TO CONFIRM. */
+/** POST /categories */
 export interface SaveCategoryRequest {
   name: string;
+  description?: string | null;
 }
 export interface SaveAuthorRequest {
   name: string;

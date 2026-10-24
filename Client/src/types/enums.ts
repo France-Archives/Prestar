@@ -10,7 +10,7 @@ export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
 export const TERM_STATUSES = ["UPCOMING", "ACTIVE", "COMPLETED"] as const;
 export type TermStatus = (typeof TERM_STATUSES)[number];
 
-export const VERIFICATION_STATUSES = ["PENDING", "APPROVED", "REJECTED", "SUPERSEDED"] as const;
+export const VERIFICATION_STATUSES = ["PENDING", "APPROVED", "REJECTED", "SUPERSEDED", "EXPIRED"] as const;
 export type VerificationStatus = (typeof VERIFICATION_STATUSES)[number];
 
 export const BOOK_COPY_STATUSES = ["AVAILABLE", "RESERVED", "ON_LOAN", "MAINTENANCE", "LOST", "WITHDRAWN"] as const;
@@ -20,6 +20,7 @@ export const COPY_CONDITIONS = ["NEW", "GOOD", "FAIR", "DAMAGED", "UNUSABLE"] as
 export type CopyCondition = (typeof COPY_CONDITIONS)[number];
 
 export const BORROWING_REQUEST_STATUSES = [
+  "PENDING",
   "APPROVED",
   "ON_HOLD",
   "RELEASE_REJECTED",

@@ -3,7 +3,8 @@ import DataTable, { type Column } from "@/components/data-display/DataTable";
 import StatusBadge from "@/components/data-display/StatusBadge";
 import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
 import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import { matchesSearch, useSearchTerm } from "@/hooks/useSearchTerm";
@@ -32,7 +33,7 @@ export default function RenewalRequestsPage() {
 
   return (
     <div className="page">
-      <PageHeader eyebrow="Student" title="Renewal history" description="Renewals are approved automatically when you are eligible and nobody is waiting for the title. The new due date counts from the approval date." actions={<Link to={ROUTES.student.borrowings} className="btn btn-primary" style={{ textDecoration: "none", color: "#fff" }}>Renew a loan</Link>} />
+      <PageHero eyebrow="Student" title="Renewal history" description="Renewals are approved automatically when you are eligible and nobody is waiting for the title. The new due date counts from the approval date." leading={<BackButton fallback={ROUTES.student.dashboard} />} actions={<Link to={ROUTES.student.borrowings} className="btn btn-primary" style={{ textDecoration: "none", color: "#fff" }}>Renew a loan</Link>} />
       {list.loading ? (
         <LoadingState rows={3} />
       ) : list.error ? (

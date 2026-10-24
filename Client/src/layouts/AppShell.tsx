@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { homePathFor } from "@/app/routeConfig";
+import Alert from "@/components/feedback/Alert";
 import AppNavbar from "@/components/navigation/AppNavbar";
 import BackButton from "@/components/navigation/BackButton";
 import Sidebar from "@/components/navigation/Sidebar";
@@ -12,7 +13,7 @@ const COLLAPSED_KEY = "prestar:sidebar-rail";
 const getCollapsedKey = (userId?: string) => `${COLLAPSED_KEY}:${userId ?? "guest"}`;
 
 /** Shared signed-in shell: header on top, sidebar and content below in one grid. Student, Staff and Admin layouts use it. */
-export default function AppShell({ areaLabel }: { areaLabel: string }) {
+export default function AppShell() {
   const { user } = useAuth();
   const { pathname } = useLocation();
   const isDesktop = useMediaQuery("(min-width: 768px)");
@@ -77,7 +78,6 @@ export default function AppShell({ areaLabel }: { areaLabel: string }) {
   return (
     <div className="app-shell" data-collapsed={collapsed} data-drawer={drawerOpen ? "open" : "closed"}>
       <AppNavbar
-        areaLabel={areaLabel}
         collapsed={collapsed}
         drawerOpen={drawerOpen}
         isDesktop={isDesktop}
@@ -87,6 +87,11 @@ export default function AppShell({ areaLabel }: { areaLabel: string }) {
       {drawerOpen && <div className="app-scrim" onClick={() => setDrawerOpen(false)} aria-hidden="true" />}
 
       <main className="app-main">
+        {user.role === "STUDENT" && !user.emailVerified && (
+          <Alert kind="warn">
+            Your email address is not verified. Borrowing is unavailable until verification is complete.
+          </Alert>
+        )}
         {pathname !== home && (
           <div className="backbar">
             <BackButton fallback={home} />

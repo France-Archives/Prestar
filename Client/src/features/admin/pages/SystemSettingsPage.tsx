@@ -2,7 +2,9 @@ import Alert, { MockTag } from "@/components/feedback/Alert";
 import Card from "@/components/ui/Card";
 import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
+import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import * as adminService from "@/services/adminService";
 import { POLICY_SETTINGS } from "@/utils/constants";
@@ -18,7 +20,7 @@ export default function SystemSettingsPage() {
 
   return (
     <div className="page" style={{ maxWidth: 900 }}>
-      <PageHeader eyebrow="System" title="System settings" description="Other configured values. Every change is audited." />
+      <PageHero eyebrow="System" title="System settings" description="Other configured values. Every change is audited." leading={<BackButton fallback={ROUTES.admin.dashboard} />} />
       <div className="stack">
         <Card title="Environment">
           <dl className="kv">

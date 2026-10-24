@@ -3,8 +3,7 @@ import { createBrowserRouter, Navigate, type RouteObject } from "react-router-do
 import type { Capability } from "@/utils/permissions";
 import { GuestOnly, PageLoading, RequireAuth, RequireCapability } from "./guards";
 import { ROUTES } from "./routeConfig";
-import LandingLayout from "@/layouts/LandingLayout";
-import PublicLayoutWithFooter from "@/layouts/PublicLayout";
+import PublicLayout from "@/layouts/PublicLayout";
 import StudentLayout from "@/layouts/StudentLayout";
 import StaffLayout from "@/layouts/StaffLayout";
 import AdminLayout from "@/layouts/AdminLayout";
@@ -64,12 +63,11 @@ const P = {
   ShelfLocator: page(() => import("@/features/librarian/pages/ShelfLocatorPage")),
   // admin
   AdminDashboard: page(() => import("@/features/admin/pages/AdminDashboardPage")),
+  CreateAdmin: page(() => import("@/features/admin/pages/CreateAdminPage")),
   UserManagement: page(() => import("@/features/admin/pages/UserManagementPage")),
   StudentDetails: page(() => import("@/features/admin/pages/StudentDetailsPage")),
   LibrarianManagement: page(() => import("@/features/admin/pages/LibrarianManagementPage")),
-  BookManagement: page(() => import("@/features/admin/pages/BookManagementPage")),
   CirculationOverview: page(() => import("@/features/admin/pages/CirculationOverviewPage")),
-  CORAdministration: page(() => import("@/features/admin/pages/CORAdministrationPage")),
   AcademicTerms: page(() => import("@/features/admin/pages/AcademicTermsPage")),
   SystemSettings: page(() => import("@/features/admin/pages/SystemSettingsPage")),
   BorrowingPolicies: page(() => import("@/features/admin/pages/BorrowingPoliciesPage")),
@@ -138,11 +136,12 @@ const staffRoutes: RouteObject[] = [
 const adminRoutes: RouteObject[] = [
   { index: true, element: <Navigate to="dashboard" replace /> },
   { path: "dashboard", element: el(P.AdminDashboard) },
+  { path: "create-admin", element: el(P.CreateAdmin) },
   { path: "users", element: el(P.UserManagement) },
   { path: "users/students/:studentId", element: el(P.StudentDetails) },
-  { path: "books", element: el(P.BookManagement) },
+  { path: "books", element: <Navigate to={ROUTES.staff.books} replace /> },
   { path: "circulation", element: el(P.CirculationOverview) },
-  { path: "cor", element: el(P.CORAdministration) },
+  { path: "cor", element: <Navigate to={ROUTES.staff.corReview} replace /> },
   { path: "terms", element: el(P.AcademicTerms) },
   { path: "settings", element: el(P.SystemSettings) },
   { path: "policies", element: el(P.BorrowingPolicies) },
@@ -154,21 +153,16 @@ const adminRoutes: RouteObject[] = [
 ];
 
 export const router = createBrowserRouter([
-  // Landing page — no footer (footer lives inside the final CTA snap screen)
+  // Public site
   {
-    element: <LandingLayout />,
-    children: [{ path: ROUTES.home, element: el(P.Landing) }],
-  },
-  // Other public pages (Contact, Terms, Privacy) — full layout with footer
-  {
-    element: <PublicLayoutWithFooter />,
+    element: <PublicLayout />,
     children: [
+      { path: ROUTES.home, element: el(P.Landing) },
       { path: ROUTES.contact, element: el(P.Contact) },
       { path: ROUTES.terms, element: el(P.Terms) },
       { path: ROUTES.privacy, element: el(P.Privacy) },
     ],
   },
-
   // Signed-out only
   {
     element: <GuestOnly />,

@@ -2,8 +2,8 @@ import type { AllowedDurationDays, FineType, ErrorCode, UserRole } from "@/types
 import { ALLOWED_DURATION_DAYS } from "@/types";
 
 // ---------- Environment ----------
-export const API_BASE_URL: string = import.meta.env.VITE_API_BASE_URL ?? "/api/v1";
-// Mocks stay ON until the backend exists. Set VITE_USE_MOCKS=false to switch services to Axios.
+export const API_BASE_URL: string = import.meta.env.VITE_API_BASE_URL ?? "/api";
+// Mocks stay ON by default. Set VITE_USE_MOCKS=false to enable live auth endpoints.
 export const USE_MOCKS: boolean = import.meta.env.VITE_USE_MOCKS !== "false";
 
 export const TIME_ZONE = "Asia/Manila";
@@ -34,11 +34,11 @@ export const DURATION_OPTIONS: readonly AllowedDurationDays[] = ALLOWED_DURATION
 export const ALLOWED_DURATIONS: readonly AllowedDurationDays[] = ALLOWED_DURATION_DAYS;
 export const durationLabel = (days: number) => `${days} days`;
 
-// COR upload limits. Baseline values; formats and size are TO CONFIRM (TC-04).
+// COR upload limits. Enforces realtime captured images only (JPEG, PNG, WebP). PDFs are rejected.
 export const COR_UPLOAD = {
-  MAX_BYTES: 5 * 1024 * 1024,
-  ALLOWED_MIME: ["application/pdf", "image/jpeg", "image/png"],
-  ALLOWED_EXTENSIONS: [".pdf", ".jpg", ".jpeg", ".png"],
+  MAX_BYTES: 10 * 1024 * 1024,
+  ALLOWED_MIME: ["image/jpeg", "image/png", "image/webp"],
+  ALLOWED_EXTENSIONS: [".jpg", ".jpeg", ".png", ".webp"],
 } as const;
 
 // Password policy. Baseline; final policy is TO CONFIRM (TC-03).
@@ -134,6 +134,7 @@ export const ROUTES = {
   },
   admin: {
     dashboard: "/admin/dashboard",
+    createAdmin: "/admin/create-admin",
     users: "/admin/users",
     studentDetails: "/admin/users/students/:studentId",
     librarians: "/admin/librarians",

@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from "react";
 import { Plus } from "lucide-react";
-import { motion, AnimatePresence, useReducedMotion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { useScreenEnter } from "@/hooks/useScreenEnter";
 import { animTo, fadeIn } from "@/lib/motion";
 import "../styles/landing.css";
@@ -18,8 +18,6 @@ const FAQS: FAQItem[] = [
 
 export default function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
-  const reducedMotion = useReducedMotion() ?? false;
-
   const toggle = (idx: number) => setOpenIndex(curr => curr === idx ? null : idx);
 
   const sectionRef = useScreenEnter(

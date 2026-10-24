@@ -6,7 +6,9 @@ import type {
   AuditLogParams,
   CorSummary,
   CorVerification,
+  CreateStaffAccountRequest,
   CreateAcademicTermRequest,
+  CreatedStaffAccount,
   FineSummary,
   InviteLibrarianRequest,
   LibrarianAccount,
@@ -27,11 +29,12 @@ import type {
   UUID,
 } from "@/types";
 import { LIBRARIAN_PERMISSIONS } from "@/types";
+import { apiClient } from "@/services/apiClient";
 import type { MockAccount } from "@/data";
-import { POLICY_SETTINGS } from "@/utils/constants";
-import { fail } from "@/utils/errors";
+import { POLICY_SETTINGS, USE_MOCKS } from "@/utils/constants";
+import { fail, toApiError } from "@/utils/errors";
 import { dateKey } from "@/utils/formatDate";
-import { validateDateRange, validateEmail, validateName, validateRequired } from "@/utils/validators";
+import { validateDateRange, validateEmail, validateName, validatePassword, validateRequired } from "@/utils/validators";
 import { begin, checkEligibility, corSummaryOf, toCor, toFineSummary, toLoan, toReservation, toStaffFine } from "./mockEngine";
 import { audit, commit, db, issueToken, matches, newId, notify, nowIso, out, paginate, requireCapability } from "./mockStore";
 
@@ -68,6 +71,94 @@ const toLibrarianAccount = (a: MockAccount): LibrarianAccount => ({
   invitation: a.invitation ?? "ACCEPTED",
   createdAt: a.createdAt,
 });
+
+function validateStaffAccountRequest(req: CreateStaffAccountRequest): void {
+  check(validateEmail(req.email));
+  if (req.email.trim().length > 255) fail("VALIDATION_ERROR", "A valid email address (max 255 characters) is required.", 400);
+  check(validateName(req.firstName, "First name"));
+  check(validateName(req.lastName, "Last name"));
+  check(validatePassword(req.password));
+  if (req.employeeNumber && req.employeeNumber.trim().length > 50) {
+    fail("VALIDATION_ERROR", "Employee number must not exceed 50 characters.", 400);
+  }
+}
+
+async function createStaffAccount(
+  role: "Librarian" | "Admin",
+  req: CreateStaffAccountRequest,
+): Promise<CreatedStaffAccount> {
+  if (!USE_MOCKS) {
+    try {
+      const response = await apiClient.post<{ message: string; user: CreatedStaffAccount }>(
+        role === "Librarian" ? "/admin/librarians" : "/admin/admins",
+        {
+          email: req.email.trim(),
+          password: req.password,
+          firstName: req.firstName.trim(),
+          lastName: req.lastName.trim(),
+          employeeNumber: req.employeeNumber?.trim() || null,
+        },
+      );
+      return response.data.user;
+    } catch (error) {
+      throw toApiError(error);
+    }
+  }
+
+  await begin();
+  const admin = requireCapability(role === "Librarian" ? "MANAGE_LIBRARIANS" : "ADMIN_AREA");
+  validateStaffAccountRequest(req);
+  const email = req.email.trim().toLowerCase();
+  if (db.accounts.some((account) => account.user.email.toLowerCase() === email)) {
+    fail("CONFLICT", "An account with that email already exists.", 409);
+  }
+
+  const userId = newId();
+  const permissions = role === "Librarian"
+    ? (req.permissions ?? []).filter((permission) => LIBRARIAN_PERMISSIONS.includes(permission))
+    : [];
+  const displayName = `${req.firstName.trim()} ${req.lastName.trim()}`;
+  const account: MockAccount = {
+    user: {
+      id: userId,
+      email,
+      role: role === "Librarian" ? "LIBRARIAN" : "ADMIN",
+      accountStatus: "ACTIVE",
+      emailVerifiedAt: nowIso(),
+    },
+    password: req.password,
+    displayName,
+    student: null,
+    librarian: role === "Librarian"
+      ? { id: newId(), userId, employeeNumber: req.employeeNumber?.trim() || null, permissions }
+      : null,
+    createdAt: nowIso(),
+    invitation: role === "Librarian" ? "ACCEPTED" : null,
+  };
+  db.accounts.push(account);
+  audit(admin, role === "Librarian" ? "LIBRARIAN_CREATED" : "ADMIN_CREATED", "USER", userId, `Created ${displayName} (${email}) as ${role}.`);
+  commit();
+  return {
+    id: userId,
+    userId,
+    email,
+    firstName: req.firstName.trim(),
+    lastName: req.lastName.trim(),
+    displayName,
+    role,
+    status: "Active",
+    employeeNumber: req.employeeNumber?.trim() || null,
+    emailVerified: true,
+  };
+}
+
+export async function createLibrarian(req: CreateStaffAccountRequest): Promise<CreatedStaffAccount> {
+  return createStaffAccount("Librarian", req);
+}
+
+export async function createAdmin(req: CreateStaffAccountRequest): Promise<CreatedStaffAccount> {
+  return createStaffAccount("Admin", req);
+}
 
 // ---------- users ----------
 

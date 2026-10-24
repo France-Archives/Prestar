@@ -1,6 +1,8 @@
 import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
+import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import * as adminService from "@/services/adminService";
 import { POLICY_SETTINGS } from "@/utils/constants";
@@ -12,7 +14,7 @@ export default function BorrowingPoliciesPage() {
   const policies = (list.data ?? []).filter((s) => keys.has(s.key));
   return (
     <div className="page" style={{ maxWidth: 900 }}>
-      <PageHeader eyebrow="System" title="Borrowing policies" description="Commitment limits, hold periods, overdue grace and the renewal limit (renewal limit of 1 is TO CONFIRM, TC-07)." />
+      <PageHero eyebrow="System" title="Borrowing policies" description="Commitment limits, hold periods, overdue grace and the renewal limit (renewal limit of 1 is TO CONFIRM, TC-07)." leading={<BackButton fallback={ROUTES.admin.dashboard} />} />
       {list.loading && !list.data ? <LoadingState rows={4} /> : list.error ? <ErrorState message={list.error} onRetry={() => void list.reload()} /> : (
         <BorrowingPolicyForm settings={policies} onSaved={() => void list.reload()} />
       )}

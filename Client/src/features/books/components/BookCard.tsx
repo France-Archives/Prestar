@@ -18,11 +18,19 @@ export interface BookCardProps {
 /** The one book card used by every collection: dashboard rows, catalog, search results. */
 export default function BookCard({ title, author, coverUrl, href, caption, rank, selected = false, onSelect }: BookCardProps) {
   const inner = (
-    <>
-      <BookCover src={coverUrl} title={title} author={author} />
-      {rank !== undefined && <span className="book-card__rank" aria-hidden="true">{rank}</span>}
-      <span className="book-card__hint" aria-hidden="true">View details</span>
-    </>
+    <div className="book-card__3d">
+      <div className="book-card__3d-face book-card__3d-front">
+        <BookCover src={coverUrl} title={title} author={author} />
+      </div>
+      <div className="book-card__3d-face book-card__3d-spine" aria-hidden="true" />
+      <div className="book-card__3d-face book-card__3d-pages" aria-hidden="true" />
+      <div className="book-card__3d-face book-card__3d-top" aria-hidden="true" />
+      <div className="book-card__3d-face book-card__3d-back" aria-hidden="true" />
+      <div className="book-card__3d-overlay">
+        {rank !== undefined && <span className="book-card__rank" aria-hidden="true">{rank}</span>}
+        <span className="book-card__hint" aria-hidden="true">View details</span>
+      </div>
+    </div>
   );
 
   return (

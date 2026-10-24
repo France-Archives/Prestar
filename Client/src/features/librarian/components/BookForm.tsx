@@ -4,9 +4,12 @@ import Button from "@/components/common/Button";
 import { InputField, SelectField, TextareaField } from "@/components/forms/FormField";
 import Modal from "@/components/ui/Modal";
 import { useToast } from "@/hooks/useToast";
+import { useAuth } from "@/hooks/useAuth";
 import * as booksService from "@/services/booksService";
 import type { AuthorSummary, BookDetail, CategorySummary, CreateBookRequest, UpdateBookRequest, UUID } from "@/types";
 import { describeError } from "@/utils/errors";
+import { can } from "@/utils/permissions";
+import AddCategoryDialog, { addCreatedCategory } from "./AddCategoryDialog";
 
 interface BookFormProps {
   book?: BookDetail | null;
@@ -19,6 +22,10 @@ interface BookFormProps {
 // Books can have several authors (ordered). Authors are a list, never a single text field.
 export default function BookForm({ book, categories, authors, onClose, onDone }: BookFormProps) {
   const toast = useToast();
+  const { user } = useAuth();
+  const canManageCategories = can(user, "CATALOG_MANAGE");
+  const [categoryOptions, setCategoryOptions] = useState(categories);
+  const [addingCategory, setAddingCategory] = useState(false);
   const [v, setV] = useState({
     title: book?.title ?? "",
     isbn: book?.isbn ?? "",
@@ -94,14 +101,23 @@ export default function BookForm({ book, categories, authors, onClose, onDone }:
       <InputField label="Title" required {...text("title")} />
       <div className="form-row">
         <InputField label="ISBN" {...text("isbn")} />
-        <SelectField label="Category" value={v.categoryId} onChange={(e) => setV({ ...v, categoryId: e.target.value })}>
-          <option value="">No category</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </SelectField>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 8, flex: 1 }}>
+          <div style={{ flex: 1 }}>
+            <SelectField label="Category" value={v.categoryId} onChange={(e) => setV({ ...v, categoryId: e.target.value })}>
+              <option value="">No category</option>
+              {categoryOptions.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </SelectField>
+          </div>
+          {canManageCategories && (
+            <Button type="button" variant="ghost" onClick={() => setAddingCategory(true)}>
+              Add category
+            </Button>
+          )}
+        </div>
       </div>
       <fieldset>
         <legend className="label" style={{ fontSize: "0.8125rem", fontWeight: 600, color: "var(--color-forest)" }}>
@@ -128,6 +144,16 @@ export default function BookForm({ book, categories, authors, onClose, onDone }:
       </div>
       <InputField label="Cover image URL" {...text("coverImageUrl")} />
       {formError && <Alert kind="error">{formError}</Alert>}
+      {addingCategory && (
+        <AddCategoryDialog
+          onClose={() => setAddingCategory(false)}
+          onCreated={(category) => {
+            const selection = addCreatedCategory(categoryOptions, category);
+            setCategoryOptions(selection.categories);
+            setV((current) => ({ ...current, categoryId: selection.selectedCategoryId }));
+          }}
+        />
+      )}
     </Modal>
   );
 }

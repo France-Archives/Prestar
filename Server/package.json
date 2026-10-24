@@ -2,14 +2,35 @@
   "name": "server",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "server.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "nodemon server.js",
+    "start": "node server.js",
+    "create-admin": "node scripts/createAdmin.js",
+    "create-librarian": "node scripts/createAdmin.js --role librarian",
+    "test": "node --test tests/academicTermsAndVerification.test.js tests/bookProcessFlow.test.js tests/borrowRequestValidator.test.js tests/otpSignupFlow.test.js tests/otpVerification.test.js tests/reservationQueueFlow.test.js tests/signupServiceUnit.test.js tests/signupValidator.test.js tests/studentDashboardService.test.js tests/corStorageAndStaffManagement.test.js tests/supabaseCoverStorage.test.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "express": "^5.2.1"
+    "@supabase/supabase-js": "^2.118.0",
+    "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.4",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
+    "googleapis": "^185.0.0",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.12.1",
+    "multer": "^2.4.0",
+    "pg": "^8.23.0",
+    "sequelize": "^6.37.8"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
   }
 }

@@ -1,9 +1,10 @@
-import { useState, type MouseEvent, type FocusEvent } from "react";
+import { useRef, useState, type MouseEvent, type FocusEvent } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { LogOut } from "lucide-react";
 import { ROUTES, getNavSections } from "@/app/routeConfig";
 import { useAuth } from "@/hooks/useAuth";
 import { iconFor } from "./navIcons";
+import { useConfirm } from "@/hooks/useConfirm";
 
 interface SidebarProps {
   collapsed: boolean; // desktop: icon rail
@@ -22,6 +23,9 @@ export default function Sidebar({ collapsed, drawerOpen, isDesktop, onCloseDrawe
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [tip, setTip] = useState<Tip | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
+  const signingOutRef = useRef(false);
+  const signOutConfirmation = useConfirm();
 
   if (!user) return null;
 
@@ -45,9 +49,17 @@ export default function Sidebar({ collapsed, drawerOpen, isDesktop, onCloseDrawe
   });
 
   const signOut = async () => {
+    if (signingOutRef.current) return;
+    signingOutRef.current = true;
+    setSigningOut(true);
     onCloseDrawer();
-    await logout();
-    navigate(ROUTES.login, { replace: true });
+    try {
+      await logout();
+      navigate(ROUTES.login, { replace: true });
+    } finally {
+      signingOutRef.current = false;
+      setSigningOut(false);
+    }
   };
 
   return (
@@ -80,12 +92,24 @@ export default function Sidebar({ collapsed, drawerOpen, isDesktop, onCloseDrawe
         </nav>
 
         <div className="app-sidebar__foot">
-          <button type="button" className="app-nav-item app-nav-item--danger" onClick={signOut} {...tipHandlers("Sign out")}>
+          <button
+            type="button"
+            className="app-nav-item app-nav-item--danger"
+            onClick={() => signOutConfirmation.ask({
+              title: "Sign out?",
+              message: "You will be signed out of this session and returned to the login page.",
+              confirmLabel: "Sign out",
+              onConfirm: signOut,
+            })}
+            disabled={signingOut}
+            {...tipHandlers("Sign out")}
+          >
             <LogOut className="app-nav-icon" strokeWidth={1.9} aria-hidden="true" />
             <span className="app-nav-label">Sign out</span>
           </button>
         </div>
       </aside>
+      {signOutConfirmation.dialog}
 
       {tip && (
         <div className="app-tooltip" role="tooltip" style={{ top: tip.top, left: tip.left, transform: "translateY(-50%)" }}>

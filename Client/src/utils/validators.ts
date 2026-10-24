@@ -17,6 +17,15 @@ export function validateEmail(value: string): string | null {
   return EMAIL_REGEX.test(v) ? null : "Enter a valid email address.";
 }
 
+export function validateWmsuEmail(value: string): string | null {
+  const emailError = validateEmail(value);
+  if (emailError) return emailError;
+  if (value.trim().length > 255) return "Email must be 255 characters or fewer.";
+  return /^[^\s@]+@wmsu\.edu\.ph$/i.test(value.trim())
+    ? null
+    : "Use your WMSU email address ending in @wmsu.edu.ph.";
+}
+
 export function validateRequired(value: string, label: string, maxLength?: number): string | null {
   const v = value.trim();
   if (!v) return `${label} is required.`;
@@ -58,6 +67,7 @@ export function passwordChecks(password: string): PasswordCheck[] {
 }
 export function validatePassword(password: string): string | null {
   if (!password) return "Password is required.";
+  if (new TextEncoder().encode(password).length > 72) return "Password must not exceed 72 bytes.";
   return passwordChecks(password).every((c) => c.ok)
     ? null
     : `Use ${PASSWORD_POLICY.MIN_LENGTH}+ characters with a letter and a number.`;
@@ -86,11 +96,14 @@ export function validateInterestSelection(ids: string[]): string | null {
 }
 
 export function validateCorFile(file: { name: string; size: number; type: string } | null | undefined): string | null {
-  if (!file) return "Choose a file to upload.";
+  if (!file) return "Take a photo or choose an image.";
   const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
-  const typeOk = (COR_UPLOAD.ALLOWED_MIME as readonly string[]).includes(file.type);
+  if (ext === ".pdf" || file.type === "application/pdf") {
+    return "PDF files are not accepted. Only realtime captured images (JPEG, PNG, WebP) are allowed.";
+  }
+  const typeOk = !file.type || (COR_UPLOAD.ALLOWED_MIME as readonly string[]).includes(file.type);
   const extOk = (COR_UPLOAD.ALLOWED_EXTENSIONS as readonly string[]).includes(ext);
-  if (!typeOk || !extOk) return "Only PDF, JPG or PNG files are allowed.";
+  if (!typeOk || !extOk) return "Only JPG, PNG or WebP images are allowed.";
   if (file.size > COR_UPLOAD.MAX_BYTES) return `File must be ${COR_UPLOAD.MAX_BYTES / (1024 * 1024)} MB or smaller.`;
   return null;
 }

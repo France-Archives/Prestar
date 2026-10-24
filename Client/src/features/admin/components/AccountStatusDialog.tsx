@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Alert from "@/components/feedback/Alert";
 import Button from "@/components/common/Button";
+import ConfirmDialog from "@/components/feedback/ConfirmDialog";
 import { SelectField, TextareaField } from "@/components/forms/FormField";
 import Modal from "@/components/ui/Modal";
 import { useToast } from "@/hooks/useToast";
@@ -24,10 +25,16 @@ export default function AccountStatusDialog({ user, onClose, onDone }: Props) {
   const [status, setStatus] = useState<AccountStatus>(user.accountStatus === "SUSPENDED" ? "ACTIVE" : "SUSPENDED");
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const submit = async () => {
     if (!reason.trim()) return setError("A reason is required.");
+    setConfirming(true);
+  };
+
+  const updateStatus = async () => {
+    if (!reason.trim() || busy) throw new Error("A reason is required.");
     setBusy(true);
     setError(null);
     try {
@@ -37,18 +44,21 @@ export default function AccountStatusDialog({ user, onClose, onDone }: Props) {
       onClose();
     } catch (e) {
       setError(describeError(e));
+      throw e;
+    } finally {
       setBusy(false);
     }
   };
 
   return (
+    <>
     <Modal
       title={`Change status: ${user.displayName}`}
       onClose={busy ? () => undefined : onClose}
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={busy}>Cancel</Button>
-          <Button variant={status === "ACTIVE" ? "primary" : "danger"} onClick={submit} loading={busy}>Update status</Button>
+          <Button variant={status === "ACTIVE" ? "primary" : "danger"} onClick={() => void submit()} disabled={busy}>Update status</Button>
         </>
       }
     >
@@ -61,5 +71,21 @@ export default function AccountStatusDialog({ user, onClose, onDone }: Props) {
       <TextareaField label="Reason (kept in the audit log)" value={reason} onChange={(e) => setReason(e.target.value)} required />
       {error && <Alert kind="error">{error}</Alert>}
     </Modal>
+      {confirming && (
+        <ConfirmDialog
+          title={`${status === "ACTIVE" ? "Reactivate" : status === "DISABLED" ? "Disable" : "Suspend"} ${user.displayName}'s account?`}
+          message={`${user.displayName}'s status will change to ${statusLabel(status)}; new borrowing, reservations, and renewals are affected.`}
+          details={[
+            { label: "User", value: user.displayName },
+            { label: "New status", value: statusLabel(status) },
+          ]}
+          variant={status === "ACTIVE" ? "positive" : "destructive"}
+          confirmLabel={status === "ACTIVE" ? "Reactivate account" : status === "DISABLED" ? "Disable account" : "Suspend account"}
+          loading={busy}
+          onClose={() => setConfirming(false)}
+          onConfirm={updateStatus}
+        />
+      )}
+    </>
   );
 }

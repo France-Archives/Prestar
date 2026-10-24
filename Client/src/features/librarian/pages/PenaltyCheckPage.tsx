@@ -4,7 +4,9 @@ import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
 import SearchInput from "@/components/forms/SearchInput";
 import StatusBadge from "@/components/data-display/StatusBadge";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
+import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import * as librarianService from "@/services/librarianService";
 import PenaltySummary from "../components/PenaltySummary";
@@ -18,7 +20,7 @@ export default function PenaltyCheckPage() {
 
   return (
     <div className="page">
-      <PageHeader eyebrow="Circulation" title="Check Penalties" description="Look up a student and run a live eligibility check: account, email, COR, overdue loans, unpaid fines and commitments." />
+      <PageHero eyebrow="Circulation" title="Check Penalties" description="Look up a student and run a live eligibility check: account, email, COR, overdue loans, unpaid fines and commitments." leading={<BackButton fallback={ROUTES.staff.dashboard} />} />
       <div className="grid gap-4 lg:grid-cols-[360px_1fr]">
         <Card title="Students">
           <div className="stack" style={{ gap: 10 }}>

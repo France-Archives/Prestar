@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Alert, { MockTag } from "@/components/feedback/Alert";
 import Button from "@/components/common/Button";
+import ConfirmDialog from "@/components/feedback/ConfirmDialog";
 import { InputField, SelectField } from "@/components/forms/FormField";
 import Modal from "@/components/ui/Modal";
 import Money from "@/components/data-display/Money";
@@ -23,12 +24,19 @@ export default function PaymentForm({ fine, onClose, onDone }: PaymentFormProps)
   const [method, setMethod] = useState<PaymentMethod>("CASH");
   const [reference, setReference] = useState("");
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const submit = async () => {
     const n = Number(amount);
     if (!(n > 0)) return setError("Enter an amount greater than 0.");
     if (n > fine.balance) return setError("The amount cannot be more than the balance.");
+    setConfirming(true);
+  };
+
+  const recordPayment = async () => {
+    const n = Number(amount);
+    if (!(n > 0) || n > fine.balance || busy) throw new Error("Enter a valid payment amount.");
     setBusy(true);
     setError(null);
     try {
@@ -38,11 +46,14 @@ export default function PaymentForm({ fine, onClose, onDone }: PaymentFormProps)
       onClose();
     } catch (e) {
       setError(describeError(e));
+      throw e;
+    } finally {
       setBusy(false);
     }
   };
 
   return (
+    <>
     <Modal
       title="Record payment"
       onClose={busy ? () => undefined : onClose}
@@ -51,7 +62,7 @@ export default function PaymentForm({ fine, onClose, onDone }: PaymentFormProps)
           <Button variant="ghost" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
-          <Button onClick={submit} loading={busy}>
+          <Button onClick={() => void submit()} disabled={busy}>
             Record payment
           </Button>
         </>
@@ -79,5 +90,21 @@ export default function PaymentForm({ fine, onClose, onDone }: PaymentFormProps)
       <InputField label="Reference number (optional)" value={reference} onChange={(e) => setReference(e.target.value)} />
       {error && <Alert kind="error">{error}</Alert>}
     </Modal>
+      {confirming && (
+        <ConfirmDialog
+          title={`Record a payment of ₱${Number(amount).toFixed(2)}?`}
+          message={`This records ₱${Number(amount).toFixed(2)} received from ${fine.student.firstName} ${fine.student.lastName}.`}
+          details={[
+            { label: "Student", value: `${fine.student.firstName} ${fine.student.lastName}` },
+            { label: "Book", value: fine.bookTitle },
+            { label: "Payment", value: <Money value={Number(amount)} /> },
+          ]}
+          confirmLabel="Record payment"
+          loading={busy}
+          onClose={() => setConfirming(false)}
+          onConfirm={recordPayment}
+        />
+      )}
+    </>
   );
 }

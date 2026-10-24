@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useScrollHide } from "@/hooks/useScrollHide";
 
 export default function PublicNavbar() {
-  const { user } = useAuth();
+  const { user, status } = useAuth();
   const { visible, scrolled } = useScrollHide(60);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -88,7 +88,7 @@ export default function PublicNavbar() {
 
             {/* Desktop auth buttons */}
             <div className="pub-navbar__actions pub-navbar__actions--desktop">
-              {user ? (
+              {status === "loading" ? null : user ? (
                 <Link
                   to={homePathFor(user)}
                   className="btn btn-primary pub-navbar__cta"
@@ -165,7 +165,7 @@ export default function PublicNavbar() {
                 </nav>
                 <div className="pub-mobile-menu__divider" />
                 <div className="pub-mobile-menu__actions">
-                  {user ? (
+                  {status === "loading" ? null : user ? (
                     <Link
                       to={homePathFor(user)}
                       className="btn btn-primary"

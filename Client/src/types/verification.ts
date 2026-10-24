@@ -16,9 +16,28 @@ export interface CorVerification {
   validUntil: ISODate | null;
 }
 
-/** V1 staff queue row adds the student. */
+export interface StaffCorStudent {
+  id: UUID;
+  studentNumber: string;
+  name: string;
+  email?: string | null;
+  college?: string | null;
+  course?: string | null;
+  yearLevel?: number | null;
+  studentType?: string | null;
+}
+
+export interface StaffCorReviewer {
+  id: UUID;
+  name: string;
+  email?: string | null;
+  role?: string | null;
+}
+
+/** V1 staff queue row adds the student and reviewer. */
 export interface StaffCorVerification extends CorVerification {
-  student: { id: UUID; studentNumber: string; name: string };
+  student: StaffCorStudent;
+  reviewer?: StaffCorReviewer | null;
 }
 
 /** Effective COR state for the CURRENT term (used by PenaltyCheck and the student dashboard). */

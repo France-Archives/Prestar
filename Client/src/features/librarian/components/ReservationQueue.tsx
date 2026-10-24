@@ -12,8 +12,8 @@ interface ReservationQueueProps {
 export default function ReservationQueue({ rows, empty = "No reservations here." }: ReservationQueueProps) {
   const columns: Column<StaffReservation>[] = [
     { key: "bookTitle", header: "Book" },
-    { key: "student", header: "Student", render: (r) => `${r.student.firstName} ${r.student.lastName} (${r.student.studentNumber})` },
-    { key: "requestedDurationDays", header: "Duration", render: (r) => `${r.requestedDurationDays} days` },
+    { key: "student", header: "Student", render: (r) => `${r.student.firstName} ${r.student.lastName} (${r.student.studentNumber ?? "—"})` },
+    { key: "requestedDurationDays", header: "Duration", render: (r) => r.requestedDurationDays === null ? "—" : `${r.requestedDurationDays} days` },
     { key: "queuePosition", header: "Position", render: (r) => (r.status === "WAITING" ? r.queuePosition : "—") },
     { key: "status", header: "Status", render: (r) => <StatusBadge status={r.status} /> },
     { key: "reservedAt", header: "Reserved", render: (r) => formatDate(r.reservedAt) },

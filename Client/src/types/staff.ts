@@ -1,12 +1,9 @@
 import type { ISODateTime, UUID } from "./api";
 import type {
   AccountStatus,
-  AllowedDurationDays,
   BookCopyStatus,
   BorrowingRequestStatus,
   CopyCondition,
-  ErrorCode,
-  FineType,
   HandoverAction,
 } from "./enums";
 import type { EffectiveCorStatus } from "./verification";
@@ -15,7 +12,7 @@ import type { CopyLocation, CopyRef } from "./book";
 
 // Penalty check -> PenaltyCheck (computed by the server only).
 export interface PenaltyReason {
-  code: ErrorCode;
+  code: string;
   message: string;
 }
 
@@ -28,7 +25,7 @@ export interface PenaltyOverdueLoan {
 
 export interface PenaltyUnpaidFine {
   fineId: UUID;
-  fineType: FineType;
+  fineType: string;
   amount: number;
   paidAmount: number;
   balance: number;
@@ -36,12 +33,12 @@ export interface PenaltyUnpaidFine {
 
 export interface PenaltyCheck {
   studentId: UUID;
-  checkedAt: ISODateTime;
+  checkedAt: ISODateTime | null;
   eligible: boolean; // server-computed only
-  accountStatus: AccountStatus;
-  emailVerified: boolean;
-  corStatus: EffectiveCorStatus;
-  activeCommitmentCount: number;
+  accountStatus: AccountStatus | null;
+  emailVerified: boolean | null;
+  corStatus: EffectiveCorStatus | null;
+  activeCommitmentCount: number | null;
   reasons: PenaltyReason[];
   overdueLoans: PenaltyOverdueLoan[];
   unpaidFines: PenaltyUnpaidFine[];
@@ -54,9 +51,9 @@ export interface BookToRelease {
   student: { id: UUID; studentNumber: string; firstName: string; lastName: string };
   book: { id: UUID; title: string };
   copy: CopyRef & CopyLocation & { shelfLocation: string | null };
-  requestedDurationDays: AllowedDurationDays;
-  approvedAt: ISODateTime;
-  pickupDeadline: ISODateTime;
+  requestedDurationDays: number | null;
+  approvedAt: ISODateTime | null;
+  pickupDeadline: ISODateTime | null;
   status: Extract<BorrowingRequestStatus, "APPROVED" | "ON_HOLD"> | "OFFERED";
 }
 
@@ -81,7 +78,11 @@ export interface HoldHandoverRequest {
 /** H4 POST /staff/borrowing-requests/:id/reject-handover (reason required) */
 export interface RejectHandoverRequest {
   reasonCode: string;
-  notes: string;
+  notes?: string;
+}
+/** H5 POST /staff/borrowing-requests/:id/claim */
+export interface ClaimRequest {
+  copyBarcode: string;
 }
 /** H6 POST /staff/loans/:loanId/return */
 export interface ReturnRequest {

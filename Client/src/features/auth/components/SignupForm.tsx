@@ -2,6 +2,7 @@ import { useState, type ChangeEvent, type FormEvent, type MouseEvent } from "rea
 import { useNavigate } from "react-router-dom";
 import Alert from "@/components/feedback/Alert";
 import Button from "@/components/common/Button";
+import ConfirmDialog from "@/components/feedback/ConfirmDialog";
 import Modal from "@/components/ui/Modal";
 import { CheckboxField, InputField, SelectField } from "@/components/forms/FormField";
 import { ROUTES } from "@/app/routeConfig";
@@ -27,6 +28,7 @@ export default function SignupForm() {
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [legal, setLegal] = useState<LegalDoc>(null);
+  const [confirming, setConfirming] = useState(false);
 
   // TEMPORARY: colleges come from mock data until the backend provides them.
   const courses = MOCK_COLLEGES.find((c) => c.name === v.college)?.courses ?? [];
@@ -44,12 +46,7 @@ export default function SignupForm() {
     setLegal(doc);
   };
 
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    const found = validateSignup(v);
-    setErrors(found);
-    setFormError(null);
-    if (Object.keys(found).length) return;
+  const register = async () => {
     setBusy(true);
     try {
       const res = await authService.register({
@@ -63,13 +60,25 @@ export default function SignupForm() {
         college: v.college,
         program: v.program, // the selected course
         yearLevel: Number(v.yearLevel),
+        termsAccepted: v.consent,
+        privacyPolicyAccepted: v.consent,
       });
-      // The mock displays this code; the real backend sends it to the student's email.
       navigate(ROUTES.verificationPending, { state: { email: res.email, mockCode: res.mockVerificationCode } });
     } catch (err) {
       setFormError(describeError(err));
+      throw err;
+    } finally {
       setBusy(false);
     }
+  };
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    const found = validateSignup(v);
+    setErrors(found);
+    setFormError(null);
+    if (Object.keys(found).length) return;
+    setConfirming(true);
   };
 
   return (
@@ -147,6 +156,18 @@ export default function SignupForm() {
           Create account
         </Button>
       </form>
+
+      {confirming && (
+        <ConfirmDialog
+          title="Create your student account?"
+          message="You will need to verify your email with a code."
+          details={[{ label: "Account email", value: v.email.trim() }]}
+          confirmLabel="Create account"
+          loading={busy}
+          onClose={() => setConfirming(false)}
+          onConfirm={register}
+        />
+      )}
 
       {legal && (
         <Modal

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Alert, { MockTag } from "@/components/feedback/Alert";
 import Button from "@/components/common/Button";
+import ConfirmDialog from "@/components/feedback/ConfirmDialog";
 import Card from "@/components/ui/Card";
 import DataTable, { type Column } from "@/components/data-display/DataTable";
 import ErrorState from "@/components/feedback/ErrorState";
@@ -9,7 +10,9 @@ import LoadingState from "@/components/feedback/LoadingState";
 import Pagination from "@/components/data-display/Pagination";
 import SearchInput from "@/components/forms/SearchInput";
 import StatusBadge from "@/components/data-display/StatusBadge";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
+import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import { useToast } from "@/hooks/useToast";
 import * as adminService from "@/services/adminService";
@@ -34,11 +37,16 @@ export default function NotificationsManagementPage() {
   const [form, setForm] = useState({ audience: "ALL_STUDENTS" as BroadcastAudience, title: "", message: "" });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const list = useAsync(() => adminService.listAllNotifications({ search: search || undefined, page, pageSize: PAGE_SIZE }), [search, page]);
   const meta = list.data?.meta;
   const totalPages = meta ? Math.max(1, Math.ceil(meta.total / meta.pageSize)) : 1;
 
-  const send = async () => {
+  const send = () => {
+    if (form.title.trim() && form.message.trim() && !busy) setConfirming(true);
+  };
+
+  const sendNotice = async () => {
     setBusy(true);
     setError(null);
     try {
@@ -48,6 +56,7 @@ export default function NotificationsManagementPage() {
       await list.reload();
     } catch (e) {
       setError(describeError(e));
+      throw e;
     } finally {
       setBusy(false);
     }
@@ -64,7 +73,7 @@ export default function NotificationsManagementPage() {
 
   return (
     <div className="page">
-      <PageHeader eyebrow="System" title="Notifications management" description="Review notifications and send a general in-app notice." />
+      <PageHero eyebrow="System" title="Notifications management" description="Review notifications and send a general in-app notice." leading={<BackButton fallback={ROUTES.admin.dashboard} />} compact />
       <div className="stack">
         <Card title="Send a notice" note="Appears in the recipients' notification bell. No email is sent.">
           <div className="stack">
@@ -75,7 +84,7 @@ export default function NotificationsManagementPage() {
             <InputField label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
             <TextareaField label="Message" value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} required />
             {error && <Alert kind="error">{error}</Alert>}
-            <div><Button onClick={send} loading={busy} disabled={!form.title.trim() || !form.message.trim()}>Send notice</Button></div>
+            <div><Button onClick={send} disabled={!form.title.trim() || !form.message.trim() || busy}>Send notice</Button></div>
           </div>
         </Card>
         <div className="toolbar" style={{ margin: 0 }}>
@@ -98,6 +107,20 @@ export default function NotificationsManagementPage() {
           </div>
         )}
       </div>
+      {confirming && (
+        <ConfirmDialog
+          title={`Send notice to ${AUDIENCES.find((audience) => audience.value === form.audience)?.label ?? "selected audience"}?`}
+          message={`This will send "${form.title.trim()}" to the selected audience.`}
+          details={[
+            { label: "Audience", value: AUDIENCES.find((audience) => audience.value === form.audience)?.label ?? form.audience },
+            { label: "Notice title", value: form.title.trim() },
+          ]}
+          confirmLabel="Send notice"
+          loading={busy}
+          onClose={() => setConfirming(false)}
+          onConfirm={sendNotice}
+        />
+      )}
     </div>
   );
 }

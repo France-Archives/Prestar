@@ -15,11 +15,25 @@ export function PageLoading() {
   );
 }
 
+function SessionUnavailable() {
+  const { refresh, sessionError } = useAuth();
+  return (
+    <div className="page" role="alert">
+      <div className="empty">
+        <h1>Unable to check your session</h1>
+        <p className="subtle">{sessionError ?? "The Server could not be reached. Your session has not been cleared."}</p>
+        <button className="btn btn-primary" type="button" onClick={() => void refresh()}>Try again</button>
+      </div>
+    </div>
+  );
+}
+
 /** Requires a signed-in user. Others go to /login?next=. */
 export function RequireAuth() {
   const { status, user } = useAuth();
   const location = useLocation();
   if (status === "loading") return <PageLoading />;
+  if (status === "error") return <SessionUnavailable />;
   if (!user) {
     const next = encodeURIComponent(location.pathname + location.search);
     return <Navigate to={`${ROUTES.login}?next=${next}`} replace />;
@@ -32,6 +46,7 @@ export function GuestOnly() {
   const { status, user } = useAuth();
   const [params] = useSearchParams();
   if (status === "loading") return <PageLoading />;
+  if (status === "error") return <SessionUnavailable />;
   if (user) return <Navigate to={safeNext(params.get("next")) ?? homePathFor(user)} replace />;
   return <Outlet />;
 }
@@ -54,7 +69,11 @@ function Forbidden() {
 /** Requires a capability (Admin passes every staff capability). Wrap routes with <RequireCapability capability="..." />. */
 export function RequireCapability({ capability }: { capability: Capability }) {
   const { user } = useAuth();
-  if (user?.role === "STUDENT" && capability === "STUDENT_AREA" && (!user.emailVerifiedAt || user.accountStatus === "PENDING_VERIFICATION")) {
+  if (
+    user?.role === "STUDENT"
+    && capability === "STUDENT_AREA"
+    && ((!user.emailVerifiedAt && user.accountStatus !== "ACTIVE") || user.accountStatus === "PENDING_VERIFICATION")
+  ) {
     return <Navigate to={ROUTES.verificationPending} replace state={{ email: user.email }} />;
   }
   if (!user || !can(user, capability)) return <Forbidden />;

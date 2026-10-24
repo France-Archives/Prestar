@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Alert from "@/components/feedback/Alert";
 import Button from "@/components/common/Button";
+import ConfirmDialog from "@/components/feedback/ConfirmDialog";
 import { InputField, SelectField } from "@/components/forms/FormField";
 import Modal from "@/components/ui/Modal";
 import { useToast } from "@/hooks/useToast";
@@ -31,6 +32,7 @@ export default function AcademicTermForm({ term, onClose, onDone }: Props) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirmStatus, setConfirmStatus] = useState(false);
 
   const field = (k: "name" | "startDate" | "endDate" | "corDeadline") => ({
     value: v[k],
@@ -52,6 +54,14 @@ export default function AcademicTermForm({ term, onClose, onDone }: Props) {
     setErrors(found);
     setFormError(null);
     if (Object.keys(found).length) return;
+    if (term && v.status !== term.status) {
+      setConfirmStatus(true);
+      return;
+    }
+    void saveTerm();
+  };
+
+  const saveTerm = async (confirmed = false) => {
     setBusy(true);
     try {
       const body = { name: v.name.trim(), startDate: v.startDate, endDate: v.endDate, corDeadline: v.corDeadline, status: v.status };
@@ -62,18 +72,21 @@ export default function AcademicTermForm({ term, onClose, onDone }: Props) {
       onClose();
     } catch (e) {
       setFormError(describeError(e));
+      if (confirmed) throw e;
+    } finally {
       setBusy(false);
     }
   };
 
   return (
+    <>
     <Modal
       title={term ? "Edit academic term" : "Add academic term"}
       onClose={busy ? () => undefined : onClose}
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={busy}>Cancel</Button>
-          <Button onClick={submit} loading={busy}>Save term</Button>
+          <Button onClick={() => void submit()} disabled={busy}>Save term</Button>
         </>
       }
     >
@@ -90,5 +103,19 @@ export default function AcademicTermForm({ term, onClose, onDone }: Props) {
       </SelectField>
       {formError && <Alert kind="error">{formError}</Alert>}
     </Modal>
+      {confirmStatus && term && (
+        <ConfirmDialog
+          title={`Change ${term.name} status?`}
+          message={`The academic term will change from ${statusLabel(term.status)} to ${statusLabel(v.status)}, affecting term-dependent COR workflows.`}
+          details={[
+            { label: "Academic term", value: term.name },
+            { label: "New status", value: statusLabel(v.status) },
+          ]}
+          confirmLabel="Update term status"
+          onClose={() => setConfirmStatus(false)}
+          onConfirm={() => saveTerm(true)}
+        />
+      )}
+    </>
   );
 }

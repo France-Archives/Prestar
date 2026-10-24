@@ -1,32 +1,32 @@
 import type { ISODateTime, UUID } from "./api";
 import type { AccountStatus, BookCopyStatus } from "./enums";
 import type { BookSummary } from "./book";
-import type { BorrowingRequest, Loan, StaffLoan } from "./borrowing";
-import type { CorSummary } from "./verification";
+import type { Loan, StaffLoan } from "./borrowing";
+import type { EffectiveCorStatus } from "./verification";
 import type { NotificationItem } from "./notification";
-import type { Reservation, StaffReservation } from "./reservation";
+import type { StaffReservation } from "./reservation";
 import type { BookToRelease } from "./staff";
 
-// The source defines only GET /admin/dashboard and three Admin reports (TC-16).
-// Student/Staff dashboard data is composed from existing endpoints (or proposed P13). Derived. TO CONFIRM.
+// Student dashboard data is returned by GET /me/dashboard. Staff/admin report APIs remain separate.
 
 export interface PopularBook {
   bookId: UUID;
   title: string;
   loanCount: number;
+  book?: BookSummary;
 }
 
 export interface StudentDashboardData {
   accountStatus: AccountStatus;
   emailVerified: boolean;
-  cor: CorSummary;
+  cor: { status: EffectiveCorStatus; currentTerm?: { id: UUID; name: string } | null };
   commitments: { active: number; max: number };
-  pickupWaiting: BorrowingRequest[];
-  activeLoans: Loan[];
-  reservations: Reservation[];
-  recentNotifications: NotificationItem[];
-  unreadCount: number;
-  recommended: BookSummary[];
+  pickupWaiting: { id: UUID; status: string }[];
+  activeLoans: Pick<Loan, "id" | "bookTitle" | "status" | "dueAt">[];
+  reservations: { id: UUID; status: string }[];
+  recentNotifications: NotificationItem[] | null;
+  unreadCount: number | null;
+  recommended: BookSummary[] | null;
   mostBorrowed: PopularBook[];
 }
 

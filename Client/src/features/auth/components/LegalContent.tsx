@@ -27,7 +27,7 @@ export function PrivacyContent() {
       <ul style={LIST_STYLE}>
         <li>We keep your account, borrowing history, reservations, fines and notifications to run the library.</li>
         <li>Your COR is stored in private storage and shown only to authorized reviewers.</li>
-        <li>Passwords are never stored in readable form. Verification and reset links are single-use.</li>
+        <li>Passwords are never stored in readable form. Verification and password reset codes are single-use.</li>
         <li>Staff and administrator actions are recorded in an audit log.</li>
       </ul>
     </div>

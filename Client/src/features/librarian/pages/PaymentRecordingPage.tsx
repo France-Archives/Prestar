@@ -7,7 +7,9 @@ import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
 import Money from "@/components/data-display/Money";
 import SearchInput from "@/components/forms/SearchInput";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
+import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import { useAuth } from "@/hooks/useAuth";
 import * as finesService from "@/services/finesService";
@@ -62,7 +64,7 @@ export default function PaymentRecordingPage() {
 
   return (
     <div className="page">
-      <PageHeader eyebrow="Fines" title="Payment recording" description="Record money received in person at the library desk, then review the payment history." />
+      <PageHero eyebrow="Fines" title="Payment recording" description="Record money received in person at the library desk, then review the payment history." leading={<BackButton fallback={ROUTES.staff.dashboard} />} compact />
       {!canManage && <Alert kind="warn">Recording payments needs the fine/payment permission. You can view the history.</Alert>}
       <div className="toolbar">
         <SearchInput value={search} onChange={setSearch} placeholder="Search student, number or reference…" />

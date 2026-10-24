@@ -58,6 +58,7 @@ export const ROUTES = {
 
   admin: {
     dashboard: "/admin/dashboard",
+    createAdmin: "/admin/create-admin",
     users: "/admin/users",
     studentDetails: (studentId: string) => `/admin/users/students/${studentId}`,
     librarians: "/admin/librarians",
@@ -169,8 +170,6 @@ const STAFF_SECTIONS: NavSection[] = [
     items: [
       { label: "Books", to: T.books, capability: "CATALOG_MANAGE" },
       { label: "Categories", to: T.categories, capability: "CATALOG_MANAGE" },
-      { label: "Authors", to: T.authors, capability: "CATALOG_MANAGE" },
-      { label: "Maintenance copies", to: T.maintenance, capability: "CATALOG_MANAGE" },
       { label: "Shelf locator", to: T.shelfLocator, capability: "CATALOG_MANAGE" },
     ],
   },
@@ -186,7 +185,6 @@ const ADMIN_SECTIONS: NavSection[] = [
     id: "admin-overview",
     title: "Administration",
     items: [
-      { label: "Admin dashboard", to: A.dashboard, capability: "ADMIN_AREA" },
       { label: "Circulation overview", to: A.circulation, capability: "ADMIN_AREA" },
       { label: "Reports", to: A.reports, capability: "ADMIN_AREA" },
       { label: "Audit logs", to: A.auditLogs, capability: "ADMIN_AREA" },
@@ -197,15 +195,14 @@ const ADMIN_SECTIONS: NavSection[] = [
     title: "People",
     items: [
       { label: "Users", to: A.users, capability: "ADMIN_AREA" },
+      { label: "Create admin", to: A.createAdmin, capability: "ADMIN_AREA" },
       { label: "Librarians", to: A.librarians, capability: "MANAGE_LIBRARIANS" },
-      { label: "COR administration", to: A.cor, capability: "ADMIN_AREA" },
     ],
   },
   {
     id: "admin-system",
     title: "System",
     items: [
-      { label: "Book management", to: A.books, capability: "ADMIN_AREA" },
       { label: "Academic terms", to: A.terms, capability: "ADMIN_AREA" },
       { label: "Borrowing policies", to: A.policies, capability: "ADMIN_AREA" },
       { label: "System settings", to: A.settings, capability: "ADMIN_AREA" },
@@ -219,6 +216,13 @@ const ADMIN_SECTIONS: NavSection[] = [
 export function getNavSections(user: SessionUser): NavSection[] {
   const sections = user.role === "STUDENT" ? STUDENT_SECTIONS : [...STAFF_SECTIONS, ...ADMIN_SECTIONS];
   return sections
-    .map((s) => ({ ...s, items: s.items.filter((i) => can(user, i.capability)) }))
+    .map((s) => ({
+      ...s,
+      items: s.items
+        .map((item) => user.role === "ADMIN" && item.to === T.dashboard
+          ? { ...item, to: A.dashboard }
+          : item)
+        .filter((item) => can(user, item.capability)),
+    }))
     .filter((s) => s.items.length > 0);
 }

@@ -36,7 +36,9 @@ export default function BookFilters({ values, categories, onChange }: BookFilter
           Clear filters
         </Button>
       </div>
-      <CategoryFilter categories={categories} value={values.categoryId} onChange={(categoryId) => onChange({ ...values, categoryId })} />
+      {categories.length > 0 && (
+        <CategoryFilter categories={categories} value={values.categoryId} onChange={(categoryId) => onChange({ ...values, categoryId })} />
+      )}
     </div>
   );
 }

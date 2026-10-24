@@ -6,7 +6,9 @@ import LoadingState from "@/components/feedback/LoadingState";
 import Money from "@/components/data-display/Money";
 import StatusBadge from "@/components/data-display/StatusBadge";
 import Tabs from "@/components/ui/Tabs";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
+import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import * as reportsService from "@/services/reportsService";
 import type { BorrowingReportRow, FinesReportRow, OverdueReportRow } from "@/types";
@@ -54,7 +56,7 @@ export default function ReportsPage() {
 
   return (
     <div className="page">
-      <PageHeader eyebrow="Administration" title="Reports" description="Borrowing, overdue and fines reports for the selected period." />
+      <PageHero eyebrow="Administration" title="Reports" description="Borrowing, overdue and fines reports for the selected period." leading={<BackButton fallback={ROUTES.admin.dashboard} />} compact />
       <Alert kind="info">Reports are computed live from the demo records. KPI definitions are TO CONFIRM (TC-16).</Alert>
       <Tabs<Tab>
         tabs={[

@@ -17,18 +17,145 @@ import type {
   UUID,
 } from "@/types";
 import type { MockBook } from "@/data";
-import { fail } from "@/utils/errors";
+import { ApiError, fail, toApiError } from "@/utils/errors";
 import { can } from "@/utils/permissions";
 import { validateRequired } from "@/utils/validators";
+import { USE_MOCKS } from "@/utils/constants";
+import { apiGet, apiGetPage, apiPost } from "./apiClient";
 import { authorsOf, availabilityOf, begin, fillQueues, toBookDetail, toBookSummary } from "./mockEngine";
 import { commit, db, generateCopyBarcode, matches, newId, out, paginate, requireAccount, requireCapability, sessionUserOf } from "./mockStore";
 
 // TEMPORARY MOCK IMPLEMENTATION: Replace with the real Books API (C1 to C7).
-// Category and author management endpoints are NOT in the source: those functions are mock-only (TO CONFIRM).
 
 const check = (message: string | null): void => {
   if (message) fail("VALIDATION_ERROR", message, 422);
 };
+
+interface BackendBookRecord {
+  id: number | string;
+  title: string;
+  isbn?: string | null;
+  description?: string | null;
+  publisher?: string | null;
+  publicationYear?: number | null;
+  language?: string | null;
+  coverImageUrl?: string | null;
+  isArchived?: boolean;
+  author?: { id: number | string; name: string | null } | null;
+  authors?: { id: number | string; name: string | null }[];
+  category?: { id: number | string; name: string } | null;
+  availability?: { availableCopies: number; totalUsableCopies: number };
+  availableCopies?: number;
+}
+
+interface BackendCategory {
+  id?: string | number;
+  categoryId?: string | number;
+  category_id?: string | number;
+  name?: string;
+  category_name?: string;
+  description?: string | null;
+}
+
+function mapBackendCategory(value: unknown): CategorySummary {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new ApiError("UNKNOWN", "The Server returned an invalid category.");
+  }
+  const row = value as BackendCategory;
+  const id = row.id ?? row.categoryId ?? row.category_id;
+  const name = row.name ?? row.category_name;
+  if ((typeof id !== "string" && typeof id !== "number") || typeof name !== "string") {
+    throw new ApiError("UNKNOWN", "The Server returned a category without an ID or name.");
+  }
+  return {
+    id: String(id),
+    name,
+    description: row.description ?? null,
+  };
+}
+
+function mapBackendBookSummary(book: BackendBookRecord): BookSummary {
+  const authors = book.authors ?? (book.author ? [book.author] : []);
+  const availableCopies = Number(book.availability?.availableCopies ?? book.availableCopies ?? 0);
+  return {
+    id: String(book.id),
+    title: book.title,
+    isbn: book.isbn ?? null,
+    description: book.description ?? null,
+    category: book.category
+      ? { id: String(book.category.id), name: book.category.name }
+      : null,
+    authors: authors.map((author) => ({ id: String(author.id), name: author.name ?? "" })),
+    availability: {
+      availableCopies,
+      totalUsableCopies: Number(book.availability?.totalUsableCopies ?? availableCopies),
+    },
+    coverImageUrl: book.coverImageUrl ?? null,
+  };
+}
+
+function mapBackendBookDetail(book: BackendBookRecord): BookDetail {
+  return {
+    ...mapBackendBookSummary(book),
+    publisher: book.publisher ?? null,
+    publicationYear: book.publicationYear ?? null,
+    language: book.language ?? null,
+    isArchived: book.isArchived ?? false,
+  };
+}
+
+function liveBookQuery(params: BookListParams, page: number, limit: number) {
+  const categoryId = params.categoryId === undefined ? undefined : Number(params.categoryId);
+  if (categoryId !== undefined && (!Number.isSafeInteger(categoryId) || categoryId <= 0)) {
+    fail("VALIDATION_ERROR", "Category id must be a positive integer.", 400);
+  }
+  return {
+    page,
+    limit,
+    ...(categoryId === undefined ? {} : { category_id: categoryId }),
+    ...(params.search?.trim() ? { search: params.search.trim() } : {}),
+  };
+}
+
+async function listLiveBooks(params: BookListParams): Promise<Paginated<BookSummary>> {
+  const page = params.page ?? 1;
+  const pageSize = params.pageSize ?? 20;
+
+  if (!params.availability) {
+    const result = await apiGetPage<BackendBookRecord>(
+      "/books",
+      liveBookQuery(params, page, pageSize),
+    );
+    return {
+      data: result.data.map(mapBackendBookSummary),
+      meta: result.meta,
+    };
+  }
+
+  // The API has no availability query. Load its matching pages before filtering
+  // so the Client's existing availability filter and pagination remain accurate.
+  const firstPage = await apiGetPage<BackendBookRecord>("/books", liveBookQuery(params, 1, 100));
+  const allBooks = [...firstPage.data];
+  const pageCount = Math.ceil(firstPage.meta.total / firstPage.meta.pageSize);
+  for (let currentPage = 2; currentPage <= pageCount; currentPage += 1) {
+    const result = await apiGetPage<BackendBookRecord>(
+      "/books",
+      liveBookQuery(params, currentPage, 100),
+    );
+    allBooks.push(...result.data);
+  }
+
+  const filtered = allBooks
+    .map(mapBackendBookSummary)
+    .filter((book) => params.availability === "AVAILABLE"
+      ? book.availability.availableCopies > 0
+      : book.availability.availableCopies === 0);
+  const start = (page - 1) * pageSize;
+  return {
+    data: filtered.slice(start, start + pageSize),
+    meta: { page, pageSize, total: filtered.length },
+  };
+}
 
 function filterBooks(rows: MockBook[], params: BookListParams): MockBook[] {
   return rows
@@ -44,6 +171,7 @@ function filterBooks(rows: MockBook[], params: BookListParams): MockBook[] {
 
 /** C1 GET /books. Archived titles are hidden from the catalog. */
 export async function listBooks(params: BookListParams = {}): Promise<Paginated<BookSummary>> {
+  if (!USE_MOCKS) return listLiveBooks(params);
   await begin();
   requireAccount();
   const rows = filterBooks(db.books.filter((b) => !b.isArchived), params);
@@ -59,6 +187,12 @@ export async function listBooksForStaff(params: BookListParams = {}): Promise<Pa
 
 /** C2 GET /books/:bookId */
 export async function getBook(bookId: UUID): Promise<BookDetail> {
+  if (!USE_MOCKS) {
+    if (!/^[1-9]\d*$/.test(bookId) || !Number.isSafeInteger(Number(bookId))) {
+      fail("VALIDATION_ERROR", "Book id must be a positive integer.", 400);
+    }
+    return mapBackendBookDetail(await apiGet<BackendBookRecord>(`/books/${bookId}`));
+  }
   await begin();
   const account = requireAccount();
   const book = db.books.find((b) => b.id === bookId);
@@ -69,9 +203,32 @@ export async function getBook(bookId: UUID): Promise<BookDetail> {
 
 /** C3 GET /categories */
 export async function listCategories(): Promise<CategorySummary[]> {
+  if (!USE_MOCKS) {
+    const response = await apiGet<unknown>("/categories");
+    if (!Array.isArray(response)) {
+      throw new ApiError("UNKNOWN", "The Server returned an invalid category list.");
+    }
+    return response.map(mapBackendCategory);
+  }
   await begin();
   requireAccount();
   return out([...db.categories].sort((a, b) => a.name.localeCompare(b.name)));
+}
+
+/** C3.7 POST /categories */
+export async function createCategory(req: SaveCategoryRequest): Promise<CategorySummary> {
+  if (!USE_MOCKS) {
+    try {
+      const category = await apiPost<unknown>("/categories", {
+        name: req.name,
+        ...(req.description?.trim() ? { description: req.description.trim() } : {}),
+      });
+      return mapBackendCategory(category);
+    } catch (error) {
+      throw toApiError(error);
+    }
+  }
+  return saveCategory(req);
 }
 
 /** Mock only (no author endpoint in the source). */
@@ -164,7 +321,7 @@ export async function listAllCopies(params: { search?: string; status?: BookCopy
     .filter((c) => !params.status || c.status === params.status)
     .filter((c) => {
       const book = db.books.find((b) => b.id === c.bookId);
-      return matches(params.search, c.barcode, c.id, c.bookTitle, c.shelfLocation, c.section, c.shelfCode, c.levelOrRow, c.locationNotes, book?.isbn, ...(book ? authorsOf(book).map((author) => author.name) : []));
+      return matches(params.search, c.barcode, c.id, c.bookTitle, c.shelfLocation, book?.isbn, ...(book ? authorsOf(book).map((author) => author.name) : []));
     })
     .sort((a, b) => a.bookTitle.localeCompare(b.bookTitle) || a.barcode.localeCompare(b.barcode));
   return out(rows);
@@ -176,22 +333,18 @@ export async function createCopy(bookId: UUID, req: CreateCopyRequest): Promise<
   requireCapability("CATALOG_MANAGE");
   if (!db.books.some((b) => b.id === bookId)) fail("NOT_FOUND", "We could not find that book.");
   const barcode = generateCopyBarcode();
-  const section = req.section?.trim() || null;
-  const shelfCode = req.shelfCode?.trim() || null;
-  const levelOrRow = req.levelOrRow?.trim() || null;
-  const locationNotes = req.locationNotes?.trim() || null;
-  const legacyLocation = req.shelfLocation?.trim() || [section, shelfCode, levelOrRow].filter(Boolean).join(" / ") || null;
+  if (db.copies.some((c) => c.barcode === barcode)) fail("CONFLICT", "A copy with this barcode already exists.");
   const copy: BookCopy = {
     id: newId(),
     bookId,
     barcode,
     status: req.condition === "UNUSABLE" ? "WITHDRAWN" : req.condition === "DAMAGED" ? "MAINTENANCE" : "AVAILABLE",
     condition: req.condition,
-    section,
-    shelfCode,
-    levelOrRow,
-    locationNotes,
-    shelfLocation: legacyLocation,
+    shelfLocation: req.shelfLocation?.trim() || null,
+    section: req.section?.trim() || null,
+    shelfCode: req.shelfCode?.trim() || null,
+    levelOrRow: req.levelOrRow?.trim() || null,
+    locationNotes: req.locationNotes?.trim() || null,
     acquisitionDate: req.acquisitionDate ?? null,
     notes: req.notes?.trim() || null,
   };
@@ -215,18 +368,7 @@ export async function updateCopy(copyId: UUID, req: UpdateCopyRequest): Promise<
     copy.status = req.status;
   }
   if (req.condition) copy.condition = req.condition;
-  if (req.shelfLocation !== undefined || req.section !== undefined || req.shelfCode !== undefined || req.levelOrRow !== undefined || req.locationNotes !== undefined) {
-    const section = req.section !== undefined ? req.section?.trim() || null : copy.section;
-    const shelfCode = req.shelfCode !== undefined ? req.shelfCode?.trim() || null : copy.shelfCode;
-    const levelOrRow = req.levelOrRow !== undefined ? req.levelOrRow?.trim() || null : copy.levelOrRow;
-    const locationNotes = req.locationNotes !== undefined ? req.locationNotes?.trim() || null : copy.locationNotes;
-    const legacyLocation = req.shelfLocation !== undefined ? req.shelfLocation?.trim() || null : copy.shelfLocation;
-    copy.section = section;
-    copy.shelfCode = shelfCode;
-    copy.levelOrRow = levelOrRow;
-    copy.locationNotes = locationNotes;
-    copy.shelfLocation = legacyLocation !== null ? legacyLocation : [section, shelfCode, levelOrRow].filter(Boolean).join(" / ") || null;
-  }
+  if (req.shelfLocation !== undefined) copy.shelfLocation = req.shelfLocation?.trim() || null;
   if (req.notes !== undefined) copy.notes = req.notes?.trim() || null;
   fillQueues();
   commit();
@@ -236,6 +378,10 @@ export async function updateCopy(copyId: UUID, req: UpdateCopyRequest): Promise<
 // ---------- categories and authors (mock only, TO CONFIRM) ----------
 
 export async function saveCategory(req: SaveCategoryRequest, id?: UUID): Promise<CategorySummary> {
+  if (!USE_MOCKS) {
+    if (id) throw new ApiError("UNSUPPORTED_OPERATION", "Updating categories is not available in the Server API.");
+    return createCategory(req);
+  }
   await begin();
   requireCapability("CATALOG_MANAGE");
   check(validateRequired(req.name, "Category name", 100));

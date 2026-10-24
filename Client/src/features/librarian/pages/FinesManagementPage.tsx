@@ -7,7 +7,9 @@ import LoadingState from "@/components/feedback/LoadingState";
 import Money from "@/components/data-display/Money";
 import SearchInput from "@/components/forms/SearchInput";
 import StatusBadge from "@/components/data-display/StatusBadge";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
+import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
@@ -17,6 +19,8 @@ import type { FineStatus, StaffFine } from "@/types";
 import { statusLabel } from "@/utils/constants";
 import { formatDate } from "@/utils/formatDate";
 import { can } from "@/utils/permissions";
+import { USE_MOCKS } from "@/utils/constants";
+import Alert from "@/components/feedback/Alert";
 import FineAssessmentForm from "../components/FineAssessmentForm";
 import PaymentForm from "../components/PaymentForm";
 
@@ -34,8 +38,8 @@ export default function FinesManagementPage() {
   const list = useAsync(() => finesService.listFines({ status: status || undefined, search: search || undefined }), [status, search]);
   const loans = useAsync(() => librarianService.listStaffLoans(), []);
 
-  const canManage = user ? can(user, "FINE_MANAGE") : false;
-  const canWaive = user ? can(user, "FINE_WAIVE") : false;
+  const canManage = USE_MOCKS && user ? can(user, "FINE_MANAGE") : false;
+  const canWaive = USE_MOCKS && user ? can(user, "FINE_WAIVE") : false;
 
   const columns: Column<StaffFine>[] = [
     { key: "student", header: "Student", render: (f) => `${f.student.firstName} ${f.student.lastName} (${f.student.studentNumber})` },
@@ -72,12 +76,15 @@ export default function FinesManagementPage() {
 
   return (
     <div className="page">
-      <PageHeader
+      <PageHero
         eyebrow="Fines"
         title="Fines"
         description="Damage and lost-book fines. Unpaid balances block new borrowing and reservations."
+        leading={<BackButton fallback={ROUTES.staff.dashboard} />}
+        compact
         actions={canManage ? <Button onClick={() => setDialog({ kind: "assess" })}>Assess a fine</Button> : undefined}
       />
+      {!USE_MOCKS && <Alert kind="info">The Server does not currently provide fine or payment management APIs. These operations are unavailable in live mode.</Alert>}
       {!canManage && <p className="subtle" style={{ marginBottom: 10 }}>You can view fines. Assessing fines and recording payments needs the fine/payment permission from an Admin.</p>}
       <div className="toolbar" style={{ marginTop: 0 }}>
         <SearchInput value={search} onChange={setSearch} placeholder="Search student, number or book…" />
@@ -103,8 +110,14 @@ export default function FinesManagementPage() {
       {dialog?.kind === "pay" && <PaymentForm fine={dialog.fine} onClose={() => setDialog(null)} onDone={() => void list.reload()} />}
       {dialog?.kind === "waive" && (
         <ConfirmDialog
-          title="Waive this fine?"
-          danger
+          title={`Waive ${statusLabel(dialog.fine.fineType).toLowerCase()} fine for ${dialog.fine.student.firstName} ${dialog.fine.student.lastName}?`}
+          message={`The balance of ₱${dialog.fine.balance.toFixed(2)} will be waived.`}
+          details={[
+            { label: "Student", value: `${dialog.fine.student.firstName} ${dialog.fine.student.lastName}` },
+            { label: "Fine", value: statusLabel(dialog.fine.fineType) },
+            { label: "Balance", value: <Money value={dialog.fine.balance} /> },
+          ]}
+          variant="destructive"
           confirmLabel="Waive fine"
           reasonLabel="Reason (kept in the audit log)"
           onClose={() => setDialog(null)}
@@ -113,11 +126,7 @@ export default function FinesManagementPage() {
             toast.success("Fine waived.");
             await list.reload();
           }}
-        >
-          <p>
-            {statusLabel(dialog.fine.fineType)} for {dialog.fine.student.firstName} {dialog.fine.student.lastName}, balance <Money value={dialog.fine.balance} />. Waiving is exceptional, Admin only and cannot be undone here.
-          </p>
-        </ConfirmDialog>
+        />
       )}
     </div>
   );

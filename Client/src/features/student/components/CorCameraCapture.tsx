@@ -9,34 +9,37 @@ interface CorCameraCaptureProps {
   /** Called with the captured photo, or null after "Retake". The page validates and submits it. */
   onCapture: (file: File | null) => void;
   disabled?: boolean;
+  documentLabel?: string;
+  allowUploadFallback?: boolean;
 }
 
 const MAX_SIDE = 1600; // longest edge of the saved photo: small file, text still readable
 const QUALITY_STEPS = [0.9, 0.8, 0.7, 0.6, 0.5]; // retry lower quality if the photo is over the upload size limit
 
-/** Turns a getUserMedia failure into a clear message. Every message points to the upload fallback. */
-function describeCameraError(err: unknown): string {
+/** Turns a getUserMedia failure into a clear, context-appropriate message. */
+function describeCameraError(err: unknown, allowUploadFallback: boolean): string {
   const name = err instanceof DOMException ? err.name : "";
+  const fallback = allowUploadFallback ? " Try again, or upload a file instead." : " Try again.";
   switch (name) {
     case "NotAllowedError":
     case "SecurityError":
-      return "Camera permission was blocked. Allow camera access in your browser's site settings and try again, or upload a file instead.";
+      return `Camera permission was blocked. Allow camera access in your browser's site settings.${fallback}`;
     case "NotFoundError":
     case "OverconstrainedError":
-      return "No camera was found on this device. Upload a file instead.";
+      return `No camera was found on this device.${fallback}`;
     case "NotReadableError":
     case "AbortError":
-      return "The camera is being used by another app or tab. Close it and try again, or upload a file instead.";
+      return `The camera is being used by another app or tab. Close it.${fallback}`;
     default:
-      return "The camera could not be started. Try again, or upload a file instead.";
+      return `The camera could not be started.${fallback}`;
   }
 }
 
 /**
- * Live camera preview + capture. The photo becomes a normal File (JPEG), so the existing COR validation and
- * submission run unchanged. Taking a photo does NOT verify or approve anything: staff still review the COR.
+ * Live camera preview + capture. Taking a photo does NOT verify or approve anything; the containing workflow
+ * decides how the captured file is used.
  */
-export default function CorCameraCapture({ onCapture, disabled = false }: CorCameraCaptureProps) {
+export default function CorCameraCapture({ onCapture, disabled = false, documentLabel = "COR", allowUploadFallback = true }: CorCameraCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
@@ -83,7 +86,7 @@ export default function CorCameraCapture({ onCapture, disabled = false }: CorCam
     } catch (err) {
       stopCamera();
       setPhase("idle");
-      setError(describeCameraError(err));
+      setError(describeCameraError(err, allowUploadFallback));
     }
   };
 
@@ -107,7 +110,7 @@ export default function CorCameraCapture({ onCapture, disabled = false }: CorCam
     canvas.height = Math.round(video.videoHeight * scale);
     const ctx = canvas.getContext("2d");
     if (!ctx) {
-      setError("Could not take the photo. Try again, or upload a file instead.");
+      setError(`Could not take the photo.${allowUploadFallback ? " Try again, or upload a file instead." : " Try again."}`);
       return;
     }
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -119,11 +122,11 @@ export default function CorCameraCapture({ onCapture, disabled = false }: CorCam
       if (blob && blob.size <= COR_UPLOAD.MAX_BYTES) break;
     }
     if (!blob) {
-      setError("Could not take the photo. Try again, or upload a file instead.");
+      setError(`Could not take the photo.${allowUploadFallback ? " Try again, or upload a file instead." : " Try again."}`);
       return;
     }
 
-    const file = new File([blob], `cor-photo-${Date.now()}.jpg`, { type: "image/jpeg" });
+    const file = new File([blob], `${documentLabel.toLowerCase().replace(/\s+/g, "-")}-photo-${Date.now()}.jpg`, { type: "image/jpeg" });
     stopCamera(); // photo taken: release the camera right away
     setPhoto({ url: URL.createObjectURL(file), name: file.name, sizeKb: Math.round(file.size / 1024) });
     setPhase("captured");
@@ -137,7 +140,7 @@ export default function CorCameraCapture({ onCapture, disabled = false }: CorCam
   };
 
   if (!supported) {
-    return <Alert kind="warn">This browser or connection cannot open the camera (it needs HTTPS or localhost). Use the "Upload a file" tab instead.</Alert>;
+    return <Alert kind="warn">This browser or connection cannot open the camera (it needs HTTPS or localhost).{allowUploadFallback ? ' Use the "Upload a file" tab instead.' : " Enable camera access to capture the required evidence."}</Alert>;
   }
 
   const showVideo = phase === "live" || phase === "starting";
@@ -153,10 +156,10 @@ export default function CorCameraCapture({ onCapture, disabled = false }: CorCam
           muted
           aria-label="Live camera preview"
         />
-        {phase === "captured" && photo && <img src={photo.url} alt="Captured COR photo preview" className="h-full w-full object-contain" />}
+        {phase === "captured" && photo && <img src={photo.url} alt={`Captured ${documentLabel} photo preview`} className="h-full w-full object-contain" />}
         {phase === "idle" && (
           <div className="absolute inset-0 grid place-items-center p-4 text-center text-sm text-white/80">
-            Camera is off. Press "Start camera" to take a photo of your COR.
+            Camera is off. Press "Start camera" to take a photo of your {documentLabel}.
           </div>
         )}
         {phase === "starting" && (
@@ -194,11 +197,13 @@ export default function CorCameraCapture({ onCapture, disabled = false }: CorCam
 
       {phase === "captured" && photo ? (
         <p className="subtle" style={{ textAlign: "center" }}>
-          Photo ready ({photo.sizeKb} KB). Check that the text is readable, then press Submit COR. Not happy with it? Retake.
+          {documentLabel === "COR"
+            ? `Photo ready (${photo.sizeKb} KB). Check that the text is readable, then press Submit COR. Not happy with it? Retake.`
+            : `Photo ready (${photo.sizeKb} KB). Check that the ${documentLabel} is clear. Not happy with it? Retake.`}
         </p>
       ) : (
         <p className="subtle" style={{ textAlign: "center" }}>
-          Lay the COR flat in good light and keep all four corners and every line of text inside the frame.
+          {documentLabel === "COR" ? "Lay the COR flat in good light and keep all four corners and every line of text inside the frame." : `Capture a clear photo of the ${documentLabel} using the live camera.`}
         </p>
       )}
     </div>

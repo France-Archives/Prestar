@@ -11,7 +11,6 @@ import NotificationBell from "./NotificationBell";
 import UserMenu from "./UserMenu";
 
 interface AppNavbarProps {
-  areaLabel: string;
   collapsed: boolean;
   drawerOpen: boolean;
   isDesktop: boolean;
@@ -56,7 +55,7 @@ function CatalogSearch() {
   );
 }
 
-export default function AppNavbar({ areaLabel, collapsed, drawerOpen, isDesktop, onToggleMenu }: AppNavbarProps) {
+export default function AppNavbar({ collapsed, drawerOpen, isDesktop, onToggleMenu }: AppNavbarProps) {
   const { user } = useAuth();
   const { pathname } = useLocation();
   const { items: borrowListItems } = useBorrowList();
@@ -65,6 +64,7 @@ export default function AppNavbar({ areaLabel, collapsed, drawerOpen, isDesktop,
   const isStudent = user.role === "STUDENT";
 
   const path = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  const isStaffArea = path === "/staff" || path.startsWith("/staff/");
   const livePlaceholder = isStudent ? LIVE_SEARCH[path] : undefined;
   const catalogSearch = isStudent && !livePlaceholder && (path === ROUTES.student.dashboard || path.startsWith(`${ROUTES.student.books}/`));
   const borrowListCount = borrowListItems.length;
@@ -90,7 +90,16 @@ export default function AppNavbar({ areaLabel, collapsed, drawerOpen, isDesktop,
               <img src={logoSrc} alt="" />
             </span>
           </Link>
-          {!isStudent && <span className="badge badge-neutral hidden xl:inline-flex">{areaLabel}</span>}
+          {!isStudent && (
+            <>
+              <span className="badge badge-neutral">{user.role}</span>
+              {isStaffArea && (
+                <Link className="btn btn-ghost btn-sm" to={user.role === "ADMIN" ? ROUTES.admin.dashboard : ROUTES.staff.dashboard}>
+                  {user.role === "ADMIN" ? "Dashboard" : "Staff dashboard"}
+                </Link>
+              )}
+            </>
+          )}
         </div>
 
         {/* key={path}: a fresh search box on every page, so text never leaks from one page to another. */}

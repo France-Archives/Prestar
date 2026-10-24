@@ -6,11 +6,12 @@ import Alert from "@/components/feedback/Alert";
 import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
 import SearchInput from "@/components/forms/SearchInput";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
+import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import * as booksService from "@/services/booksService";
 import type { StaffCopyRow } from "@/types";
-import { formatCopyLocation } from "@/utils/formatCopyLocation";
 import CopyForm from "../components/CopyForm";
 
 export default function ShelfLocatorPage() {
@@ -23,15 +24,15 @@ export default function ShelfLocatorPage() {
     { key: "barcode", header: "Barcode" },
     { key: "id", header: "Copy ID" },
     { key: "status", header: "Copy status", render: (copy) => <StatusBadge status={copy.status} /> },
-    { key: "shelfLocation", header: "Physical location", render: (copy) => formatCopyLocation(copy) },
-    { key: "locationNotes", header: "Location notes", render: (copy) => copy.locationNotes || copy.notes || "—" },
+    { key: "shelfLocation", header: "Physical location", render: (copy) => copy.shelfLocation || "Not set" },
+    { key: "notes", header: "Location notes", render: (copy) => copy.notes || "—" },
     { key: "actions", header: "", render: (copy) => <Button variant="ghost" size="sm" onClick={() => setEditing(copy)}>Update location</Button> },
   ];
 
   return (
     <div className="page">
-      <PageHeader eyebrow="Catalog" title="Shelf Locator" description="Find individual physical copies and update their recorded location." />
-      <Alert kind="info">Search includes title, author, ISBN, barcode, copy ID, and location. Locations are stored as section, shelf code, row, and location notes, while the legacy shelf-location field remains for compatibility.</Alert>
+      <PageHero eyebrow="Catalog" title="Shelf Locator" description="Find individual physical copies and update their recorded location." leading={<BackButton fallback={ROUTES.staff.dashboard} />} compact />
+      <Alert kind="info">Search includes title, author, ISBN, barcode, copy ID, and location. Current shelf codes are mock values; only one shelf-location field is modeled.</Alert>
       <div className="toolbar" style={{ marginTop: 0 }}>
         <SearchInput value={search} onChange={setSearch} placeholder="Search title, author, ISBN, barcode, copy ID or location…" />
       </div>
