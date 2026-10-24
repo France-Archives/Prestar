@@ -21,7 +21,7 @@ export default function BookDetailsPage() {
   const authors = book.authors.map((a) => a.name).join(", ") || "Unknown author";
 
   return (
-    <div className="page">
+    <div className="page book-details-page">
       <Breadcrumbs items={[{ label: "Book catalog", to: ROUTES.student.books }, { label: book.title }]} />
       <PageHero eyebrow={book.category?.name ?? "Book"} title={book.title} description={`by ${authors}`} leading={<BackButton fallback={ROUTES.student.dashboard} />} />
       <BookDetailsContent book={book} reload={() => void reload()} large />

@@ -44,6 +44,9 @@ export function BookDetailsContent({ book, reload, onNavigate, large = false, mo
   const [busy, setBusy] = useState(false);
   const [added, setAdded] = useState(false);
   const [borrowDialogOpen, setBorrowDialogOpen] = useState(false);
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+  const [descriptionCanExpand, setDescriptionCanExpand] = useState(false);
+  const descriptionRef = useRef<HTMLParagraphElement>(null);
   const [duration, setDuration] = useState<AllowedDurationDays>(7);
   const [problem, setProblem] = useState<{ message: string; code?: string } | null>(null);
 
@@ -105,6 +108,20 @@ export function BookDetailsContent({ book, reload, onNavigate, large = false, mo
     ["Category", book.category?.name ?? "—"],
   ];
   const authors = book.authors.map((a) => a.name).join(", ") || "Unknown author";
+
+  useEffect(() => {
+    const description = descriptionRef.current;
+    if (!large || !description || descriptionExpanded) return;
+
+    const updateDescriptionLength = () => {
+      setDescriptionCanExpand(description.scrollHeight > description.clientHeight + 1);
+    };
+
+    updateDescriptionLength();
+    const observer = new ResizeObserver(updateDescriptionLength);
+    observer.observe(description);
+    return () => observer.disconnect();
+  }, [book.description, descriptionExpanded, large]);
 
   const studentActions = isStudent && (
     <section className="bk-action" aria-label={mode === "reserve" ? "Reserve this book" : "Borrow this book"}>
@@ -283,16 +300,36 @@ export function BookDetailsContent({ book, reload, onNavigate, large = false, mo
       <div className="bk-detail__body">
         <div className="bk-detail__badges">
           <AvailabilityBadge availability={book.availability} />
+          {book.category?.name && <span className="bk-detail__category">{book.category.name}</span>}
           {book.isArchived && <span className="badge badge-neutral">Archived</span>}
         </div>
 
-        {book.description && <p className="bk-detail__desc">{book.description}</p>}
+        {book.description && (
+          <div className="bk-detail__description">
+            <p
+              ref={large ? descriptionRef : undefined}
+              className={`bk-detail__desc${large && descriptionExpanded ? " is-expanded" : ""}`}
+            >
+              {book.description}
+            </p>
+            {large && descriptionCanExpand && (
+              <button
+                type="button"
+                className="bk-detail__read-more"
+                aria-expanded={descriptionExpanded}
+                onClick={() => setDescriptionExpanded((expanded) => !expanded)}
+              >
+                {descriptionExpanded ? "Read less" : "Read more"}
+              </button>
+            )}
+          </div>
+        )}
 
         <dl className="bk-detail__facts">
           {facts.map(([k, v]) => (
             <div key={k}>
               <dt>{k}</dt>
-              <dd>{v}</dd>
+              <dd className={v === "—" ? "is-empty" : undefined}>{v}</dd>
             </div>
           ))}
         </dl>
