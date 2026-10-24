@@ -116,6 +116,9 @@ Penalty.belongsTo(BorrowedBook, { foreignKey: "borrow_id", as: "borrow" });
 BorrowedBook.hasMany(Penalty, { foreignKey: "borrow_id", as: "penalties" });
 Penalty.hasMany(Payment, { foreignKey: "penalty_id", as: "payments" });
 Payment.belongsTo(Penalty, { foreignKey: "penalty_id", as: "penalty" });
+Payment.belongsTo(User, { foreignKey: "received_by", as: "receiver" });
+Penalty.belongsTo(User, { foreignKey: "waived_by", as: "waiver" });
+Penalty.belongsTo(User, { foreignKey: "created_by", as: "creator" });
 
 // Suspensions
 Suspension.belongsTo(User, { foreignKey: "user_id", as: "student" });
@@ -129,5 +132,9 @@ Category.hasMany(UserCategoryPreference, { foreignKey: "category_id", as: "userP
 // Notifications
 User.hasMany(Notification, { foreignKey: "user_id", as: "notifications" });
 Notification.belongsTo(User, { foreignKey: "user_id", as: "user" });
+
+// Audit Logs
+AuditLog.belongsTo(User, { foreignKey: "actor_user_id", as: "actor" });
+User.hasMany(AuditLog, { foreignKey: "actor_user_id", as: "auditLogs" });
 
 export default sequelize;

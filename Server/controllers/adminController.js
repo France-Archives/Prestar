@@ -1,6 +1,6 @@
-// Server/controllers/adminController.js
 import bcrypt from "bcrypt";
 import { Admin, Librarian, User, sequelize } from "../models/index.js";
+import withActor from "../utils/withActor.js";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const namePattern = /^\p{L}[\p{L}\s'.-]*$/u;
@@ -66,7 +66,7 @@ export async function createLibrarianAccount(req, res, next) {
   try {
     const { email, password, firstName, lastName, employeeNumber } = validateStaffInput(req.body, "Librarian");
 
-    const result = await sequelize.transaction(async (transaction) => {
+    const result = await withActor(req.user?.id, async (transaction) => {
       const existingUser = await User.findOne({
         where: { email },
         transaction,
@@ -133,7 +133,7 @@ export async function createAdminAccount(req, res, next) {
   try {
     const { email, password, firstName, lastName, employeeNumber } = validateStaffInput(req.body, "Admin");
 
-    const result = await sequelize.transaction(async (transaction) => {
+    const result = await withActor(req.user?.id, async (transaction) => {
       const existingUser = await User.findOne({
         where: { email },
         transaction,

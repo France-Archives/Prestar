@@ -373,6 +373,17 @@ export async function returnBorrowedBook({
         relatedEntityType: "LOAN",
         relatedEntityId: String(borrowId),
       });
+
+      if (assessedPenalty) {
+        await createNotification({
+          userId: studentUserIdToNotify,
+          type: "FINE_ASSESSED",
+          title: "New penalty assessed",
+          message: `You have an unpaid penalty of ₱${Number(assessedPenalty.amount).toFixed(2)} for "${bookTitleForNotice}". Please pay in cash at the library counter.`,
+          relatedEntityType: "PENALTY",
+          relatedEntityId: String(assessedPenalty.id),
+        });
+      }
     } catch (notifErr) {
       console.warn("[Notification Error on Return]:", notifErr.message);
     }

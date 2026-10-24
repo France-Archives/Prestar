@@ -15,6 +15,10 @@ import {
   rejectVerificationHandler,
   streamVerificationDocument,
 } from "../controllers/verificationController.js";
+import {
+  getAuditLogsHandler,
+  recordAuditLogHandler,
+} from "../controllers/auditLogController.js";
 
 const router = Router();
 
@@ -41,5 +45,9 @@ router.get("/verifications/:id", getStaffVerificationDetails);
 router.post("/verifications/:id/approve", approveVerificationHandler);
 router.post("/verifications/:id/reject", rejectVerificationHandler);
 router.get("/verifications/:id/document", streamVerificationDocument);
+
+// Audit logs endpoints (Admin)
+router.get("/audit-logs", getAuditLogsHandler);
+router.post("/audit-logs", recordAuditLogHandler);
 
 export default router;

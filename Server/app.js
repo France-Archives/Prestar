@@ -19,8 +19,12 @@ import notificationRoutes from "./routes/notificationRoutes.js";
 import renewalRoutes from "./routes/renewalRoutes.js";
 import interestRoutes from "./routes/interestRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
+import penaltyRoutes from "./routes/penaltyRoutes.js";
 import authMiddleware from "./middleware/authMiddleware.js";
+import { requireRole } from "./middleware/roleMiddleware.js";
 import { getAuthorsHandler } from "./controllers/bookController.js";
+import { getMyFinesHandler } from "./controllers/penaltyController.js";
+import { getAuditLogsHandler } from "./controllers/auditLogController.js";
 import {
   getMyInterestsHandler,
   updateMyInterestsHandler,
@@ -70,6 +74,12 @@ app.use("/api", verificationRoutes);
 // Category routes (listing categories, creating categories, and books by category)
 app.use("/api/categories", categoryRoutes);
 
+// Penalties and cash payment routes
+app.use("/api/fines", penaltyRoutes);
+app.use("/api/penalties", penaltyRoutes);
+app.get("/api/me/penalties", authMiddleware, getMyFinesHandler);
+app.get("/api/me/fines", authMiddleware, getMyFinesHandler);
+
 // Reading interests & personalized book recommendations
 app.use("/api/interests", interestRoutes);
 app.get("/api/me/interests", authMiddleware, getMyInterestsHandler);
@@ -79,6 +89,9 @@ app.get("/api/me/recommended-books", authMiddleware, getRecommendedBooksHandler)
 
 // Catalog helper lists (authenticated, any role)
 app.get("/api/authors", authMiddleware, getAuthorsHandler);
+
+// Audit logs list endpoint
+app.get("/api/audit-logs", authMiddleware, requireRole(["Admin", "Librarian"]), getAuditLogsHandler);
 
 app.use((req, res) => {
 	res.status(404).json({ error: "Route not found." });

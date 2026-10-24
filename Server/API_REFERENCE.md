@@ -22,8 +22,10 @@
 8. [Reservations (FIFO Queue System)](#8-reservations-fifo-queue-system)
    - [Renewals](#8b-renewals)
 9. [Notifications](#9-notifications)
-10. [Admin Account Management](#10-admin-account-management)
+10. [Admin Account Management & Audit Logs](#10-admin-account-management)
+   - [Audit Logs (`GET /api/admin/audit-logs`)](#103-get-apiadminaudit-logs)
 11. [Users](#11-users)
+12. [Fines & Payments (Cash Only)](#12-fines--payments-cash-only)
 
 ---
 
@@ -2713,6 +2715,72 @@ Creates a new Admin account. Same validation and behavior as Librarian creation,
 
 ---
 
+### 10.3 `GET /api/admin/audit-logs`
+*(Also available at `GET /api/audit-logs`)*
+
+Retrieve immutable audit logs tracking actions by administrators and librarians across the system (handovers, returns, damage/lost fines, waivers, cash payments, COR reviews, book/copy additions, account creation, and user status changes).
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | `Admin` (at `/api/admin/audit-logs`), `Admin` or `Librarian` (at `/api/audit-logs`) |
+
+**Query parameters**
+| Param | Type | Default | Description |
+|---|---|---|---|
+| `from` | string (YYYY-MM-DD) | — | Start date filter (inclusive 00:00:00 UTC) |
+| `to` | string (YYYY-MM-DD) | — | End date filter (inclusive 23:59:59.999 UTC) |
+| `actorRole` | string | — | Filter by actor role: `ADMIN`, `LIBRARIAN`, `STUDENT` |
+| `action` | string | — | Filter by action code (e.g. `FINE_WAIVED`, `PAYMENT_RECORDED`) |
+| `search` | string | — | Keyword search across summary, actor name, action, and entity type |
+| `page` | integer | `1` | Page number |
+| `pageSize` / `limit` | integer | `15` | Items per page (max 100) |
+
+**Success `200`**
+```json
+{
+  "data": [
+    {
+      "id": "7133",
+      "auditId": "7133",
+      "actorUserId": "764",
+      "actorName": "Librarian Cruz",
+      "actorRole": "LIBRARIAN",
+      "action": "FINE_WAIVED",
+      "entityType": "FINE",
+      "entityId": "14",
+      "summary": "Waived Lost Book penalty of ₱500.00: Misplaced in stack",
+      "createdAt": "2026-10-24T16:09:27.171Z"
+    },
+    {
+      "id": "7131",
+      "auditId": "7131",
+      "actorUserId": "764",
+      "actorName": "Librarian Cruz",
+      "actorRole": "LIBRARIAN",
+      "action": "PAYMENT_RECORDED",
+      "entityType": "PAYMENT",
+      "entityId": "13",
+      "summary": "Recorded Cash payment of ₱200.00 (Receipt: OR-2026-001).",
+      "createdAt": "2026-10-24T16:09:27.126Z"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "pageSize": 15,
+    "total": 42
+  }
+}
+```
+
+**Errors**
+| Code | Meaning |
+|---|---|
+| `401` | Not authenticated |
+| `403` | Forbidden (requires Admin role for `/api/admin/audit-logs`) |
+
+---
+
 ## 11. Users
 
 **Prefix**: `/api/users` (staff) or `/api/admin/users` (admin only)
@@ -2759,6 +2827,277 @@ Retrieve all users in the system. Returns only **name**, **status**, and **role*
 |---|---|
 | `401` | Authentication required |
 | `403` | Role is not Admin or Librarian (for `/api/users`) or not Admin (for `/api/admin/users`) |
+
+---
+
+## 12. Fines & Payments (Cash Only)
+
+**Prefix**: `/api/fines` (also aliased to `/api/penalties`)  
+All routes require authentication. Staff routes (`Admin`, `Librarian`) manage fines and record payments. Student routes show the student's own penalties.
+
+### Business Rules
+
+| Rule | Detail |
+|---|---|
+| **Cash only** | The library accepts cash only, paid in person at the counter. No online payment, no "Pending" state. |
+| **Full payment required** | Partial payments are strictly rejected. The payment amount must exactly match the penalty amount. |
+| **Unique receipt number** | Every payment must have a unique official receipt number (`receipt_no`). Duplicate receipt numbers are rejected with `409 Conflict`. |
+| **Penalty types** | `Late Return`, `Lost Book`, `Damaged Book` |
+| **Penalty statuses** | `Unpaid` → `Paid` (via cash payment) or `Waived` (by admin/librarian). No `Partially Paid` state. |
+
+### Notification Types
+
+| Type | Trigger | Recipient |
+|---|---|---|
+| `FINE_ASSESSED` | Penalty created during book return | Student |
+| `FINE_PAYMENT_RECORDED` | Librarian records a full cash payment | Student |
+| `FINE_WAIVED` | Admin/librarian waives a penalty | Student |
+
+### Staff Fine Shape
+```json
+{
+  "id": "1",
+  "penaltyId": "1",
+  "borrowId": "5",
+  "returnId": "3",
+  "fineType": "DAMAGED_BOOK",
+  "fineTypeLabel": "Damaged Book",
+  "amount": 200,
+  "paidAmount": 0,
+  "balance": 200,
+  "status": "Unpaid",
+  "statusEnum": "UNPAID",
+  "receiptNo": null,
+  "referenceNumber": null,
+  "reason": "Water damage to pages 10-30",
+  "recordedAt": "2026-10-24T10:00:00.000Z",
+  "waivedAt": null,
+  "waivedBy": null,
+  "waiveRemarks": null,
+  "student": {
+    "id": "2",
+    "userId": "2",
+    "studentNumber": "SN-123456",
+    "firstName": "Juan",
+    "lastName": "Dela Cruz",
+    "email": "juan@wmsu.edu.ph"
+  },
+  "book": {
+    "id": "10",
+    "title": "Data Structures and Algorithms",
+    "isbn": "978-0-123456-78-9"
+  },
+  "bookTitle": "Data Structures and Algorithms"
+}
+```
+
+---
+
+### 12.1 `GET /api/fines`
+List fines for staff. Defaults to all penalties; filter by status, search by student name/number, book title, or receipt number.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | `Admin`, `Librarian` |
+
+**Query parameters**
+| Param | Type | Default | Description |
+|---|---|---|---|
+| `status` | string | — | Filter: `Unpaid`, `Paid`, or `Waived` |
+| `search` | string | — | Search across student name, student number, book title, receipt number |
+| `page` | integer | `1` | Page number |
+| `limit` | integer | `50` | Items per page (max 100) |
+
+**Success `200`**
+```json
+{
+  "data": [ /* Array of Staff Fine objects */ ],
+  "fines": [ /* Same array (alias) */ ],
+  "total": 5,
+  "page": 1,
+  "limit": 50
+}
+```
+
+---
+
+### 12.2 `POST /api/fines/:id/payments`
+Record a full cash payment for a penalty. The librarian enters the official receipt number and the exact penalty amount. The penalty status is set to `Paid` and a notification is sent to the student.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | `Admin`, `Librarian` |
+
+**URL parameters**
+| Param | Type | Description |
+|---|---|---|
+| `id` | integer | Penalty ID |
+
+**Request body**
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `amount` | number | Yes | Must exactly match `penalty.amount`. Partial/overpayment rejected. |
+| `receiptNo` | string | Yes | Official receipt number. Must be unique across all payments. Also accepts `referenceNumber` or `receipt_no`. |
+| `remarks` | string | No | Optional notes about the payment. |
+
+**Success `201`**
+```json
+{
+  "message": "Payment recorded and penalty settled successfully.",
+  "payment": {
+    "id": "1",
+    "paymentId": "1",
+    "penaltyId": "5",
+    "amount": 200,
+    "paymentMethod": "Cash",
+    "paymentStatus": "Completed",
+    "receiptNo": "OR-2026-001",
+    "referenceNumber": "OR-2026-001",
+    "paidAt": "2026-10-24T10:30:00.000Z"
+  },
+  "fine": {
+    "id": "5",
+    "status": "Paid",
+    "balance": 0,
+    "paidAmount": 200
+  }
+}
+```
+
+**Error responses**
+
+| Status | Condition | Code |
+|---|---|---|
+| `400` | Missing or empty receipt number | `VALIDATION_ERROR` |
+| `400` | Amount ≤ 0 or not a number | `VALIDATION_ERROR` |
+| `400` | Amount ≠ penalty amount (partial or overpayment) | `PARTIAL_PAYMENT_NOT_ALLOWED` |
+| `400` | Penalty already `Paid` or `Waived` | `INVALID_STATE` |
+| `404` | Penalty not found | `NOT_FOUND` |
+| `409` | Receipt number already exists in the system | `CONFLICT` |
+
+**Example error (partial payment rejected)**
+```json
+{
+  "code": "PARTIAL_PAYMENT_NOT_ALLOWED",
+  "message": "Partial payments are not accepted. Full payment of ₱200.00 is required.",
+  "error": "Partial payments are not accepted. Full payment of ₱200.00 is required."
+}
+```
+
+---
+
+### 12.3 `POST /api/fines/:id/waive`
+Waive an unpaid penalty with an audited reason. Only unpaid penalties can be waived. A notification is sent to the student.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | `Admin`, `Librarian` |
+
+**URL parameters**
+| Param | Type | Description |
+|---|---|---|
+| `id` | integer | Penalty ID |
+
+**Request body**
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `reason` | string | Yes | Reason for waiving the penalty (audited). |
+
+**Success `200`**
+```json
+{
+  "message": "Penalty waived successfully.",
+  "fine": { /* Staff Fine object with status: "Waived" */ }
+}
+```
+
+**Error responses**
+
+| Status | Condition | Code |
+|---|---|---|
+| `404` | Penalty not found | `NOT_FOUND` |
+| `409` | Penalty already `Paid` or `Waived` | `INVALID_STATE` |
+| `422` | Missing or empty reason | `VALIDATION_ERROR` |
+
+---
+
+### 12.4 `GET /api/fines/payments`
+List settled (completed) payments history for the Payment Recording screen. Shows who received the payment, receipt numbers, and associated student/book details.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | `Admin`, `Librarian` |
+
+**Query parameters**
+| Param | Type | Default | Description |
+|---|---|---|---|
+| `search` | string | — | Search across student name, student number, book title, receipt number, recorded-by name |
+| `page` | integer | `1` | Page number |
+| `limit` | integer | `50` | Items per page (max 100) |
+
+**Success `200`**
+```json
+{
+  "data": [
+    {
+      "id": "1",
+      "paymentId": "1",
+      "fineId": "5",
+      "penaltyId": "5",
+      "amount": 200,
+      "paymentMethod": "Cash",
+      "paymentStatus": "Completed",
+      "receiptNo": "OR-2026-001",
+      "referenceNumber": "OR-2026-001",
+      "paidAt": "2026-10-24T10:30:00.000Z",
+      "recordedByUserId": "3",
+      "recordedByName": "Librarian Staff",
+      "fineType": "DAMAGED_BOOK",
+      "fineTypeLabel": "Damaged Book",
+      "bookTitle": "Data Structures and Algorithms",
+      "remarks": null,
+      "student": {
+        "id": "2",
+        "userId": "2",
+        "studentNumber": "SN-123456",
+        "firstName": "Juan",
+        "lastName": "Dela Cruz",
+        "email": "juan@wmsu.edu.ph"
+      }
+    }
+  ],
+  "payments": [ /* Same array (alias) */ ],
+  "total": 1,
+  "page": 1,
+  "limit": 50
+}
+```
+
+---
+
+### 12.5 `GET /api/me/penalties`
+Student views their own penalties. Also accessible at `GET /api/me/fines`.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Any authenticated user (student-facing) |
+
+**Success `200`**
+```json
+{
+  "message": "Please pay in cash at the library counter. The library accepts cash only in full.",
+  "data": [ /* Array of Staff Fine objects for this student */ ],
+  "fines": [ /* Same array (alias) */ ],
+  "totalBalance": 500
+}
+```
+
+> If the user is not a student or has no borrowed books, returns an empty array with `totalBalance: 0`.
 
 ---
 
