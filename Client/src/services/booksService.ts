@@ -17,13 +17,14 @@ import type {
   UUID,
 } from "@/types";
 import type { MockBook } from "@/data";
+import { MOCK_RECOMMENDATIONS } from "@/data";
 import { ApiError, fail, toApiError } from "@/utils/errors";
 import { can } from "@/utils/permissions";
 import { validateRequired } from "@/utils/validators";
 import { USE_MOCKS } from "@/utils/constants";
 import { apiGet, apiGetPage, apiPost } from "./apiClient";
 import { authorsOf, availabilityOf, begin, fillQueues, toBookDetail, toBookSummary } from "./mockEngine";
-import { commit, db, generateCopyBarcode, matches, newId, out, paginate, requireAccount, requireCapability, sessionUserOf } from "./mockStore";
+import { commit, db, generateCopyBarcode, matches, newId, out, paginate, requireAccount, requireCapability, requireStudent, sessionUserOf } from "./mockStore";
 
 // TEMPORARY MOCK IMPLEMENTATION: Replace with the real Books API (C1 to C7).
 
@@ -176,6 +177,58 @@ export async function listBooks(params: BookListParams = {}): Promise<Paginated<
   requireAccount();
   const rows = filterBooks(db.books.filter((b) => !b.isArchived), params);
   return out(paginate(rows.map(toBookSummary), params.page, params.pageSize));
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Maps the compact personalized-recommendation book shape to the shared book-card type. */
+export function mapRecommendedBook(value: unknown): BookSummary {
+  if (!isRecord(value)) throw new ApiError("UNKNOWN", "The Server returned an invalid recommended book.");
+  const id = value.id ?? value.bookId;
+  const availability = value.availability;
+  const category = value.category;
+  if (
+    (typeof id !== "string" && typeof id !== "number")
+    || typeof value.title !== "string"
+    || !isRecord(availability)
+    || typeof availability.availableCopies !== "number"
+    || typeof availability.totalUsableCopies !== "number"
+    || (category !== null && category !== undefined
+      && (!isRecord(category) || (typeof category.id !== "string" && typeof category.id !== "number") || typeof category.name !== "string"))
+  ) {
+    throw new ApiError("UNKNOWN", "The Server returned a recommended book with invalid fields.");
+  }
+  const authors = value.authors;
+  if (authors !== undefined && (!Array.isArray(authors) || authors.some((author) => !isRecord(author) || (typeof author.id !== "string" && typeof author.id !== "number") || typeof author.name !== "string"))) {
+    throw new ApiError("UNKNOWN", "The Server returned invalid recommended book authors.");
+  }
+  return mapBackendBookSummary({
+    ...value,
+    id,
+    title: value.title,
+    authors: authors as BackendBookRecord["authors"],
+    availability: {
+      availableCopies: availability.availableCopies,
+      totalUsableCopies: availability.totalUsableCopies,
+    },
+  } as BackendBookRecord);
+}
+
+/** GET /api/me/recommended-books. */
+export async function getRecommendedBooks(): Promise<BookSummary[]> {
+  if (!USE_MOCKS) {
+    const response = await apiGet<unknown>("/me/recommended-books");
+    if (!Array.isArray(response)) throw new ApiError("UNKNOWN", "The Server returned an invalid recommended book list.");
+    return response.map(mapRecommendedBook);
+  }
+  await begin();
+  const { student } = requireStudent();
+  return out((MOCK_RECOMMENDATIONS[student.id] ?? [])
+    .map((id) => db.books.find((book) => book.id === id && !book.isArchived))
+    .filter((book): book is MockBook => Boolean(book))
+    .map(toBookSummary));
 }
 
 /** C1 for staff screens: includes archived titles and the staff-only fields. */

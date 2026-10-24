@@ -11,6 +11,7 @@ import type {
 } from "@/types";
 import { BOOK_COPY_STATUSES } from "@/types";
 import { apiGet } from "@/services/apiClient";
+import { ApiError } from "@/utils/errors";
 import { USE_MOCKS } from "@/utils/constants";
 import { MOCK_ACTIVITY_LAST_7_DAYS, MOCK_POPULAR_BOOKS, MOCK_RECOMMENDATIONS } from "@/data";
 import { LIMITS } from "@/utils/constants";
@@ -19,6 +20,7 @@ import { roundMoney } from "@/utils/formatCurrency";
 import { can } from "@/utils/permissions";
 import { begin, corSummaryOf, currentTerm, setting, studentRef, toBookSummary, toBookToRelease, toReservationBookToRelease, toLoan, toRequest, toReservation, toStaffLoan, toFineSummary, toNotification, queuePosition, copyById, copyRef } from "./mockEngine";
 import { db, out, requireCapability, requireStudent, sessionUserOf } from "./mockStore";
+import { mapRecommendedBook } from "./booksService";
 
 // Student dashboard uses the live endpoint when configured; staff/admin reports remain mock-only.
 // The source defines only GET /admin/dashboard and three Admin reports (TC-16). KPI definitions are TO CONFIRM (TC-16).
@@ -69,6 +71,10 @@ function mapStudentDashboard(value: StudentDashboardData): StudentDashboardData 
     ? cor.currentTerm as Record<string, unknown>
     : null;
   const popularRows = Array.isArray(response.mostBorrowed) ? response.mostBorrowed : [];
+  const recommendedRows: unknown = response.recommended;
+  if (recommendedRows !== null && !Array.isArray(recommendedRows)) {
+    throw new ApiError("UNKNOWN", "The Server returned an invalid recommended book list.");
+  }
   return {
     ...response,
     accountStatus: normalizedStatus(response.accountStatus) as StudentDashboardData["accountStatus"],
@@ -101,7 +107,7 @@ function mapStudentDashboard(value: StudentDashboardData): StudentDashboardData 
     unreadCount: response.unreadCount === null || response.unreadCount === undefined
       ? null
       : Number(response.unreadCount),
-    recommended: response.recommended ?? null,
+    recommended: recommendedRows === null ? null : recommendedRows.map(mapRecommendedBook),
     mostBorrowed: popularRows.map((row) => {
       const item = row as PopularBook & Record<string, unknown>;
       return {

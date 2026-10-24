@@ -1,7 +1,7 @@
 import { lazy, Suspense, type ComponentType, type LazyExoticComponent } from "react";
 import { createBrowserRouter, Navigate, type RouteObject } from "react-router-dom";
 import type { Capability } from "@/utils/permissions";
-import { GuestOnly, PageLoading, RequireAuth, RequireCapability } from "./guards";
+import { GuestOnly, PageLoading, RequireAuth, RequireCapability, RequireStudentInterests } from "./guards";
 import { ROUTES } from "./routeConfig";
 import PublicLayout from "@/layouts/PublicLayout";
 import StudentLayout from "@/layouts/StudentLayout";
@@ -34,6 +34,7 @@ const P = {
   // student
   StudentDashboard: page(() => import("@/features/student/pages/StudentDashboardPage")),
   MyInterests: page(() => import("@/features/student/pages/MyInterestsPage")),
+  InterestsWelcome: page(() => import("@/features/student/pages/InterestsWelcomePage")),
   MyBorrowings: page(() => import("@/features/student/pages/MyBorrowingsPage")),
   MyBorrowList: page(() => import("@/features/student/pages/MyBorrowListPage")),
   MyRequests: page(() => import("@/features/student/pages/MyRequestsPage")),
@@ -96,6 +97,7 @@ const studentRoutes: RouteObject[] = [
   { path: "dashboard", element: el(P.StudentDashboard) },
   { path: "books", element: el(P.BookCatalog) },
   { path: "books/:bookId", element: el(P.BookDetails) },
+  { path: "interests/welcome", element: el(P.InterestsWelcome) },
   { path: "interests", element: el(P.MyInterests) },
   { path: "borrowing", element: el(P.MyBorrowings) },
   { path: "borrow-list", element: el(P.MyBorrowList) },
@@ -184,7 +186,10 @@ export const router = createBrowserRouter([
       {
         path: "/app",
         element: <RequireCapability capability="STUDENT_AREA" />,
-        children: [{ element: <StudentLayout />, children: studentRoutes }],
+        children: [{
+          element: <RequireStudentInterests />,
+          children: [{ element: <StudentLayout />, children: studentRoutes }],
+        }],
       },
       {
         path: "/staff",

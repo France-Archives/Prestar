@@ -1,5 +1,5 @@
 import { ALLOWED_DURATION_DAYS } from "@/types";
-import { COR_UPLOAD, LIMITS, PASSWORD_POLICY } from "@/utils/constants";
+import { COR_UPLOAD, PASSWORD_POLICY } from "@/utils/constants";
 
 // Client-side validation is a CONVENIENCE only. The backend validates every request again.
 // Every validator returns an error message, or null when the value is fine.
@@ -88,11 +88,11 @@ export function validateDuration(days: number): string | null {
   return (ALLOWED_DURATION_DAYS as readonly number[]).includes(days) ? null : "Choose 3, 7, 14, 21, 30 or 60 days.";
 }
 
-/** Exactly 3 distinct interests. */
+/** At least one distinct interest. */
 export function validateInterestSelection(ids: string[]): string | null {
   const unique = new Set(ids);
   if (unique.size !== ids.length) return "Choose different interests.";
-  return unique.size === LIMITS.INTEREST_COUNT ? null : `Choose exactly ${LIMITS.INTEREST_COUNT} interests.`;
+  return unique.size > 0 ? null : "Choose at least one interest.";
 }
 
 export function validateCorFile(file: { name: string; size: number; type: string } | null | undefined): string | null {

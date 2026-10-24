@@ -1,5 +1,5 @@
 import { createContext, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { LoginRequest, SessionUser } from "@/types";
+import type { Interest, LoginRequest, SessionUser, UpdateInterestsRequest } from "@/types";
 import * as authService from "@/services/authService";
 import { UNAUTHENTICATED_EVENT } from "@/services/apiClient";
 import { subscribeStore } from "@/services/mockStore";
@@ -11,14 +11,20 @@ import { describeError } from "@/utils/errors";
 // subscribeStore re-reads the session after mock mutations so profile or status changes show up.
 
 export type AuthStatus = "loading" | "authenticated" | "unauthenticated" | "error";
+export type InterestsStatus = "not-required" | "loading" | "loaded" | "error";
 
 export interface AuthContextValue {
   user: SessionUser | null;
   status: AuthStatus;
   sessionError: string | null;
+  interests: Interest[] | null;
+  interestsStatus: InterestsStatus;
+  interestsError: string | null;
   login: (req: LoginRequest) => Promise<SessionUser>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
+  refreshInterests: () => Promise<void>;
+  updateInterests: (request: UpdateInterestsRequest) => Promise<Interest[]>;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -27,8 +33,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [sessionError, setSessionError] = useState<string | null>(null);
+  const [interests, setInterests] = useState<Interest[] | null>(null);
+  const [interestsStatus, setInterestsStatus] = useState<InterestsStatus>("not-required");
+  const [interestsError, setInterestsError] = useState<string | null>(null);
   // Newest request wins, so a slow refresh can never overwrite a newer login or logout.
   const seq = useRef(0);
+  const interestsSeq = useRef(0);
 
   const apply = useCallback((next: SessionUser | null) => {
     const normalized = next && normalizeUserRole(next.role) ? { ...next, role: normalizeUserRole(next.role)! } : null;
@@ -52,9 +62,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [apply]);
 
+  const refreshInterests = useCallback(async () => {
+    const id = ++interestsSeq.current;
+    if (user?.role !== "STUDENT") {
+      setInterests(null);
+      setInterestsError(null);
+      setInterestsStatus("not-required");
+      return;
+    }
+    setInterestsError(null);
+    setInterestsStatus("loading");
+    try {
+      const current = await authService.getMyInterests();
+      if (id === interestsSeq.current) {
+        setInterests(current);
+        setInterestsStatus("loaded");
+      }
+    } catch (error) {
+      if (id === interestsSeq.current) {
+        setInterestsError(describeError(error));
+        setInterestsStatus("error");
+      }
+    }
+  }, [user?.id, user?.role]);
+
+  const updateInterests = useCallback(async (request: UpdateInterestsRequest) => {
+    const updated = await authService.updateMyInterests(request);
+    interestsSeq.current++;
+    setInterests(updated);
+    setInterestsError(null);
+    setInterestsStatus("loaded");
+    return updated;
+  }, []);
+
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (user?.role === "STUDENT") {
+      void refreshInterests();
+      return;
+    }
+    interestsSeq.current++;
+    setInterests(null);
+    setInterestsError(null);
+    setInterestsStatus("not-required");
+  }, [user?.id, user?.role, refreshInterests]);
 
   // Re-read the session after mock mutations.
   useEffect(() => subscribeStore(() => void refresh()), [refresh]);
@@ -88,6 +142,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [apply]);
 
-  const value = useMemo<AuthContextValue>(() => ({ user, status, sessionError, login, logout, refresh }), [user, status, sessionError, login, logout, refresh]);
+  const value = useMemo<AuthContextValue>(() => ({
+    user,
+    status,
+    sessionError,
+    interests,
+    interestsStatus,
+    interestsError,
+    login,
+    logout,
+    refresh,
+    refreshInterests,
+    updateInterests,
+  }), [user, status, sessionError, interests, interestsStatus, interestsError, login, logout, refresh, refreshInterests, updateInterests]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

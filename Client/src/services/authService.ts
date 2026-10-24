@@ -14,7 +14,7 @@ import type {
   UpdateProfileRequest,
   VerifyEmailRequest,
 } from "@/types";
-import { apiClient, apiGet, apiPatch, apiPost } from "@/services/apiClient";
+import { apiClient, apiGet, apiPatch, apiPost, apiPut } from "@/services/apiClient";
 import { USE_MOCKS } from "@/utils/constants";
 import { ApiError, fail, toApiError, unsupportedOperation } from "@/utils/errors";
 import {
@@ -358,14 +358,52 @@ export async function acceptInvitation(req: AcceptInvitationRequest): Promise<vo
 
 /** P1 GET /interests (proposed) */
 export async function listInterests(): Promise<Interest[]> {
-  if (!USE_MOCKS) unsupportedOperation("Reading-interest management");
+  return listInterestOptions();
+}
+
+const interestsOf = (studentId: string): Interest[] =>
+  (db.studentInterests[studentId] ?? []).map((id) => db.interests.find((i) => i.id === id)).filter((i): i is Interest => !!i);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function mapBackendInterest(value: unknown): Interest {
+  if (!isRecord(value)) throw new ApiError("UNKNOWN", "The Server returned an invalid interest.");
+  const categoryId = Number(value.categoryId);
+  if (!Number.isSafeInteger(categoryId) || categoryId <= 0 || typeof value.name !== "string") {
+    throw new ApiError("UNKNOWN", "The Server returned an interest without a valid category ID or name.");
+  }
+  return {
+    id: String(categoryId),
+    categoryId,
+    name: value.name,
+    ...(value.description === null || typeof value.description === "string"
+      ? { description: value.description }
+      : {}),
+  };
+}
+
+function mapBackendInterestList(value: unknown): Interest[] {
+  if (!Array.isArray(value)) throw new ApiError("UNKNOWN", "The Server returned an invalid interest list.");
+  return value.map(mapBackendInterest);
+}
+
+/** GET /api/interests. */
+export async function listInterestOptions(): Promise<Interest[]> {
+  if (!USE_MOCKS) return mapBackendInterestList(await apiGet<unknown>("/interests"));
   await begin();
   requireAccount();
   return out(db.interests);
 }
 
-const interestsOf = (studentId: string): Interest[] =>
-  (db.studentInterests[studentId] ?? []).map((id) => db.interests.find((i) => i.id === id)).filter((i): i is Interest => !!i);
+/** GET /api/me/interests. */
+export async function getMyInterests(): Promise<Interest[]> {
+  if (!USE_MOCKS) return mapBackendInterestList(await apiGet<unknown>("/me/interests"));
+  await begin();
+  const { student } = requireStudent();
+  return out(interestsOf(student.id));
+}
 
 /** S1 GET /me/profile */
 export async function getMyProfile(): Promise<StudentProfileDetail> {
@@ -417,9 +455,16 @@ export async function updateMyProfile(req: UpdateProfileRequest): Promise<Studen
   return out({ ...student, email: account.user.email, interests: interestsOf(student.id) });
 }
 
-/** S3 PUT /me/interests: exactly 3 distinct interests. */
+/** PUT /api/me/interests. */
 export async function updateMyInterests(req: UpdateInterestsRequest): Promise<Interest[]> {
-  if (!USE_MOCKS) unsupportedOperation("Reading-interest management");
+  if (!USE_MOCKS) {
+    check(validateInterestSelection(req.interestIds));
+    const interestIds = req.interestIds.map((id) => Number(id));
+    if (!interestIds.every((id) => Number.isSafeInteger(id) && id > 0)) {
+      fail("VALIDATION_ERROR", "Selected interests must have valid category IDs.", 400);
+    }
+    return mapBackendInterestList(await apiPut<unknown>("/me/interests", { interestIds }));
+  }
   await begin();
   const { student } = requireStudent();
   check(validateInterestSelection(req.interestIds));

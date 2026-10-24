@@ -8,9 +8,10 @@ vi.mock("@/services/apiClient", () => ({
   apiClient: { post: vi.fn() },
   apiGet: vi.fn(),
   apiPatch: vi.fn(),
+  apiPut: vi.fn(),
 }));
 
-import { apiClient, apiGet, apiPatch } from "@/services/apiClient";
+import { apiClient, apiGet, apiPatch, apiPut } from "@/services/apiClient";
 import {
   getCurrentUser,
   forgotPassword,
@@ -18,6 +19,9 @@ import {
   register,
   resetPassword,
   resendVerification,
+  listInterestOptions,
+  getMyInterests,
+  updateMyInterests,
   updateMyProfile,
   verifyEmail,
 } from "@/services/authService";
@@ -257,5 +261,44 @@ describe("live signup and session requests", () => {
     await expect(updateMyProfile({ middleName: "Marie" }))
       .rejects.toMatchObject({ code: "UNSUPPORTED_OPERATION", status: 501 });
     expect(apiPatch).not.toHaveBeenCalled();
+  });
+});
+
+describe("live reading interests", () => {
+  it("maps interest options and the student's selected interests to string IDs", async () => {
+    vi.mocked(apiGet)
+      .mockResolvedValueOnce([
+        { id: "6", categoryId: 6, name: "History", description: "Past events" },
+        { id: "12", categoryId: 12, name: "Science", description: null },
+      ])
+      .mockResolvedValueOnce([{ id: "6", categoryId: 6, name: "History" }]);
+
+    await expect(listInterestOptions()).resolves.toEqual([
+      { id: "6", categoryId: 6, name: "History", description: "Past events" },
+      { id: "12", categoryId: 12, name: "Science", description: null },
+    ]);
+    await expect(getMyInterests()).resolves.toEqual([
+      { id: "6", categoryId: 6, name: "History" },
+    ]);
+    expect(apiGet).toHaveBeenNthCalledWith(1, "/interests");
+    expect(apiGet).toHaveBeenNthCalledWith(2, "/me/interests");
+  });
+
+  it("sends selected category IDs as numbers and maps the saved response", async () => {
+    vi.mocked(apiPut).mockResolvedValue([
+      { id: "6", categoryId: 6, name: "History" },
+      { id: "12", categoryId: 12, name: "Science" },
+    ]);
+    await expect(updateMyInterests({ interestIds: ["6", "12"] })).resolves.toEqual([
+      { id: "6", categoryId: 6, name: "History" },
+      { id: "12", categoryId: 12, name: "Science" },
+    ]);
+    expect(apiPut).toHaveBeenCalledWith("/me/interests", { interestIds: [6, 12] });
+  });
+
+  it("rejects invalid live interest payloads instead of substituting mock values", async () => {
+    vi.mocked(apiGet).mockResolvedValue({ interests: [] });
+    await expect(listInterestOptions()).rejects.toThrow("The Server returned an invalid interest list.");
+    expect(apiGet).toHaveBeenCalledWith("/interests");
   });
 });

@@ -23,6 +23,7 @@ export const ROUTES = {
     books: "/app/books",
     bookDetails: (id: string) => `/app/books/${id}`,
     interests: "/app/interests",
+    interestsWelcome: "/app/interests/welcome",
     borrowings: "/app/borrowing",
     borrowList: "/app/borrow-list",
     requests: "/app/requests",

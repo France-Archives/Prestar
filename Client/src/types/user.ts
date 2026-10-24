@@ -56,6 +56,8 @@ export interface StudentRef {
 export interface Interest {
   id: UUID;
   name: string;
+  categoryId?: number;
+  description?: string | null;
 }
 
 /** S1 GET /me/profile. Interests are included for convenience. TO CONFIRM. */
@@ -125,7 +127,7 @@ export interface UpdateProfileRequest {
   yearLevel?: number | null;
 }
 
-/** S3 PUT /me/interests: exactly 3 distinct ids. */
+/** PUT /me/interests: one or more category IDs, represented as strings in the Client. */
 export interface UpdateInterestsRequest {
-  interestIds: [UUID, UUID, UUID];
+  interestIds: UUID[];
 }

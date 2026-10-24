@@ -13,6 +13,7 @@ import * as reportsService from "@/services/reportsService";
 import BookGrid from "@/features/books/components/BookGrid";
 import { TIME_ZONE } from "@/utils/constants";
 import DueDateAlert from "../components/DueDateAlert";
+import RecommendedBooks from "../components/RecommendedBooks";
 
 const S = ROUTES.student;
 
@@ -109,12 +110,8 @@ export default function StudentDashboardPage() {
         </Section>
       )}
 
-      <Section eyebrow="Chosen for you" title="Recommended For You">
-        {d.recommended ? (
-          <BookGrid books={d.recommended} emptyText="No recommendations yet." />
-        ) : (
-          <p className="subtle">Personalized recommendations are not available yet.</p>
-        )}
+      <Section eyebrow="Chosen for you" title="Recommended for you" action={<Link to={S.interests} className="link-btn">Edit interests</Link>}>
+        <RecommendedBooks books={d.recommended} />
       </Section>
 
       <Section

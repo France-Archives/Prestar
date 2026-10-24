@@ -77,5 +77,52 @@ describe("live student dashboard", () => {
       recentNotifications: null,
       unreadCount: null,
     });
+
+  });
+
+  it("maps real dashboard recommendations and rejects invalid values", async () => {
+    vi.mocked(apiGet).mockResolvedValue({
+      accountStatus: "ACTIVE",
+      emailVerified: true,
+      cor: { status: "APPROVED", currentTerm: null },
+      commitments: { active: 0, max: 10 },
+      pickupWaiting: [],
+      activeLoans: [],
+      reservations: [],
+      recentNotifications: null,
+      unreadCount: null,
+      recommended: [{
+        id: 7,
+        bookId: 7,
+        title: "Systems Thinking",
+        category: { id: 2, name: "Science" },
+        availability: { availableCopies: 2, totalUsableCopies: 4 },
+      }],
+      mostBorrowed: [],
+    });
+
+    await expect(getStudentDashboard()).resolves.toMatchObject({
+      recommended: [{
+        id: "7",
+        title: "Systems Thinking",
+        category: { id: "2", name: "Science" },
+        availability: { availableCopies: 2, totalUsableCopies: 4 },
+      }],
+    });
+
+    vi.mocked(apiGet).mockResolvedValue({
+      accountStatus: "ACTIVE",
+      emailVerified: true,
+      cor: { status: "APPROVED" },
+      commitments: { active: 0, max: 10 },
+      pickupWaiting: [],
+      activeLoans: [],
+      reservations: [],
+      recentNotifications: null,
+      unreadCount: null,
+      recommended: [{ id: 7, title: "Missing availability" }],
+      mostBorrowed: [],
+    });
+    await expect(getStudentDashboard()).rejects.toThrow("The Server returned a recommended book with invalid fields.");
   });
 });

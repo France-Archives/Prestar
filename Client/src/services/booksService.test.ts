@@ -11,7 +11,7 @@ vi.mock("./apiClient", () => ({
 }));
 
 import { apiGet, apiGetPage, apiPost } from "./apiClient";
-import { createCategory, getBook, listBooks, listCategories } from "./booksService";
+import { createCategory, getBook, getRecommendedBooks, listBooks, listCategories, mapRecommendedBook } from "./booksService";
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -154,6 +154,33 @@ describe("live books service", () => {
     vi.mocked(apiGet).mockResolvedValue({ categories: [] });
 
     await expect(listCategories()).rejects.toThrow("The Server returned an invalid category list.");
+  });
+
+  it("loads and maps live personalized recommendations", async () => {
+    vi.mocked(apiGet).mockResolvedValue([{
+      id: 13,
+      bookId: 13,
+      title: "Popular book",
+      category: { id: 2, name: "Science" },
+      availability: { availableCopies: 2, totalUsableCopies: 3 },
+    }]);
+
+    await expect(getRecommendedBooks()).resolves.toEqual([{
+      id: "13",
+      title: "Popular book",
+      isbn: null,
+      description: null,
+      category: { id: "2", name: "Science" },
+      authors: [],
+      availability: { availableCopies: 2, totalUsableCopies: 3 },
+      coverImageUrl: null,
+    }]);
+    expect(apiGet).toHaveBeenCalledWith("/me/recommended-books");
+  });
+
+  it("rejects malformed recommendation records", () => {
+    expect(() => mapRecommendedBook({ id: 13, title: "Missing availability" }))
+      .toThrow("The Server returned a recommended book with invalid fields.");
   });
 
   it("posts and maps a live category", async () => {
