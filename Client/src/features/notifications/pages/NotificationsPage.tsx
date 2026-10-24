@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Button from "@/components/common/Button";
+import ConfirmDialog from "@/components/feedback/ConfirmDialog";
 import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
 import Pagination from "@/components/data-display/Pagination";
@@ -23,6 +24,11 @@ export default function NotificationsPage() {
   const toast = useToast();
   const [page, setPage] = useState(1);
   const [unreadOnly, setUnreadOnly] = useState(false);
+  const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
+  const [markingAll, setMarkingAll] = useState(false);
+  const [confirmAll, setConfirmAll] = useState(false);
+  const busyIdsRef = useRef(new Set<string>());
+  const markingAllRef = useRef(false);
   const list = useAsync(
     () => notificationsService.listNotifications({ page, pageSize: PAGE_SIZE, unreadOnly }),
     [page, unreadOnly],
@@ -31,20 +37,33 @@ export default function NotificationsPage() {
   if (!user) return null;
 
   const read = async (id: string) => {
+    if (busyIdsRef.current.has(id) || markingAllRef.current) return;
+    busyIdsRef.current.add(id);
+    setBusyIds(new Set(busyIdsRef.current));
     try {
       await notificationsService.markRead(id);
       await Promise.all([list.reload(), refresh()]);
     } catch (e) {
       toast.error(describeError(e));
+    } finally {
+      busyIdsRef.current.delete(id);
+      setBusyIds(new Set(busyIdsRef.current));
     }
   };
 
   const readAll = async () => {
+    if (markingAllRef.current) return;
+    markingAllRef.current = true;
+    setMarkingAll(true);
     try {
       await notificationsService.markAllRead();
       await Promise.all([list.reload(), refresh()]);
     } catch (e) {
       toast.error(describeError(e));
+      throw e;
+    } finally {
+      markingAllRef.current = false;
+      setMarkingAll(false);
     }
   };
 
@@ -55,7 +74,7 @@ export default function NotificationsPage() {
       <Button variant="ghost" size="sm" onClick={() => { setUnreadOnly(!unreadOnly); setPage(1); }}>
         {unreadOnly ? "Show all" : "Unread only"}
       </Button>
-      <Button size="sm" disabled={unreadCount === 0} onClick={readAll}>
+      <Button size="sm" disabled={unreadCount === 0 || markingAll || busyIds.size > 0} onClick={() => setConfirmAll(true)}>
         Mark all read
       </Button>
     </>
@@ -73,7 +92,7 @@ export default function NotificationsPage() {
         <ErrorState message={list.error} onRetry={() => void list.reload()} />
       ) : (
         <>
-          <NotificationList items={list.data?.data ?? []} role={user.role} onRead={(id) => void read(id)} />
+          <NotificationList items={list.data?.data ?? []} role={user.role} onRead={(id) => void read(id)} busyIds={busyIds} />
           {meta && (
             <Pagination
               page={meta.page}
@@ -83,6 +102,16 @@ export default function NotificationsPage() {
               total={meta.total}
               onPrev={() => setPage(Math.max(1, page - 1))}
               onNext={() => setPage(Math.min(totalPages, page + 1))}
+            />
+          )}
+          {confirmAll && (
+            <ConfirmDialog
+              title="Mark all notifications read?"
+              message={`All ${unreadCount} unread notifications will be marked as read.`}
+              details={[{ label: "Unread notifications", value: unreadCount }]}
+              confirmLabel="Mark all read"
+              onClose={() => setConfirmAll(false)}
+              onConfirm={readAll}
             />
           )}
         </>

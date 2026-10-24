@@ -69,8 +69,15 @@ export default function MyReservationsPage() {
         <div className="stack">{shown.map((r) => <ReservationStatus key={r.id} reservation={r} onCancel={setTarget} highlighted={r.id === reservationId} />)}</div>
       )}
       {target && (
-        <ConfirmDialog title="Cancel this reservation?" danger confirmLabel="Cancel reservation" onConfirm={cancel} onClose={() => setTarget(null)}>
-          <p>{target.bookTitle}: you will lose your place in the queue{target.status === "OFFERED" ? " and the held copy will be passed on" : ""}.</p>
+        <ConfirmDialog
+          title={`Cancel your reservation for ${target.bookTitle}?`}
+          message={`You will lose your place in the queue${target.status === "OFFERED" ? " and the held copy will be passed on" : ""}.`}
+          details={[{ label: "Book", value: target.bookTitle }, { label: "Status", value: statusLabel(target.status) }]}
+          variant="destructive"
+          confirmLabel="Cancel reservation"
+          onConfirm={cancel}
+          onClose={() => setTarget(null)}
+        >
         </ConfirmDialog>
       )}
     </div>

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import Alert, { MockTag } from "@/components/feedback/Alert";
 import Button from "@/components/common/Button";
+import ConfirmDialog from "@/components/feedback/ConfirmDialog";
 import Card from "@/components/ui/Card";
 import ErrorState from "@/components/feedback/ErrorState";
 import FileUpload from "@/components/forms/FileUpload";
@@ -34,6 +35,7 @@ export default function UploadCORPage() {
   const [fileError, setFileError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   if (terms.loading) return <div className="page"><LoadingState rows={3} /></div>;
   if (terms.error) return <div className="page"><ErrorState message={terms.error} onRetry={() => void terms.reload()} /></div>;
@@ -59,6 +61,11 @@ export default function UploadCORPage() {
     const problem = validateCorFile(file);
     setFileError(problem);
     if (problem) return;
+    setConfirming(true);
+  };
+
+  const submitCor = async () => {
+    if (!file || busy) return;
     setBusy(true);
     try {
       // Same call for a photo and for an uploaded file. The COR is created as PENDING and still needs staff review.
@@ -67,6 +74,8 @@ export default function UploadCORPage() {
       navigate(ROUTES.student.cor);
     } catch (err) {
       setFormError(describeError(err));
+      throw err;
+    } finally {
       setBusy(false);
     }
   };
@@ -114,11 +123,21 @@ export default function UploadCORPage() {
 
           {formError && <Alert kind="error">{formError}</Alert>}
           <div className="row-actions">
-            <Button type="submit" loading={busy} disabled={busy || (USE_MOCKS && !chosen)}>Submit COR</Button>
+            <Button type="submit" disabled={busy || (USE_MOCKS && !chosen)}>Submit COR</Button>
             <Button variant="ghost" onClick={() => navigate(ROUTES.student.cor)} disabled={busy}>Cancel</Button>
           </div>
         </form>
       </Card>
+      {confirming && (
+        <ConfirmDialog
+          title="Submit this COR?"
+          message="This photo will be submitted for staff review and used to verify your registration."
+          details={[{ label: "Academic term", value: options.find((term) => term.id === chosen)?.name ?? "Current academic term" }]}
+          confirmLabel="Submit COR"
+          onClose={() => setConfirming(false)}
+          onConfirm={submitCor}
+        />
+      )}
     </div>
   );
 }

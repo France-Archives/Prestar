@@ -48,7 +48,7 @@ export default function MaintenanceCopiesPage() {
           <CopyStatusTable rows={all.filter((c) => c.status === tab)} showBook onEdit={(c) => setEditing(c as StaffCopyRow)} empty="No copies here." />
         </div>
       )}
-      {editing && <CopyForm copy={editing} onClose={() => setEditing(null)} onDone={() => void list.reload()} />}
+      {editing && <CopyForm copy={editing} bookTitle={editing.bookTitle} onClose={() => setEditing(null)} onDone={() => void list.reload()} />}
     </div>
   );
 }

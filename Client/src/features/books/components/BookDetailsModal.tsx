@@ -4,9 +4,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowUpRight, Barcode, BookOpen, Building2, CalendarDays, Check, Info, Languages, Plus, Tag, X } from "lucide-react";
 import Alert from "@/components/feedback/Alert";
 import Button from "@/components/common/Button";
+import ConfirmDialog from "@/components/feedback/ConfirmDialog";
 import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
-import Modal from "@/components/ui/Modal";
 import { SelectField } from "@/components/forms/FormField";
 import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
@@ -44,6 +44,7 @@ export function BookDetailsContent({ book, reload, onNavigate, large = false, mo
   const [busy, setBusy] = useState(false);
   const [added, setAdded] = useState(false);
   const [borrowDialogOpen, setBorrowDialogOpen] = useState(false);
+  const [reservationConfirmOpen, setReservationConfirmOpen] = useState(false);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [descriptionCanExpand, setDescriptionCanExpand] = useState(false);
   const descriptionRef = useRef<HTMLParagraphElement>(null);
@@ -80,6 +81,7 @@ export function BookDetailsContent({ book, reload, onNavigate, large = false, mo
       setProblem({ message: describeError(e), code: (e as { code?: string }).code });
       reload(); // availability may have changed (409 conflicts)
       setBusy(false);
+      throw e;
     }
   };
 
@@ -95,6 +97,7 @@ export function BookDetailsContent({ book, reload, onNavigate, large = false, mo
       setBorrowDialogOpen(false);
     } catch (e) {
       setProblem({ message: describeError(e), code: (e as { code?: string }).code });
+      throw e;
     } finally {
       setBusy(false);
     }
@@ -152,7 +155,7 @@ export function BookDetailsContent({ book, reload, onNavigate, large = false, mo
           </>
         )}
         {mode === "reserve" && (
-          <Button onClick={act} loading={busy} className="bk-modal__action-button">
+          <Button onClick={() => setReservationConfirmOpen(true)} disabled={busy} className="bk-modal__action-button">
             Join the reservation queue
           </Button>
         )}
@@ -171,20 +174,30 @@ export function BookDetailsContent({ book, reload, onNavigate, large = false, mo
         </p>
       )}
       {borrowDialogOpen && modal && (
-        <Modal
-          title={`Borrow ${book.title}`}
-          onClose={busy ? () => undefined : () => setBorrowDialogOpen(false)}
-          footer={
-            <>
-              <Button variant="ghost" onClick={() => setBorrowDialogOpen(false)} disabled={busy}>Cancel</Button>
-              <Button onClick={() => void borrow()} loading={busy}>Confirm Borrow</Button>
-            </>
-          }
+        <ConfirmDialog
+          title={`Borrow ${book.title}?`}
+          message={`We will submit a ${duration}-day borrowing request for this title.`}
+          details={[{ label: "Book", value: book.title }, { label: "Loan duration", value: `${duration} days` }]}
+          confirmLabel="Confirm Borrow"
+          loading={busy}
+          onClose={() => setBorrowDialogOpen(false)}
+          onConfirm={borrow}
         >
           <SelectField label="Loan duration" value={duration} onChange={(event) => setDuration(Number(event.target.value) as AllowedDurationDays)}>
             {DURATION_OPTIONS.map((days) => <option key={days} value={days}>{days} days</option>)}
           </SelectField>
-        </Modal>
+        </ConfirmDialog>
+      )}
+      {reservationConfirmOpen && (
+        <ConfirmDialog
+          title="Join the reservation queue?"
+          message={`You will join the reservation queue for ${book.title} and be notified when a copy is offered.`}
+          details={[{ label: "Book", value: book.title }]}
+          confirmLabel="Join queue"
+          loading={busy}
+          onClose={() => setReservationConfirmOpen(false)}
+          onConfirm={act}
+        />
       )}
       {mode === "request" && !modal && <p className="subtle">Add titles to your borrow list, review each quantity and duration, then submit. Approved copies are held for pickup; loans start at handover.</p>}
     </section>
@@ -350,7 +363,7 @@ export function BookDetailsContent({ book, reload, onNavigate, large = false, mo
             )}
             <div className="bk-action__buttons">
               {mode === "request" && <Button onClick={addToBorrowList}>{added ? "Added to My Borrow List" : "Add to My Borrow List"}</Button>}
-              {mode === "reserve" && <Button onClick={act} loading={busy}>Join the reservation queue</Button>}
+              {mode === "reserve" && <Button onClick={() => setReservationConfirmOpen(true)} disabled={busy}>Join the reservation queue</Button>}
               {added && <Link to={ROUTES.student.borrowList} onClick={onNavigate}>Review My Borrow List</Link>}
             </div>
           </section>

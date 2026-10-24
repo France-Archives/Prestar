@@ -45,8 +45,8 @@ export default function BookCopiesPage() {
       <div className="card">
         <CopyStatusTable rows={copies.data ?? []} onEdit={(c) => setDialog({ kind: "edit", copy: c })} empty="This title has no copies yet." />
       </div>
-      {dialog?.kind === "add" && <CopyForm bookId={bookId} onClose={() => setDialog(null)} onDone={reload} />}
-      {dialog?.kind === "edit" && <CopyForm copy={dialog.copy} onClose={() => setDialog(null)} onDone={reload} />}
+      {dialog?.kind === "add" && <CopyForm bookId={bookId} bookTitle={book.data.title} onClose={() => setDialog(null)} onDone={reload} />}
+      {dialog?.kind === "edit" && <CopyForm copy={dialog.copy} bookTitle={book.data.title} onClose={() => setDialog(null)} onDone={reload} />}
     </div>
   );
 }

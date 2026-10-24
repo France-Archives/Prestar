@@ -110,8 +110,14 @@ export default function FinesManagementPage() {
       {dialog?.kind === "pay" && <PaymentForm fine={dialog.fine} onClose={() => setDialog(null)} onDone={() => void list.reload()} />}
       {dialog?.kind === "waive" && (
         <ConfirmDialog
-          title="Waive this fine?"
-          danger
+          title={`Waive ${statusLabel(dialog.fine.fineType).toLowerCase()} fine for ${dialog.fine.student.firstName} ${dialog.fine.student.lastName}?`}
+          message={`The balance of ₱${dialog.fine.balance.toFixed(2)} will be waived.`}
+          details={[
+            { label: "Student", value: `${dialog.fine.student.firstName} ${dialog.fine.student.lastName}` },
+            { label: "Fine", value: statusLabel(dialog.fine.fineType) },
+            { label: "Balance", value: <Money value={dialog.fine.balance} /> },
+          ]}
+          variant="destructive"
           confirmLabel="Waive fine"
           reasonLabel="Reason (kept in the audit log)"
           onClose={() => setDialog(null)}
@@ -120,11 +126,7 @@ export default function FinesManagementPage() {
             toast.success("Fine waived.");
             await list.reload();
           }}
-        >
-          <p>
-            {statusLabel(dialog.fine.fineType)} for {dialog.fine.student.firstName} {dialog.fine.student.lastName}, balance <Money value={dialog.fine.balance} />. Waiving is exceptional, Admin only and cannot be undone here.
-          </p>
-        </ConfirmDialog>
+        />
       )}
     </div>
   );

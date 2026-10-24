@@ -101,8 +101,10 @@ export default function BorrowingRequestsPage() {
       )}
       {action?.kind === "cancel" && (
         <ConfirmDialog
-          title="Cancel this request?"
-          danger
+          title={`Cancel request for ${action.row.student.firstName} ${action.row.student.lastName}?`}
+          message={`The held copy for ${action.row.bookTitle} will be released.`}
+          details={[{ label: "Book", value: action.row.bookTitle }, { label: "Student", value: `${action.row.student.firstName} ${action.row.student.lastName}` }]}
+          variant="destructive"
           confirmLabel="Cancel request"
           reasonLabel="Reason (kept in the audit log)"
           onClose={() => setAction(null)}
@@ -112,13 +114,14 @@ export default function BorrowingRequestsPage() {
             await list.reload();
           }}
         >
-          <p>{action.row.bookTitle} for {action.row.student.firstName} {action.row.student.lastName}.</p>
         </ConfirmDialog>
       )}
       {action?.kind === "expire" && (
         <ConfirmDialog
-          title="Expire this request?"
-          danger
+          title={`Expire request for ${action.row.student.firstName} ${action.row.student.lastName}?`}
+          message={`${action.row.bookTitle} will be expired and its held copy released.`}
+          details={[{ label: "Book", value: action.row.bookTitle }, { label: "Student", value: `${action.row.student.firstName} ${action.row.student.lastName}` }]}
+          variant="destructive"
           confirmLabel="Expire request"
           onClose={() => setAction(null)}
           onConfirm={async () => {
@@ -127,13 +130,16 @@ export default function BorrowingRequestsPage() {
             await list.reload();
           }}
         >
-          <p>The system normally expires requests when the 3-day pickup deadline passes. Expire manually only when needed (behaviour TO CONFIRM).</p>
         </ConfirmDialog>
       )}
       {(action?.kind === "approve" || action?.kind === "reject") && (
         <ConfirmDialog
-          title={action.kind === "approve" ? "Approve this request?" : "Reject this request?"}
-          danger={action.kind === "reject"}
+          title={`${action.kind === "approve" ? "Approve" : "Reject"} request for ${action.row.student.firstName} ${action.row.student.lastName}?`}
+          message={action.kind === "approve"
+            ? `${action.row.bookTitle} will be approved for pickup by ${action.row.student.firstName} ${action.row.student.lastName}.`
+            : `${action.row.bookTitle} will be rejected and ${action.row.student.firstName} ${action.row.student.lastName} will be notified.`}
+          details={[{ label: "Book", value: action.row.bookTitle }, { label: "Student", value: `${action.row.student.firstName} ${action.row.student.lastName}` }]}
+          variant={action.kind === "reject" ? "destructive" : "positive"}
           confirmLabel={action.kind === "approve" ? "Approve request" : "Reject request"}
           reasonLabel={action.kind === "reject" ? "Reason for rejection" : undefined}
           onClose={() => setAction(null)}
@@ -147,7 +153,6 @@ export default function BorrowingRequestsPage() {
             await list.reload();
           }}
         >
-          <p>{action.row.bookTitle} for {action.row.student.firstName} {action.row.student.lastName}.</p>
         </ConfirmDialog>
       )}
     </div>

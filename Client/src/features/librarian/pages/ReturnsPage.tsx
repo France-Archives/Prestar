@@ -123,9 +123,16 @@ export default function ReturnsPage() {
       {dialog?.kind === "return" && <ReturnConditionForm loan={dialog.loan} onClose={() => setDialog(null)} onDone={onReturned} />}
       {dialog?.kind === "lost" && (
         <ConfirmDialog
-          title="Mark this loan lost?"
-          danger
-          confirmLabel="Mark lost"
+          title={`Mark ${dialog.loan.bookTitle} lost?`}
+          message={`This marks copy ${dialog.loan.copyBarcode} lost and records the lost-book fine for ${dialog.loan.student.firstName} ${dialog.loan.student.lastName}.`}
+          details={[
+            { label: "Book", value: dialog.loan.bookTitle },
+            { label: "Student", value: `${dialog.loan.student.firstName} ${dialog.loan.student.lastName}` },
+            { label: "Copy", value: dialog.loan.copyBarcode },
+            { label: "Fine", value: "₱500 lost-book fine" },
+          ]}
+          variant="destructive"
+          confirmLabel="Mark as lost"
           reasonLabel="Notes (confirm you spoke with the student)"
           onClose={() => setDialog(null)}
           onConfirm={async (notes) => {
@@ -133,11 +140,7 @@ export default function ReturnsPage() {
             toast.success("Loan marked lost. A ₱500 lost-book fine was recorded.");
             await list.reload();
           }}
-        >
-          <p>
-            {dialog.loan.bookTitle} · copy {dialog.loan.copyBarcode} · {dialog.loan.student.firstName} {dialog.loan.student.lastName}. Only mark a book lost after confirming with the student. The lost-book fine blocks new borrowing until it is fully paid.
-          </p>
-        </ConfirmDialog>
+        />
       )}
     </div>
   );

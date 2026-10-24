@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Alert from "@/components/feedback/Alert";
 import Button from "@/components/common/Button";
+import ConfirmDialog from "@/components/feedback/ConfirmDialog";
 import { TextareaField } from "@/components/forms/FormField";
 import Modal from "@/components/ui/Modal";
 import StatusBadge from "@/components/data-display/StatusBadge";
@@ -21,6 +22,7 @@ export default function CORReviewPanel({ item, onClose, onDone }: CORReviewPanel
   const toast = useToast();
   const [busy, setBusy] = useState<"approve" | "reject" | null>(null);
   const [rejecting, setRejecting] = useState(false);
+  const [reviewConfirmation, setReviewConfirmation] = useState<"approve" | "reject" | null>(null);
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [docNote, setDocNote] = useState<string | null>(null);
@@ -37,7 +39,7 @@ export default function CORReviewPanel({ item, onClose, onDone }: CORReviewPanel
   }, [docUrl]);
 
   const run = async (kind: "approve" | "reject") => {
-    if (kind === "reject" && !reason.trim()) return setError("A reason is required to reject a COR.");
+    if (kind === "reject" && !reason.trim()) throw new Error("A reason is required to reject a COR.");
     setBusy(kind);
     setError(null);
     try {
@@ -49,6 +51,7 @@ export default function CORReviewPanel({ item, onClose, onDone }: CORReviewPanel
     } catch (e) {
       setError(describeError(e));
       setBusy(null);
+      throw e;
     }
   };
 
@@ -91,11 +94,11 @@ export default function CORReviewPanel({ item, onClose, onDone }: CORReviewPanel
                 Reject…
               </Button>
             ) : (
-              <Button variant="danger" onClick={() => run("reject")} loading={busy === "reject"}>
+              <Button variant="danger" onClick={() => setReviewConfirmation("reject")} loading={busy === "reject"}>
                 Confirm rejection
               </Button>
             )}
-            <Button onClick={() => run("approve")} loading={busy === "approve"} disabled={rejecting}>
+            <Button onClick={() => setReviewConfirmation("approve")} loading={busy === "approve"} disabled={rejecting}>
               Approve
             </Button>
           </>
@@ -192,6 +195,22 @@ export default function CORReviewPanel({ item, onClose, onDone }: CORReviewPanel
         </div>
       )}
       {error && <div style={{ marginTop: 10 }}><Alert kind="error">{error}</Alert></div>}
+      {reviewConfirmation && (
+        <ConfirmDialog
+          title={reviewConfirmation === "approve" ? `Approve ${item.student.name}'s COR?` : `Reject ${item.student.name}'s COR?`}
+          message={reviewConfirmation === "approve"
+            ? `This approves the Certificate of Registration for ${item.termName}.`
+            : `This rejects the Certificate of Registration for ${item.termName}; the student will need to resubmit.`}
+          details={[
+            { label: "Student", value: item.student.name },
+            { label: "Term", value: item.termName },
+          ]}
+          variant={reviewConfirmation === "reject" ? "destructive" : "positive"}
+          confirmLabel={reviewConfirmation === "approve" ? "Approve COR" : "Reject COR"}
+          onClose={() => setReviewConfirmation(null)}
+          onConfirm={() => run(reviewConfirmation)}
+        />
+      )}
     </Modal>
   );
 }

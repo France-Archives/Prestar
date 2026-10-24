@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Alert from "@/components/feedback/Alert";
 import Button from "@/components/common/Button";
+import ConfirmDialog from "@/components/feedback/ConfirmDialog";
 import { SelectField, TextareaField } from "@/components/forms/FormField";
 import Modal from "@/components/ui/Modal";
 import Money from "@/components/data-display/Money";
@@ -27,14 +28,21 @@ export default function FineAssessmentForm({ loans, defaultLoanId = "", onClose,
   const [loanId, setLoanId] = useState(defaultLoanId);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const options = loans.filter((l) => (fineType === "LOST_BOOK" ? l.status === "LOST" : l.status !== "LOST"));
   const selected = options.some((l) => l.id === loanId) ? loanId : "";
+  const selectedLoan = options.find((loan) => loan.id === selected);
 
   const submit = async () => {
     if (!selected) return setError("Choose a loan.");
     if (!notes.trim()) return setError("Notes are required.");
+    setConfirming(true);
+  };
+
+  const recordFine = async () => {
+    if (!selected || busy) throw new Error("Choose a loan before recording a fine.");
     setBusy(true);
     setError(null);
     try {
@@ -44,11 +52,14 @@ export default function FineAssessmentForm({ loans, defaultLoanId = "", onClose,
       onClose();
     } catch (e) {
       setError(describeError(e));
+      throw e;
+    } finally {
       setBusy(false);
     }
   };
 
   return (
+    <>
     <Modal
       title="Assess a fine"
       onClose={busy ? () => undefined : onClose}
@@ -57,7 +68,7 @@ export default function FineAssessmentForm({ loans, defaultLoanId = "", onClose,
           <Button variant="ghost" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
-          <Button onClick={submit} loading={busy}>
+          <Button onClick={() => void submit()} disabled={busy}>
             Record fine
           </Button>
         </>
@@ -85,5 +96,21 @@ export default function FineAssessmentForm({ loans, defaultLoanId = "", onClose,
       <TextareaField label="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} required />
       {error && <Alert kind="error">{error}</Alert>}
     </Modal>
+      {confirming && (
+        <ConfirmDialog
+          title={`Record a fine for ${selectedLoan ? `${selectedLoan.student.firstName} ${selectedLoan.student.lastName}` : "this student"}?`}
+          message={`A ${statusLabel(fineType).toLowerCase()} fine of ₱${FINE_AMOUNTS[fineType]} will be added to ${selectedLoan ? `${selectedLoan.student.firstName} ${selectedLoan.student.lastName}'s` : "the student's"} record.`}
+          details={[
+            { label: "Student", value: selectedLoan ? `${selectedLoan.student.firstName} ${selectedLoan.student.lastName}` : "Not selected" },
+            { label: "Book", value: selectedLoan?.bookTitle ?? "Not selected" },
+            { label: "Fine", value: <Money value={FINE_AMOUNTS[fineType]} /> },
+          ]}
+          confirmLabel="Record fine"
+          loading={busy}
+          onClose={() => setConfirming(false)}
+          onConfirm={recordFine}
+        />
+      )}
+    </>
   );
 }

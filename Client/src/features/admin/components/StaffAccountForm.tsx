@@ -135,6 +135,8 @@ export default function StaffAccountForm({
       setErrors(result.fieldErrors);
       setFormError(result.formError);
       if (!result.success) {
+        const firstFieldError = Object.values(result.fieldErrors)[0];
+        if (requireConfirmation) throw new Error(result.formError ?? firstFieldError ?? "The account could not be created.");
         return;
       }
       setValues(EMPTY_VALUES);
@@ -144,7 +146,6 @@ export default function StaffAccountForm({
       onDone?.();
     } finally {
       setBusy(false);
-      setConfirming(false);
     }
   };
 
@@ -202,12 +203,16 @@ export default function StaffAccountForm({
       </form>
       {confirming && (
         <ConfirmDialog
-          title="Confirm Admin account creation"
-          confirmLabel="Create Admin"
+          title={`Create ${role} account?`}
+          message={role === "Admin" ? "This account will have full admin access." : `This will create a Librarian account for ${values.firstName.trim()} ${values.lastName.trim()}.`}
+          details={[
+            { label: "Name", value: `${values.firstName.trim()} ${values.lastName.trim()}` },
+            { label: "Email", value: values.email.trim() },
+          ]}
+          confirmLabel={`Create ${role}`}
           onConfirm={create}
           onClose={() => setConfirming(false)}
         >
-          <p>This account will have full admin access.</p>
         </ConfirmDialog>
       )}
     </>

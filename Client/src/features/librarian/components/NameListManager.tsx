@@ -112,18 +112,18 @@ export default function NameListManager({ title, description, noun, items, loadi
       )}
       {deleting && (
         <ConfirmDialog
-          title={`Delete ${noun.toLowerCase()}?`}
-          danger
-          confirmLabel="Delete"
+          title={`Delete ${noun.toLowerCase()} ${deleting.name}?`}
+          message={`${deleting.name} will be removed; linked titles may prevent deletion.`}
+          details={[{ label: noun, value: deleting.name }]}
+          variant="destructive"
+          confirmLabel={`Delete ${noun.toLowerCase()}`}
           onClose={() => setDeleting(null)}
           onConfirm={async () => {
             await onDelete(deleting.id);
             toast.success(`${noun} deleted.`);
             onReload();
           }}
-        >
-          <p>{deleting.name} will be removed. A {noun.toLowerCase()} that is still linked to a title cannot be deleted.</p>
-        </ConfirmDialog>
+        />
       )}
     </div>
   );

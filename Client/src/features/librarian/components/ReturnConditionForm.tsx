@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Alert from "@/components/feedback/Alert";
 import Button from "@/components/common/Button";
+import ConfirmDialog from "@/components/feedback/ConfirmDialog";
 import { SelectField, TextareaField } from "@/components/forms/FormField";
 import Modal from "@/components/ui/Modal";
 import { COPY_CONDITIONS, FINE_TYPES, type CopyCondition, type FineType, type ReturnResult, type StaffLoan } from "@/types";
@@ -23,13 +24,14 @@ export default function ReturnConditionForm({ loan, onClose, onDone }: ReturnCon
   const [damageType, setDamageType] = useState<FineType | "">("");
   const [photo, setPhoto] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const damageTypes = FINE_TYPES.filter((type): type is Extract<FineType, "DAMAGE_MINOR" | "DAMAGE_MAJOR"> => type !== "LOST_BOOK");
   const damageEvidenceUnavailable = condition === "DAMAGED";
   const canSubmit = USE_MOCKS && !damageEvidenceUnavailable && !busy;
 
   const submit = async () => {
-    if (!canSubmit) return;
+    if (!canSubmit) throw new Error("This return cannot be submitted.");
     setBusy(true);
     setError(null);
     try {
@@ -38,11 +40,14 @@ export default function ReturnConditionForm({ loan, onClose, onDone }: ReturnCon
       onClose();
     } catch (e) {
       setError(describeError(e));
+      throw e;
+    } finally {
       setBusy(false);
     }
   };
 
   return (
+    <>
     <Modal
       title="Confirm return"
       onClose={busy ? () => undefined : onClose}
@@ -51,7 +56,7 @@ export default function ReturnConditionForm({ loan, onClose, onDone }: ReturnCon
           <Button variant="ghost" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
-          <Button onClick={submit} loading={busy} disabled={!canSubmit}>
+          <Button onClick={() => setConfirming(true)} disabled={!canSubmit}>
             Confirm return
           </Button>
         </>
@@ -98,5 +103,23 @@ export default function ReturnConditionForm({ loan, onClose, onDone }: ReturnCon
       {!USE_MOCKS && <Alert kind="info">Returns are not available from the live Server yet. This return will not be submitted.</Alert>}
       {condition === "DAMAGED" && (!damageType || !photo) && <p className="subtle">A damage type and captured photo are required.</p>}
     </Modal>
+      {confirming && (
+        <ConfirmDialog
+          title={`Confirm return of ${loan.bookTitle}?`}
+          message={`This closes ${loan.student.firstName} ${loan.student.lastName}'s loan and updates the copy based on its recorded condition.`}
+          details={[
+            { label: "Book", value: loan.bookTitle },
+            { label: "Student", value: `${loan.student.firstName} ${loan.student.lastName}` },
+            { label: "Copy", value: loan.copyBarcode },
+            { label: "Condition", value: statusLabel(condition) },
+          ]}
+          variant="positive"
+          confirmLabel="Confirm return"
+          loading={busy}
+          onClose={() => setConfirming(false)}
+          onConfirm={submit}
+        />
+      )}
+    </>
   );
 }

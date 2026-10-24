@@ -58,8 +58,15 @@ export default function MyRequestsPage() {
         <div className="stack">{shown.map((r) => <RequestStatusCard key={r.id} request={r} onCancel={setTarget} />)}</div>
       )}
       {target && (
-        <ConfirmDialog title="Cancel this request?" danger confirmLabel="Cancel request" onConfirm={cancel} onClose={() => setTarget(null)}>
-          <p>{target.bookTitle}: the copy held for you will be released.</p>
+        <ConfirmDialog
+          title={`Cancel your request for ${target.bookTitle}?`}
+          message={`The copy held for you for ${target.bookTitle} will be released.`}
+          details={[{ label: "Book", value: target.bookTitle }]}
+          variant="destructive"
+          confirmLabel="Cancel request"
+          onConfirm={cancel}
+          onClose={() => setTarget(null)}
+        >
         </ConfirmDialog>
       )}
     </div>

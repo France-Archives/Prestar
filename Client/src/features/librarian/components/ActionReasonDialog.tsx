@@ -1,9 +1,6 @@
 import { useState } from "react";
-import Alert from "@/components/feedback/Alert";
-import Button from "@/components/common/Button";
+import ConfirmDialog, { type ConfirmDetails } from "@/components/feedback/ConfirmDialog";
 import { SelectField, TextareaField } from "@/components/forms/FormField";
-import Modal from "@/components/ui/Modal";
-import { describeError } from "@/utils/errors";
 
 export interface ReasonOption {
   code: string;
@@ -33,46 +30,31 @@ interface ActionReasonDialogProps {
   confirmLabel: string;
   danger?: boolean;
   notesRequired?: boolean;
+  details?: ConfirmDetails[];
   onSubmit: (reasonCode: string, notes: string) => Promise<void>;
   onClose: () => void;
 }
 
-export default function ActionReasonDialog({ title, intro, reasons, confirmLabel, danger = false, notesRequired = true, onSubmit, onClose }: ActionReasonDialogProps) {
+export default function ActionReasonDialog({ title, intro, reasons, confirmLabel, danger = false, notesRequired = true, details, onSubmit, onClose }: ActionReasonDialogProps) {
   const [code, setCode] = useState("");
   const [notes, setNotes] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const submit = async () => {
-    if (!code) return setError("Choose a reason.");
-    if (notesRequired && !notes.trim()) return setError("Add notes explaining the decision.");
-    setBusy(true);
-    setError(null);
-    try {
-      await onSubmit(code, notes.trim());
-      onClose();
-    } catch (e) {
-      setError(describeError(e));
-      setBusy(false);
-    }
+    if (!code) throw new Error("Choose a reason.");
+    if (notesRequired && !notes.trim()) throw new Error("Add notes explaining the decision.");
+    await onSubmit(code, notes.trim());
   };
 
   return (
-    <Modal
+    <ConfirmDialog
       title={title}
-      onClose={busy ? () => undefined : onClose}
-      footer={
-        <>
-          <Button variant="ghost" onClick={onClose} disabled={busy}>
-            Cancel
-          </Button>
-          <Button variant={danger ? "danger" : "primary"} onClick={submit} loading={busy}>
-            {confirmLabel}
-          </Button>
-        </>
-      }
+      message={intro}
+      details={details}
+      variant={danger ? "destructive" : "normal"}
+      confirmLabel={confirmLabel}
+      onClose={onClose}
+      onConfirm={submit}
     >
-      {intro && <p className="subtle">{intro}</p>}
       <SelectField label="Reason" value={code} onChange={(e) => setCode(e.target.value)} required>
         <option value="">Choose…</option>
         {reasons.map((r) => (
@@ -82,7 +64,6 @@ export default function ActionReasonDialog({ title, intro, reasons, confirmLabel
         ))}
       </SelectField>
       <TextareaField label={notesRequired ? "Notes (shown to the student)" : "Message (optional)"} value={notes} onChange={(e) => setNotes(e.target.value)} required={notesRequired} />
-      {error && <Alert kind="error">{error}</Alert>}
-    </Modal>
+    </ConfirmDialog>
   );
 }

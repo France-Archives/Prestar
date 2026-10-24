@@ -96,18 +96,20 @@ export default function ManageBooksPage() {
       )}
       {dialog?.kind === "archive" && (
         <ConfirmDialog
-          title={dialog.book.isArchived ? "Restore this book?" : "Archive this book?"}
-          danger={!dialog.book.isArchived}
-          confirmLabel={dialog.book.isArchived ? "Restore" : "Archive"}
+          title={`${dialog.book.isArchived ? "Restore" : "Archive"} ${dialog.book.title}?`}
+          message={dialog.book.isArchived
+            ? `${dialog.book.title} will appear in the student catalog again.`
+            : `${dialog.book.title} will be hidden from students; loans and history will be kept.`}
+          details={[{ label: "Book", value: dialog.book.title }, { label: "Action", value: dialog.book.isArchived ? "Restore" : "Archive" }]}
+          variant={dialog.book.isArchived ? "normal" : "destructive"}
+          confirmLabel={dialog.book.isArchived ? "Restore book" : "Archive book"}
           onClose={() => setDialog(null)}
           onConfirm={async () => {
             await booksService.updateBook(dialog.book.id, { isArchived: !dialog.book.isArchived });
             toast.success(dialog.book.isArchived ? "Book restored." : "Book archived. History is kept.");
             await books.reload();
           }}
-        >
-          <p>{dialog.book.isArchived ? "The title will appear in the student catalog again." : "The title is hidden from students. Loans and history are kept."}</p>
-        </ConfirmDialog>
+        />
       )}
     </div>
   );

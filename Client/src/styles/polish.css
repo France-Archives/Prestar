@@ -501,9 +501,9 @@ a.stat {
   width: min(54rem, 100%);
   max-height: min(92vh, 46rem);
   overflow: hidden;
-  border-radius: 20px;
+  border-radius: var(--book-modal-radius);
   background: var(--color-paper);
-  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--book-modal-shadow);
   animation: modal-pop 0.26s var(--ease-out-expo) both;
 }
 .bk-modal__scroll {

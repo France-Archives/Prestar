@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Alert from "@/components/feedback/Alert";
+import ConfirmDialog from "@/components/feedback/ConfirmDialog";
 import Button from "@/components/common/Button";
 import { CheckboxField } from "@/components/forms/FormField";
 import DataTable, { type Column } from "@/components/data-display/DataTable";
@@ -26,9 +27,14 @@ function PermissionsDialog({ librarian, onClose, onDone }: { librarian: Libraria
   const [perms, setPerms] = useState<LibrarianPermission[]>(librarian.permissions);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const toggle = (p: LibrarianPermission) => setPerms((c) => (c.includes(p) ? c.filter((x) => x !== p) : [...c, p]));
 
   const save = async () => {
+    setConfirming(true);
+  };
+
+  const updatePermissions = async () => {
     setBusy(true);
     setError(null);
     try {
@@ -38,18 +44,21 @@ function PermissionsDialog({ librarian, onClose, onDone }: { librarian: Libraria
       onClose();
     } catch (e) {
       setError(describeError(e));
+      throw e;
+    } finally {
       setBusy(false);
     }
   };
 
   return (
+    <>
     <Modal
       title={`Permissions: ${librarian.displayName}`}
       onClose={busy ? () => undefined : onClose}
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={busy}>Cancel</Button>
-          <Button onClick={save} loading={busy}>Save permissions</Button>
+          <Button onClick={() => void save()} disabled={busy}>Save permissions</Button>
         </>
       }
     >
@@ -59,6 +68,21 @@ function PermissionsDialog({ librarian, onClose, onDone }: { librarian: Libraria
       ))}
       {error && <Alert kind="error">{error}</Alert>}
     </Modal>
+      {confirming && (
+        <ConfirmDialog
+          title={`Save permissions for ${librarian.displayName}?`}
+          message={`These permissions change the staff capabilities available to ${librarian.displayName}.`}
+          details={[
+            { label: "Librarian", value: librarian.displayName },
+            { label: "Permissions", value: perms.length ? perms.map((permission) => PERMISSION_LABELS[permission]?.split(" (")[0] ?? permission).join(", ") : "Circulation only" },
+          ]}
+          confirmLabel="Save permissions"
+          loading={busy}
+          onClose={() => setConfirming(false)}
+          onConfirm={updatePermissions}
+        />
+      )}
+    </>
   );
 }
 

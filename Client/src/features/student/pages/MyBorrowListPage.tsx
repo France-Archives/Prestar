@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import Alert from "@/components/feedback/Alert";
 import Button from "@/components/common/Button";
+import ConfirmDialog from "@/components/feedback/ConfirmDialog";
 import EmptyState from "@/components/feedback/EmptyState";
 import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
@@ -33,6 +34,7 @@ export default function MyBorrowListPage() {
   const [submitting, setSubmitting] = useState(false);
   const [results, setResults] = useState<BorrowBatchItemResult[] | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const ids = items.map((item) => item.book.id).join("|");
   const availability = useAsync(() => Promise.all(items.map((item) => booksService.getBook(item.book.id))), [ids]);
   const freshBooks = new Map((availability.data ?? []).map((book) => [book.id, book]));
@@ -86,6 +88,7 @@ export default function MyBorrowListPage() {
       clear();
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "The borrow list could not be submitted.");
+      throw error;
     } finally {
       setSubmitting(false);
     }
@@ -179,9 +182,19 @@ export default function MyBorrowListPage() {
           })}
           {items.length > 0 && (
             <div className="row-actions">
-              <Button onClick={submit} loading={submitting} disabled={!canSubmit}>Submit reviewed list</Button>
+              <Button onClick={() => setConfirming(true)} disabled={!canSubmit || submitting}>Submit reviewed list</Button>
               <Link to={ROUTES.student.books} className="btn btn-ghost">Continue browsing</Link>
             </div>
+          )}
+          {confirming && (
+            <ConfirmDialog
+              title="Submit your reviewed borrow list?"
+              message={`We will submit requests for ${items.map((item) => item.book.title).join(", ")} and any reservations you explicitly selected.`}
+              details={items.slice(0, 3).map((item) => ({ label: "Book", value: `${item.book.title} · ${item.quantity} ${item.quantity === 1 ? "copy" : "copies"}` }))}
+              confirmLabel="Submit list"
+              onClose={() => setConfirming(false)}
+              onConfirm={submit}
+            />
           )}
         </div>
       )}

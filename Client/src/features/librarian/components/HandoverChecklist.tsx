@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Alert from "@/components/feedback/Alert";
 import Button from "@/components/common/Button";
+import ConfirmDialog from "@/components/feedback/ConfirmDialog";
 import Card from "@/components/ui/Card";
 import { CheckboxField } from "@/components/forms/FormField";
 import { useToast } from "@/hooks/useToast";
@@ -26,6 +27,7 @@ export default function HandoverChecklist({ item, onChanged }: HandoverChecklist
   const [busy, setBusy] = useState<"check" | "claim" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dialog, setDialog] = useState<"hold" | "reject" | null>(null);
+  const [confirmClaim, setConfirmClaim] = useState(false);
 
   const runCheck = async () => {
     setBusy("check");
@@ -49,6 +51,7 @@ export default function HandoverChecklist({ item, onChanged }: HandoverChecklist
     } catch (e) {
       setError(describeError(e));
       setCheck(null); // eligibility may have changed: check again
+      throw e;
     } finally {
       setBusy(null);
     }
@@ -74,7 +77,7 @@ export default function HandoverChecklist({ item, onChanged }: HandoverChecklist
         {error && <Alert kind="error">{error}</Alert>}
 
         <div className="row-actions">
-          <Button onClick={confirm} loading={busy === "claim"} disabled={!canConfirm}>
+          <Button onClick={() => setConfirmClaim(true)} disabled={!canConfirm || busy !== null}>
             Confirm Handover
           </Button>
           {USE_MOCKS && item.status === "APPROVED" && (
@@ -89,10 +92,31 @@ export default function HandoverChecklist({ item, onChanged }: HandoverChecklist
         {!check && <p className="subtle">Confirm Handover unlocks after Review / Check finds the student eligible.</p>}
       </div>
 
+      {confirmClaim && (
+        <ConfirmDialog
+          title={`Confirm handover to ${item.student.firstName} ${item.student.lastName}?`}
+          message={`This releases copy ${item.copy.barcode} and starts the loan for ${item.student.firstName} ${item.student.lastName}.`}
+          details={[
+            { label: "Book", value: item.book.title },
+            { label: "Student", value: `${item.student.firstName} ${item.student.lastName}` },
+            { label: "Copy", value: item.copy.barcode },
+          ]}
+          variant="positive"
+          confirmLabel="Confirm handover"
+          onClose={() => setConfirmClaim(false)}
+          onConfirm={confirm}
+        />
+      )}
+
       {dialog === "hold" && (
         <ActionReasonDialog
           title="Place pickup on hold"
-          intro="Use this for a resolvable issue. The copy stays assigned to the student."
+          intro={`The copy stays assigned to ${item.student.firstName} ${item.student.lastName} while the issue is resolved.`}
+          details={[
+            { label: "Book", value: item.book.title },
+            { label: "Student", value: `${item.student.firstName} ${item.student.lastName}` },
+            { label: "Copy", value: item.copy.barcode },
+          ]}
           reasons={HOLD_REASONS}
           confirmLabel="Place on hold"
           onClose={() => setDialog(null)}
@@ -105,8 +129,13 @@ export default function HandoverChecklist({ item, onChanged }: HandoverChecklist
       )}
       {dialog === "reject" && (
         <ActionReasonDialog
-          title="Reject handover"
-          intro="Use this when the release cannot proceed. The copy is released and the student must request again."
+          title={`Reject handover for ${item.student.firstName} ${item.student.lastName}?`}
+          intro="The assigned copy will be released and the student will need to request again."
+          details={[
+            { label: "Book", value: item.book.title },
+            { label: "Student", value: `${item.student.firstName} ${item.student.lastName}` },
+            { label: "Copy", value: item.copy.barcode },
+          ]}
           reasons={REJECT_REASONS}
           confirmLabel="Reject handover"
           danger

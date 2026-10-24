@@ -13,7 +13,7 @@ export default function CreateLibrarianDialog({ onClose, onDone }: Props) {
 
   return (
     <Modal title="Create a Librarian account" wide onClose={onClose}>
-      <StaffAccountForm role="Librarian" onCreate={create} onDone={onDone} onCancel={onClose} />
+      <StaffAccountForm role="Librarian" onCreate={create} onDone={onDone} onCancel={onClose} requireConfirmation />
     </Modal>
   );
 }

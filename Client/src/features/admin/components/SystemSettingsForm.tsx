@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Alert from "@/components/feedback/Alert";
 import Button from "@/components/common/Button";
+import ConfirmDialog from "@/components/feedback/ConfirmDialog";
 import { useToast } from "@/hooks/useToast";
 import * as adminService from "@/services/adminService";
 import type { Setting } from "@/types";
@@ -16,9 +17,14 @@ export function SettingRow({ setting, onSaved }: { setting: Setting; onSaved: ()
   const [value, setValue] = useState(String(setting.value));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const dirty = value !== String(setting.value);
 
-  const save = async () => {
+  const save = () => {
+    if (dirty && !busy) setConfirming(true);
+  };
+
+  const update = async () => {
     setBusy(true);
     setError(null);
     try {
@@ -28,6 +34,7 @@ export function SettingRow({ setting, onSaved }: { setting: Setting; onSaved: ()
       onSaved();
     } catch (e) {
       setError(describeError(e));
+      throw e;
     } finally {
       setBusy(false);
     }
@@ -54,9 +61,23 @@ export function SettingRow({ setting, onSaved }: { setting: Setting; onSaved: ()
           onChange={(e) => setValue(e.target.value)}
         />
         {meta && <span className="subtle">Allowed: {meta.min} to {meta.max} · default {meta.defaultValue}</span>}
-        <Button size="sm" onClick={save} loading={busy} disabled={!dirty}>Save</Button>
+        <Button size="sm" onClick={save} disabled={!dirty || busy}>Save</Button>
       </div>
       {error && <Alert kind="error">{error}</Alert>}
+      {confirming && (
+        <ConfirmDialog
+          title={`Save ${setting.key}?`}
+          message={`This will update the system setting ${setting.key} and apply its new value.`}
+          details={[
+            { label: "Current value", value: String(setting.value) },
+            { label: "New value", value },
+          ]}
+          confirmLabel="Save setting"
+          loading={busy}
+          onClose={() => setConfirming(false)}
+          onConfirm={update}
+        />
+      )}
     </div>
   );
 }

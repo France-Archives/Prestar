@@ -23,9 +23,10 @@ interface NotificationItemProps {
   item: Item;
   role: UserRole;
   onRead: (id: string) => void;
+  readBusy?: boolean;
 }
 
-export default function NotificationItem({ item, role, onRead }: NotificationItemProps) {
+export default function NotificationItem({ item, role, onRead, readBusy = false }: NotificationItemProps) {
   const unread = item.readAt === null;
   const link = notificationLink(item, role);
   return (
@@ -48,8 +49,8 @@ export default function NotificationItem({ item, role, onRead }: NotificationIte
           </Link>
         )}
         {unread && (
-          <button type="button" className="link-btn" onClick={() => onRead(item.id)}>
-            Mark as read
+          <button type="button" className="link-btn" onClick={() => onRead(item.id)} disabled={readBusy}>
+            {readBusy ? "Marking read..." : "Mark as read"}
           </button>
         )}
       </div>
