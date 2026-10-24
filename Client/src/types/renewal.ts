@@ -1,11 +1,11 @@
-import type { ISODateTime, UUID } from "./api";
+import type { ISODateTime } from "./api";
 import type { RenewalStatus } from "./enums";
 import type { StudentRef } from "./user";
 
 // renewal_requests -> RenewalRequest
 export interface RenewalRequest {
-  id: UUID;
-  loanId: UUID;
+  id: string;
+  loanId: string;
   requestedDurationDays: number;
   status: RenewalStatus;
   requestedAt: ISODateTime;
@@ -25,7 +25,7 @@ export interface StaffRenewalView extends RenewalView {
   student: StudentRef;
 }
 
-/** POST /renewals/loan/:loanId. */
+/** POST /borrowed-books/:id/renew. */
 export interface CreateRenewalRequest {
   requestedDurationDays: number;
 }

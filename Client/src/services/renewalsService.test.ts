@@ -47,11 +47,11 @@ describe("live renewal service", () => {
       decisionReason: "Another student is waiting for this title.",
       newDueAt: null,
     });
-    expect(apiClient.post).toHaveBeenCalledWith("/renewals/loan/45", { requestedDurationDays: 7 });
+    expect(apiClient.post).toHaveBeenCalledWith("/borrowed-books/45/renew", { requestedDurationDays: 7 });
     expect(begin).not.toHaveBeenCalled();
   });
 
-  it("maps the student's renewal history array", async () => {
+  it("maps the student's bare-array renewal history", async () => {
     vi.mocked(apiClient.get).mockResolvedValue({ data: [renewal] });
 
     await expect(listMyRenewals()).resolves.toMatchObject([{
@@ -61,6 +61,43 @@ describe("live renewal service", () => {
       status: "APPROVED",
     }]);
     expect(apiClient.get).toHaveBeenCalledWith("/renewals/mine");
+  });
+
+  it("returns an empty list for an empty renewal history", async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ data: [] });
+
+    await expect(listMyRenewals()).resolves.toEqual([]);
+  });
+
+  it("accepts a data-wrapped renewal list without inventing rows", async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ data: { data: [renewal] } });
+
+    await expect(listMyRenewals()).resolves.toMatchObject([{ id: "1", loanId: "45" }]);
+  });
+
+  it("rejects an invalid renewal list payload", async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ data: { items: [renewal] } });
+
+    await expect(listMyRenewals()).rejects.toThrow("The Server returned an invalid renewal list.");
+  });
+
+  it("maps a rejected renewal response with its decision reason", async () => {
+    vi.mocked(apiClient.post).mockResolvedValue({
+      data: {
+        ...renewal,
+        status: "REJECTED",
+        approvedAt: null,
+        newDueAt: null,
+        decisionReason: "Another student is waiting for this title.",
+      },
+    });
+
+    await expect(createRenewal("45", { requestedDurationDays: 7 })).resolves.toMatchObject({
+      status: "REJECTED",
+      decisionReason: "Another student is waiting for this title.",
+      approvedAt: null,
+      newDueAt: null,
+    });
   });
 
   it("maps loan renewal history", async () => {

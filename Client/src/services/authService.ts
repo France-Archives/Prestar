@@ -45,13 +45,19 @@ import {
   setSessionUserId,
 } from "./mockStore";
 
-// Password reset and profile endpoints remain mock-only. Mock passwords are plain text
-// in memory, no email is sent, and mock tokens are returned to the browser so the demo can continue.
+// Mock passwords are plain text in memory, no email is sent, and mock tokens are returned
+// to the browser so the demo can continue.
 
 /** MOCK ONLY: the real API never returns a token. It is returned so the demo can offer an "Open link (demo)" button. */
 export interface MockTokenResult {
   mockCode?: string;
   mockToken?: string;
+}
+
+export interface ForgotPasswordResult extends MockTokenResult {
+  message?: string;
+  email?: string;
+  cooldownSeconds?: number;
 }
 
 interface BackendSignupResponse {
@@ -285,9 +291,24 @@ export async function resendVerification(req: ResendVerificationRequest): Promis
   return {};
 }
 
-/** A6 POST /auth/forgot-password. Generic response. */
-export async function forgotPassword(req: ForgotPasswordRequest): Promise<MockTokenResult> {
-  if (!USE_MOCKS) unsupportedOperation("Password reset");
+/** A6 POST /auth/forgot-password. The live response is generic for every email. */
+export async function forgotPassword(req: ForgotPasswordRequest): Promise<ForgotPasswordResult> {
+  if (!USE_MOCKS) {
+    try {
+      const response = await apiClient.post<{
+        message: string;
+        email: string;
+        cooldown_seconds: number;
+      }>("/auth/forgot-password", req);
+      return {
+        message: response.data.message,
+        email: response.data.email,
+        cooldownSeconds: response.data.cooldown_seconds,
+      };
+    } catch (error) {
+      throw toApiError(error);
+    }
+  }
   await latency();
   const account = accountByEmail(req.email);
   if (account && account.password && account.user.accountStatus !== "DISABLED") {
@@ -297,8 +318,17 @@ export async function forgotPassword(req: ForgotPasswordRequest): Promise<MockTo
 }
 
 /** A7 POST /auth/reset-password */
-export async function resetPassword(req: ResetPasswordRequest): Promise<void> {
-  if (!USE_MOCKS) unsupportedOperation("Password reset");
+export async function resetPassword(req: ResetPasswordRequest | { token: string; password: string }): Promise<void> {
+  if (!USE_MOCKS) {
+    if ("token" in req) unsupportedOperation("Token-based password reset");
+    try {
+      await apiClient.post<BackendMessageResponse>("/auth/reset-password", req);
+      return;
+    } catch (error) {
+      throw toApiError(error);
+    }
+  }
+  if (!("token" in req)) fail("TOKEN_INVALID_OR_EXPIRED");
   await latency();
   check(validatePassword(req.password)); // validate first so a weak password does not burn the token
   const t = consumeToken(req.token, "RESET_PASSWORD");

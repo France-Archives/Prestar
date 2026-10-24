@@ -13,8 +13,10 @@ vi.mock("@/services/apiClient", () => ({
 import { apiClient, apiGet, apiPatch } from "@/services/apiClient";
 import {
   getCurrentUser,
+  forgotPassword,
   login,
   register,
+  resetPassword,
   resendVerification,
   updateMyProfile,
   verifyEmail,
@@ -48,6 +50,70 @@ beforeEach(() => {
 });
 
 describe("live signup and session requests", () => {
+  it("requests a password reset code and maps the cooldown", async () => {
+    vi.mocked(apiClient.post).mockResolvedValue({
+      data: {
+        message: "If that email is registered, a reset code has been sent.",
+        email: sessionResponse.email,
+        cooldown_seconds: 120,
+      },
+    });
+
+    await expect(forgotPassword({ email: sessionResponse.email })).resolves.toEqual({
+      message: "If that email is registered, a reset code has been sent.",
+      email: sessionResponse.email,
+      cooldownSeconds: 120,
+    });
+    expect(apiClient.post).toHaveBeenCalledWith("/auth/forgot-password", { email: sessionResponse.email });
+  });
+
+  it.each([
+    [400, "Invalid or expired reset code."],
+    [429, "Please wait before requesting another code."],
+    [503, "The reset email could not be delivered."],
+  ] as const)("preserves forgot-password HTTP %i error message", async (status, message) => {
+    vi.mocked(apiClient.post).mockRejectedValue({
+      isAxiosError: true,
+      message: "Request failed",
+      response: { status, data: { message } },
+    });
+
+    await expect(forgotPassword({ email: sessionResponse.email })).rejects.toMatchObject({ status, message });
+  });
+
+  it("submits the reset OTP, password, and confirmation", async () => {
+    vi.mocked(apiClient.post).mockResolvedValue({ data: { message: "Password has been reset successfully." } });
+    const request = {
+      email: sessionResponse.email,
+      otp: "847291",
+      password: "NewPassword1",
+      confirmPassword: "NewPassword1",
+    };
+
+    await expect(resetPassword(request)).resolves.toBeUndefined();
+    expect(apiClient.post).toHaveBeenCalledWith("/auth/reset-password", request);
+  });
+
+  it.each([
+    [400, "The reset code is invalid."],
+    [404, "No password reset request found for this email."],
+    [429, "Too many reset attempts."],
+    [503, "The reset email could not be delivered."],
+  ] as const)("preserves reset-password HTTP %i error message", async (status, message) => {
+    vi.mocked(apiClient.post).mockRejectedValue({
+      isAxiosError: true,
+      message: "Request failed",
+      response: { status, data: { message } },
+    });
+
+    await expect(resetPassword({
+      email: sessionResponse.email,
+      otp: "847291",
+      password: "NewPassword1",
+      confirmPassword: "NewPassword1",
+    })).rejects.toMatchObject({ status, message });
+  });
+
   it("logs in, fetches /me, and maps verified status without inventing a timestamp", async () => {
     vi.mocked(apiClient.post).mockResolvedValue({ data: { message: "Login successful." } });
     vi.mocked(apiGet).mockResolvedValue(sessionResponse);

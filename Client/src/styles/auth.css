@@ -143,6 +143,98 @@
   text-align: center;
   font-size: 0.8125rem;
 }
+.auth-shell--reset .auth-card__head {
+  text-align: left;
+}
+.auth-shell--reset {
+  max-width: 31rem;
+}
+.auth-shell--reset .auth-card__foot {
+  margin-top: 1rem;
+}
+.auth-reset-flow {
+  width: 100%;
+}
+.auth-reset-flow__form,
+.auth-reset-flow__stack {
+  display: grid;
+  gap: 1rem;
+}
+.auth-reset-flow__form .field {
+  gap: 0.375rem;
+}
+.auth-shell--reset .auth-card .input {
+  height: 3rem;
+  min-height: 3rem;
+  padding-inline: 0.875rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: #fff;
+  box-shadow: none;
+  color: var(--color-ink);
+  font-size: 1rem;
+}
+.auth-shell--reset .auth-card .input::placeholder {
+  color: var(--color-muted);
+}
+.auth-shell--reset .auth-card .input:focus {
+  border-color: var(--color-green);
+  background: #fff;
+  box-shadow: var(--ring);
+}
+.auth-shell--reset .auth-card .input[aria-invalid="true"] {
+  border-color: var(--color-brick);
+}
+.auth-shell--reset .auth-card .input:disabled,
+.auth-shell--reset .auth-card .input[readonly] {
+  background: var(--color-line-soft);
+  color: var(--color-muted);
+}
+.auth-shell--reset .auth-card .input-wrap .input {
+  padding-right: 2.75rem;
+}
+.auth-reset-flow__code {
+  text-align: center;
+  letter-spacing: 0.45em;
+  font-variant-numeric: tabular-nums;
+}
+.auth-shell--reset .auth-card .btn-primary.auth-reset-flow__submit,
+.auth-reset-flow__submit {
+  height: 3rem;
+  min-height: 3rem;
+  border-radius: var(--radius-md);
+  background: var(--color-forest-deep);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+  box-shadow: var(--shadow-soft);
+}
+.auth-shell--reset .auth-card .btn-primary.auth-reset-flow__submit:hover:not(:disabled) {
+  background: var(--color-forest);
+  transform: translateY(-1px);
+}
+.auth-shell--reset .auth-card .btn-primary.auth-reset-flow__submit:active:not(:disabled) {
+  transform: translateY(0);
+}
+.auth-reset-flow__resend {
+  text-align: center;
+}
+.auth-reset-flow__resend button:disabled {
+  color: var(--color-muted);
+  cursor: not-allowed;
+  text-decoration: none;
+}
+.auth-reset-flow__request-code {
+  color: var(--color-brick);
+  font-size: 0.875rem;
+}
+.auth-shell--reset .auth-card .input-wrap__toggle:focus-visible,
+.auth-reset-flow__resend button:focus-visible {
+  outline: 2px solid var(--color-green);
+  outline-offset: 2px;
+}
 .auth-card .demo-panel {
   margin-top: 1rem;
   padding: 0.5rem 0.625rem;

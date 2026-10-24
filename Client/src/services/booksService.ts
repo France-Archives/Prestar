@@ -17,16 +17,15 @@ import type {
   UUID,
 } from "@/types";
 import type { MockBook } from "@/data";
-import { fail } from "@/utils/errors";
+import { ApiError, fail, toApiError } from "@/utils/errors";
 import { can } from "@/utils/permissions";
 import { validateRequired } from "@/utils/validators";
 import { USE_MOCKS } from "@/utils/constants";
-import { apiGet, apiGetPage } from "./apiClient";
+import { apiGet, apiGetPage, apiPost } from "./apiClient";
 import { authorsOf, availabilityOf, begin, fillQueues, toBookDetail, toBookSummary } from "./mockEngine";
 import { commit, db, generateCopyBarcode, matches, newId, out, paginate, requireAccount, requireCapability, sessionUserOf } from "./mockStore";
 
 // TEMPORARY MOCK IMPLEMENTATION: Replace with the real Books API (C1 to C7).
-// Category and author management endpoints are NOT in the source: those functions are mock-only (TO CONFIRM).
 
 const check = (message: string | null): void => {
   if (message) fail("VALIDATION_ERROR", message, 422);
@@ -47,6 +46,32 @@ interface BackendBookRecord {
   category?: { id: number | string; name: string } | null;
   availability?: { availableCopies: number; totalUsableCopies: number };
   availableCopies?: number;
+}
+
+interface BackendCategory {
+  id?: string | number;
+  categoryId?: string | number;
+  category_id?: string | number;
+  name?: string;
+  category_name?: string;
+  description?: string | null;
+}
+
+function mapBackendCategory(value: unknown): CategorySummary {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new ApiError("UNKNOWN", "The Server returned an invalid category.");
+  }
+  const row = value as BackendCategory;
+  const id = row.id ?? row.categoryId ?? row.category_id;
+  const name = row.name ?? row.category_name;
+  if ((typeof id !== "string" && typeof id !== "number") || typeof name !== "string") {
+    throw new ApiError("UNKNOWN", "The Server returned a category without an ID or name.");
+  }
+  return {
+    id: String(id),
+    name,
+    description: row.description ?? null,
+  };
 }
 
 function mapBackendBookSummary(book: BackendBookRecord): BookSummary {
@@ -178,10 +203,32 @@ export async function getBook(bookId: UUID): Promise<BookDetail> {
 
 /** C3 GET /categories */
 export async function listCategories(): Promise<CategorySummary[]> {
-  if (!USE_MOCKS) return [];
+  if (!USE_MOCKS) {
+    const response = await apiGet<unknown>("/categories");
+    if (!Array.isArray(response)) {
+      throw new ApiError("UNKNOWN", "The Server returned an invalid category list.");
+    }
+    return response.map(mapBackendCategory);
+  }
   await begin();
   requireAccount();
   return out([...db.categories].sort((a, b) => a.name.localeCompare(b.name)));
+}
+
+/** C3.7 POST /categories */
+export async function createCategory(req: SaveCategoryRequest): Promise<CategorySummary> {
+  if (!USE_MOCKS) {
+    try {
+      const category = await apiPost<unknown>("/categories", {
+        name: req.name,
+        ...(req.description?.trim() ? { description: req.description.trim() } : {}),
+      });
+      return mapBackendCategory(category);
+    } catch (error) {
+      throw toApiError(error);
+    }
+  }
+  return saveCategory(req);
 }
 
 /** Mock only (no author endpoint in the source). */
@@ -331,6 +378,10 @@ export async function updateCopy(copyId: UUID, req: UpdateCopyRequest): Promise<
 // ---------- categories and authors (mock only, TO CONFIRM) ----------
 
 export async function saveCategory(req: SaveCategoryRequest, id?: UUID): Promise<CategorySummary> {
+  if (!USE_MOCKS) {
+    if (id) throw new ApiError("UNSUPPORTED_OPERATION", "Updating categories is not available in the Server API.");
+    return createCategory(req);
+  }
   await begin();
   requireCapability("CATALOG_MANAGE");
   check(validateRequired(req.name, "Category name", 100));

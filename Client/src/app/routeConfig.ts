@@ -170,8 +170,6 @@ const STAFF_SECTIONS: NavSection[] = [
     items: [
       { label: "Books", to: T.books, capability: "CATALOG_MANAGE" },
       { label: "Categories", to: T.categories, capability: "CATALOG_MANAGE" },
-      { label: "Authors", to: T.authors, capability: "CATALOG_MANAGE" },
-      { label: "Maintenance copies", to: T.maintenance, capability: "CATALOG_MANAGE" },
       { label: "Shelf locator", to: T.shelfLocator, capability: "CATALOG_MANAGE" },
     ],
   },

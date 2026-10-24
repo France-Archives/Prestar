@@ -1,9 +1,12 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
+import Alert from "@/components/feedback/Alert";
 import { ROUTES } from "@/app/routeConfig";
 import AuthLayout from "@/layouts/AuthLayout";
 import LoginForm from "../components/LoginForm";
 
 export default function LoginPage() {
+  const location = useLocation();
+  const notice = (location.state as { notice?: unknown } | null)?.notice;
   return (
     <AuthLayout
       title="Log in to PRESTAR"
@@ -14,6 +17,7 @@ export default function LoginPage() {
         </>
       }
     >
+      {typeof notice === "string" && <Alert kind="ok">{notice}</Alert>}
       <LoginForm />
     </AuthLayout>
   );

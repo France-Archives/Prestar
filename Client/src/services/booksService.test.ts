@@ -7,10 +7,11 @@ vi.mock("@/utils/constants", async (importOriginal) => {
 vi.mock("./apiClient", () => ({
   apiGet: vi.fn(),
   apiGetPage: vi.fn(),
+  apiPost: vi.fn(),
 }));
 
-import { apiGet, apiGetPage } from "./apiClient";
-import { getBook, listBooks, listCategories } from "./booksService";
+import { apiGet, apiGetPage, apiPost } from "./apiClient";
+import { createCategory, getBook, listBooks, listCategories } from "./booksService";
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -136,7 +137,54 @@ describe("live books service", () => {
     expect(apiGet).not.toHaveBeenCalled();
   });
 
-  it("does not present mock category data when no live category endpoint exists", async () => {
-    await expect(listCategories()).resolves.toEqual([]);
+  it("maps the live category list fields and preserves string IDs", async () => {
+    vi.mocked(apiGet).mockResolvedValue([
+      { id: "6", categoryId: 6, name: "History", description: "Past events" },
+      { id: "7", categoryId: 7, name: "Science", description: null },
+    ]);
+
+    await expect(listCategories()).resolves.toEqual([
+      { id: "6", name: "History", description: "Past events" },
+      { id: "7", name: "Science", description: null },
+    ]);
+    expect(apiGet).toHaveBeenCalledWith("/categories");
+  });
+
+  it("rejects an invalid live category list", async () => {
+    vi.mocked(apiGet).mockResolvedValue({ categories: [] });
+
+    await expect(listCategories()).rejects.toThrow("The Server returned an invalid category list.");
+  });
+
+  it("posts and maps a live category", async () => {
+    vi.mocked(apiPost).mockResolvedValue({
+      id: 15,
+      categoryId: 15,
+      name: "Artificial Intelligence",
+      description: "Books on AI",
+    });
+
+    await expect(createCategory({ name: "Artificial Intelligence", description: "  Books on AI  " })).resolves.toEqual({
+      id: "15",
+      name: "Artificial Intelligence",
+      description: "Books on AI",
+    });
+    expect(apiPost).toHaveBeenCalledWith("/categories", {
+      name: "Artificial Intelligence",
+      description: "Books on AI",
+    });
+  });
+
+  it.each([
+    [409, "CONFLICT", "Category name already exists."],
+    [400, "VALIDATION_ERROR", "Category name is required."],
+  ] as const)("normalizes live category create HTTP %i errors", async (status, code, message) => {
+    vi.mocked(apiPost).mockRejectedValue({
+      isAxiosError: true,
+      message: "Request failed",
+      response: { status, data: { message } },
+    });
+
+    await expect(createCategory({ name: "History" })).rejects.toMatchObject({ status, code, message });
   });
 });

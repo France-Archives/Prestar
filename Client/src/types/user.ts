@@ -103,8 +103,10 @@ export interface ForgotPasswordRequest {
   email: string;
 }
 export interface ResetPasswordRequest {
-  token: string;
+  email: string;
+  otp: string;
   password: string;
+  confirmPassword: string;
 }
 /** P2 POST /auth/accept-invitation (proposed). */
 export interface AcceptInvitationRequest {

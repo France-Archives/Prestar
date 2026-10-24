@@ -1,4 +1,4 @@
-import type { CreateRenewalRequest, RenewalStatus, RenewalView, StaffRenewalView, UUID } from "@/types";
+import type { CreateRenewalRequest, RenewalStatus, RenewalView, StaffRenewalView } from "@/types";
 import type { MockRenewal } from "@/data";
 import { apiClient } from "@/services/apiClient";
 import { USE_MOCKS } from "@/utils/constants";
@@ -19,8 +19,12 @@ function backendRow(value: unknown): BackendRow {
 }
 
 function rowsFromResponse(value: unknown): unknown[] {
-  if (!Array.isArray(value)) throw new ApiError("UNKNOWN", "The Server returned an invalid renewal list.");
-  return value;
+  if (Array.isArray(value)) return value;
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const rows = (value as Record<string, unknown>).data;
+    if (Array.isArray(rows)) return rows;
+  }
+  throw new ApiError("UNKNOWN", "The Server returned an invalid renewal list.");
 }
 
 function renewalStatus(value: unknown): RenewalStatus {
@@ -68,23 +72,16 @@ function mapRenewal(value: unknown): RenewalView {
 
 function mapStaffRenewal(value: unknown): StaffRenewalView {
   const row = backendRow(value);
-  const student = row.student && typeof row.student === "object" ? backendRow(row.student) : {};
+  const student = backendRow(row.student);
   return {
     ...mapRenewal(row),
     student: {
-      id: String(student.id ?? ""),
-      studentNumber: String(student.studentNumber ?? student.student_number ?? ""),
-      firstName: String(student.firstName ?? student.first_name ?? ""),
-      lastName: String(student.lastName ?? student.last_name ?? ""),
+      id: requiredString(student, "id", "student_id", "a student ID"),
+      studentNumber: requiredString(student, "studentNumber", "student_number", "a student number"),
+      firstName: requiredString(student, "firstName", "first_name", "a student first name"),
+      lastName: requiredString(student, "lastName", "last_name", "a student last name"),
     },
   };
-}
-
-function positiveIntegerId(value: UUID, label: string): number {
-  if (!/^[1-9]\d*$/.test(value) || !Number.isSafeInteger(Number(value))) {
-    fail("VALIDATION_ERROR", `${label} must be a positive integer.`, 400);
-  }
-  return Number(value);
 }
 
 const strip = (r: MockRenewal): RenewalView => {
@@ -93,10 +90,9 @@ const strip = (r: MockRenewal): RenewalView => {
 };
 
 /** The Server automatically approves or rejects a renewal and returns that decision. */
-export async function createRenewal(loanId: UUID, req: CreateRenewalRequest): Promise<RenewalView> {
+export async function createRenewal(loanId: string, req: CreateRenewalRequest): Promise<RenewalView> {
   if (!USE_MOCKS) {
-    const id = positiveIntegerId(loanId, "Loan id");
-    const response = (await apiClient.post<unknown>(`/renewals/loan/${id}`, {
+    const response = (await apiClient.post<unknown>(`/borrowed-books/${encodeURIComponent(loanId)}/renew`, {
       requestedDurationDays: req.requestedDurationDays,
     })).data;
     return mapRenewal(response);
@@ -159,10 +155,9 @@ export async function listMyRenewals(): Promise<RenewalView[]> {
 }
 
 /** List renewal history for a loan owned by the student or accessible by staff. */
-export async function listLoanRenewals(loanId: UUID): Promise<RenewalView[]> {
+export async function listLoanRenewals(loanId: string): Promise<RenewalView[]> {
   if (!USE_MOCKS) {
-    const id = positiveIntegerId(loanId, "Loan id");
-    const response = (await apiClient.get<unknown>(`/renewals/loan/${id}`)).data;
+    const response = (await apiClient.get<unknown>(`/renewals/loan/${encodeURIComponent(loanId)}`)).data;
     return rowsFromResponse(response).map(mapRenewal);
   }
   await begin();
