@@ -9,12 +9,13 @@
     "start": "node server.js",
     "create-admin": "node scripts/createAdmin.js",
     "create-librarian": "node scripts/createAdmin.js --role librarian",
-    "test": "node --test tests/academicTermsAndVerification.test.js tests/bookProcessFlow.test.js tests/borrowRequestValidator.test.js tests/otpSignupFlow.test.js tests/otpVerification.test.js tests/reservationQueueFlow.test.js tests/signupServiceUnit.test.js tests/signupValidator.test.js tests/studentDashboardService.test.js tests/corStorageAndStaffManagement.test.js"
+    "test": "node --test tests/academicTermsAndVerification.test.js tests/bookProcessFlow.test.js tests/borrowRequestValidator.test.js tests/otpSignupFlow.test.js tests/otpVerification.test.js tests/reservationQueueFlow.test.js tests/signupServiceUnit.test.js tests/signupValidator.test.js tests/studentDashboardService.test.js tests/corStorageAndStaffManagement.test.js tests/supabaseCoverStorage.test.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",

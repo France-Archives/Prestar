@@ -10,6 +10,29 @@ import {
   updateBookDetails,
 } from "../services/bookService.js";
 import { BorrowFlowError } from "../services/borrowFlowService.js";
+import Book from "../models/Book.js";
+import { deleteCoverImage, uploadCoverImage } from "../utils/supabaseStorage.js";
+
+function normalizeFormPayload(body) {
+  if (!body || typeof body !== "object") return;
+
+  if (typeof body.authorIds === "string") {
+    try {
+      body.authorIds = JSON.parse(body.authorIds);
+    } catch (_) {
+      body.authorIds = body.authorIds
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((s) => (isNaN(Number(s)) ? s : Number(s)));
+    }
+  }
+
+  if (body.initialCopies !== undefined && typeof body.initialCopies === "string") {
+    const num = Number(body.initialCopies);
+    if (!isNaN(num)) body.initialCopies = num;
+  }
+}
 
 export async function getBooks(req, res, next) {
   try {
@@ -56,6 +79,17 @@ export async function getTopBooks(req, res, next) {
 
 export async function createBookHandler(req, res, next) {
   try {
+    normalizeFormPayload(req.body);
+
+    if (req.file) {
+      const publicUrl = await uploadCoverImage({
+        buffer: req.file.buffer,
+        originalname: req.file.originalname,
+        bookId: "new",
+      });
+      req.body.coverImageUrl = publicUrl;
+    }
+
     const book = await createBook(req.body, req.user?.id);
     return res.status(201).json({
       message: "Book created successfully.",
@@ -70,12 +104,35 @@ export async function createBookHandler(req, res, next) {
         error: error.message,
       });
     }
+    if (error?.status) {
+      return res.status(error.status).json({
+        code: error.code || "STORAGE_ERROR",
+        message: error.message,
+        error: error.message,
+      });
+    }
     return next(error);
   }
 }
 
 export async function updateBookHandler(req, res, next) {
   try {
+    normalizeFormPayload(req.body);
+
+    if (req.file) {
+      const existing = await Book.findByPk(req.resourceId, { attributes: ["cover_image"] });
+      const publicUrl = await uploadCoverImage({
+        buffer: req.file.buffer,
+        originalname: req.file.originalname,
+        bookId: req.resourceId,
+      });
+      req.body.coverImageUrl = publicUrl;
+
+      if (existing?.cover_image && existing.cover_image !== publicUrl) {
+        await deleteCoverImage(existing.cover_image);
+      }
+    }
+
     const book = await updateBookDetails(req.resourceId, req.body, req.user?.id);
     return res.status(200).json({
       message: "Book updated successfully.",
@@ -86,6 +143,13 @@ export async function updateBookHandler(req, res, next) {
     if (error instanceof BorrowFlowError) {
       return res.status(error.status).json({
         code: error.code,
+        message: error.message,
+        error: error.message,
+      });
+    }
+    if (error?.status) {
+      return res.status(error.status).json({
+        code: error.code || "STORAGE_ERROR",
         message: error.message,
         error: error.message,
       });

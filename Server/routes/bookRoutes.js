@@ -11,6 +11,7 @@ import {
   getTopBooks,
   updateBookHandler,
 } from "../controllers/bookController.js";
+import handleCoverUpload from "../middleware/coverUpload.js";
 import {
   validateBookId,
   validateBookListQuery,
@@ -32,8 +33,8 @@ router.get("/category/:id", validateBookListQuery, getBooks);
 router.get("/:id", validateBookId, getBook);
 
 // Staff catalog writes
-router.post("/", staffOnly, validateCreateBook, createBookHandler);
-router.patch("/:id", staffOnly, validateBookId, validateUpdateBook, updateBookHandler);
-router.put("/:id", staffOnly, validateBookId, validateUpdateBook, updateBookHandler);
+router.post("/", staffOnly, handleCoverUpload, validateCreateBook, createBookHandler);
+router.patch("/:id", staffOnly, validateBookId, handleCoverUpload, validateUpdateBook, updateBookHandler);
+router.put("/:id", staffOnly, validateBookId, handleCoverUpload, validateUpdateBook, updateBookHandler);
 
 export default router;

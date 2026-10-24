@@ -123,6 +123,8 @@ Suspension.belongsTo(User, { foreignKey: "user_id", as: "student" });
 // User Category Preferences
 UserCategoryPreference.belongsTo(User, { foreignKey: "user_id", as: "user" });
 UserCategoryPreference.belongsTo(Category, { foreignKey: "category_id", as: "category" });
+User.hasMany(UserCategoryPreference, { foreignKey: "user_id", as: "categoryPreferences" });
+Category.hasMany(UserCategoryPreference, { foreignKey: "category_id", as: "userPreferences" });
 
 // Notifications
 User.hasMany(Notification, { foreignKey: "user_id", as: "notifications" });

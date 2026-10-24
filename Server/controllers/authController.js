@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import { Student, User } from "../models/index.js";
 import generateToken from "../utils/generateToken.js";
 import { getDashboardRoute } from "../utils/roleRoutes.js";
+import { getUserInterests } from "../services/interestService.js";
 
 const COOKIE_NAME = "auth_token";
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
@@ -65,6 +66,8 @@ export async function getCurrentUser(req, res) {
     }
     const student = user.role === "Student" ? await Student.findByPk(user.id) : null;
 
+    const interests = user.role === "Student" ? await getUserInterests(user.id) : [];
+
     const sessionUser = {
       id: user.id,
       email: user.email,
@@ -75,6 +78,7 @@ export async function getCurrentUser(req, res) {
       firstName: user.first_name,
       lastName: user.last_name,
       displayName: `${user.first_name || ""} ${user.last_name || ""}`.trim(),
+      interests,
       student: student ? {
         id: student.user_id,
         userId: student.user_id,
@@ -85,6 +89,7 @@ export async function getCurrentUser(req, res) {
         course: student.course,
         program: student.course,
         yearLevel: student.year_level,
+        interests,
       } : null,
       librarian: null,
     };
