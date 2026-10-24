@@ -7,7 +7,9 @@ import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
 import Modal from "@/components/ui/Modal";
 import StatusBadge from "@/components/data-display/StatusBadge";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
+import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import { useToast } from "@/hooks/useToast";
 import * as adminService from "@/services/adminService";
@@ -102,7 +104,7 @@ export default function LibrarianManagementPage() {
 
   return (
     <div className="page">
-      <PageHeader eyebrow="People" title="Librarians" description="Librarians are created only by Admin invitation. The invitation acceptance flow is proposed (TC-19)." actions={<Button onClick={() => setDialog({ kind: "invite" })}>Invite a Librarian</Button>} />
+      <PageHero eyebrow="People" title="Librarians" description="Librarians are created only by Admin invitation. The invitation acceptance flow is proposed (TC-19)." leading={<BackButton fallback={ROUTES.admin.dashboard} />} compact actions={<Button onClick={() => setDialog({ kind: "invite" })}>Invite a Librarian</Button>} />
       {list.loading && !list.data ? (
         <LoadingState rows={3} />
       ) : list.error ? (

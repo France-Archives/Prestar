@@ -5,7 +5,8 @@ import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
 import StatusBadge from "@/components/data-display/StatusBadge";
 import Timeline from "@/components/data-display/Timeline";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
 import Breadcrumbs from "@/components/navigation/Breadcrumbs";
 import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
@@ -25,7 +26,7 @@ export default function HandoverDetailsPage() {
   return (
     <div className="page" style={{ maxWidth: 900 }}>
       <Breadcrumbs items={[{ label: "Books to Release", to: ROUTES.staff.booksToRelease }, { label: "Handover" }]} />
-      <PageHeader eyebrow="Circulation" title={request.bookTitle} description={`Requested by ${request.student.firstName} ${request.student.lastName} (${request.student.studentNumber})`} />
+      <PageHero eyebrow="Circulation" title={request.bookTitle} description={`Requested by ${request.student.firstName} ${request.student.lastName} (${request.student.studentNumber})`} leading={<BackButton fallback={ROUTES.staff.booksToRelease} />} compact />
       <div className="stack">
         <Alert kind="info">Please ask the student to present their school ID before handover.</Alert>
         <Card title="Request">

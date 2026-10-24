@@ -7,7 +7,9 @@ import ErrorState from "@/components/feedback/ErrorState";
 import { InputField } from "@/components/forms/FormField";
 import LoadingState from "@/components/feedback/LoadingState";
 import Modal from "@/components/ui/Modal";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
+import { ROUTES } from "@/app/routeConfig";
 import { useToast } from "@/hooks/useToast";
 import { describeError } from "@/utils/errors";
 
@@ -79,7 +81,7 @@ export default function NameListManager({ title, description, noun, items, loadi
 
   return (
     <div className="page" style={{ maxWidth: 820 }}>
-      <PageHeader eyebrow="Catalog" title={title} description={description} actions={<Button onClick={() => openForm("new")}>Add {noun.toLowerCase()}</Button>} />
+      <PageHero eyebrow="Catalog" title={title} description={description} leading={<BackButton fallback={ROUTES.staff.dashboard} />} compact actions={<Button onClick={() => openForm("new")}>Add {noun.toLowerCase()}</Button>} />
       {loading ? (
         <LoadingState rows={4} />
       ) : error ? (

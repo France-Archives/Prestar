@@ -60,6 +60,16 @@
 }
 
 :root {
+  --dashboard-space-1: 0.5rem;
+  --dashboard-space-2: 0.75rem;
+  --dashboard-space-3: 1rem;
+  --dashboard-space-4: 1.35rem;
+  --color-reading-forest: #1b4332;
+  --color-reading-green: #2d6a4f;
+  --color-reading-amber: #e09f3e;
+  --color-reading-cream: #f2e8cf;
+  --color-reading-teal: #335c67;
+  --color-reading-brick: #9e2a2b;
   --grain-opacity: 0.035;
   --section-pad-y: clamp(4rem, 8vw, 7rem);
   --gutter: clamp(16px, 2.6vw, 32px);

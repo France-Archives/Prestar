@@ -3,7 +3,6 @@ import Button from "@/components/common/Button";
 import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
 import Pagination from "@/components/data-display/Pagination";
-import PageHeader from "@/components/layout/PageHeader";
 import PageHero from "@/components/layout/PageHero";
 import BackButton from "@/components/navigation/BackButton";
 import { ROUTES } from "@/app/routeConfig";
@@ -39,7 +38,7 @@ export default function NotificationsPage() {
       <div className="page" style={{ maxWidth: 860 }}>
         {user.role === "STUDENT"
           ? <PageHero eyebrow="Library" title="Notifications" leading={<BackButton fallback={ROUTES.student.dashboard} />} />
-          : <PageHeader eyebrow="Library" title="Notifications" />}
+          : <PageHero eyebrow={user.role === "ADMIN" ? "Admin · notifications" : "Librarian"} title="Notifications" leading={<BackButton fallback={user.role === "ADMIN" ? ROUTES.admin.dashboard : ROUTES.staff.dashboard} />} compact />}
         <Alert kind="info">Notifications are not available from the live Server API yet.</Alert>
       </div>
     );
@@ -80,7 +79,7 @@ export default function NotificationsPage() {
     <div className="page" style={{ maxWidth: 860 }}>
       {user.role === "STUDENT"
         ? <PageHero eyebrow="Library" title="Notifications" leading={<BackButton fallback={ROUTES.student.dashboard} />} actions={actions} />
-        : <PageHeader eyebrow="Library" title="Notifications" actions={actions} />}
+        : <PageHero eyebrow={user.role === "ADMIN" ? "Admin · notifications" : "Librarian"} title="Notifications" leading={<BackButton fallback={user.role === "ADMIN" ? ROUTES.admin.dashboard : ROUTES.staff.dashboard} />} compact actions={actions} />}
       <p className="subtle" style={{ marginBottom: 12 }}>{unreadCount} unread</p>
       {list.loading ? (
         <LoadingState rows={4} />

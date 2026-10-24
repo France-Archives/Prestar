@@ -7,7 +7,8 @@ import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
 import SearchInput from "@/components/forms/SearchInput";
 import StatusBadge from "@/components/data-display/StatusBadge";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
 import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import { useToast } from "@/hooks/useToast";
@@ -77,7 +78,7 @@ export default function BorrowingRequestsPage() {
 
   return (
     <div className="page">
-      <PageHeader eyebrow="Circulation" title="Borrowing requests" description="Eligible requests are approved automatically when a copy is available. Staff handle the pickup, not the approval." />
+      <PageHero eyebrow="Circulation" title="Borrowing requests" description="Eligible requests are approved automatically when a copy is available. Staff handle the pickup, not the approval." leading={<BackButton fallback={ROUTES.staff.dashboard} />} compact />
       <div className="toolbar" style={{ marginTop: 0 }}>
         <SearchInput value={search} onChange={setSearch} placeholder="Search student, book or barcode…" />
         <select className="select" style={{ width: "auto" }} aria-label="Status" value={status} onChange={(e) => setStatus(e.target.value as "" | BorrowingRequestStatus)}>

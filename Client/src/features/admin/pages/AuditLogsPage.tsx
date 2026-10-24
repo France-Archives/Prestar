@@ -5,7 +5,9 @@ import { InputField } from "@/components/forms/FormField";
 import LoadingState from "@/components/feedback/LoadingState";
 import Pagination from "@/components/data-display/Pagination";
 import SearchInput from "@/components/forms/SearchInput";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
+import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import * as adminService from "@/services/adminService";
 import type { UserRole } from "@/types";
@@ -33,7 +35,7 @@ export default function AuditLogsPage() {
 
   return (
     <div className="page">
-      <PageHeader eyebrow="Administration" title="Audit logs" description="Who did what and when: handovers, returns, fines, COR reviews, account and setting changes." />
+      <PageHero eyebrow="Administration" title="Audit logs" description="Who did what and when: handovers, returns, fines, COR reviews, account and setting changes." leading={<BackButton fallback={ROUTES.admin.dashboard} />} compact />
       {USING_MOCKS ? (
         <Alert kind="warn">
           <MockTag>Mock records</MockTag> These entries are sample and demo records held in browser memory. They are NOT persisted audit logs and reset on refresh. The real backend writes immutable audit rows to the database.

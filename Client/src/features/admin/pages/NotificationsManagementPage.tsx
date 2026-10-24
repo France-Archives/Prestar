@@ -9,7 +9,9 @@ import LoadingState from "@/components/feedback/LoadingState";
 import Pagination from "@/components/data-display/Pagination";
 import SearchInput from "@/components/forms/SearchInput";
 import StatusBadge from "@/components/data-display/StatusBadge";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
+import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import { useToast } from "@/hooks/useToast";
 import * as adminService from "@/services/adminService";
@@ -64,7 +66,7 @@ export default function NotificationsManagementPage() {
 
   return (
     <div className="page">
-      <PageHeader eyebrow="System" title="Notifications management" description="Review notifications and send a general in-app notice." />
+      <PageHero eyebrow="System" title="Notifications management" description="Review notifications and send a general in-app notice." leading={<BackButton fallback={ROUTES.admin.dashboard} />} compact />
       <div className="stack">
         <Card title="Send a notice" note="Appears in the recipients' notification bell. No email is sent.">
           <div className="stack">

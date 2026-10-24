@@ -7,7 +7,8 @@ import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
 import Pagination from "@/components/data-display/Pagination";
 import SearchInput from "@/components/forms/SearchInput";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
 import { ROUTES } from "@/app/routeConfig";
 import AvailabilityBadge from "@/features/books/components/AvailabilityBadge";
 import { useAsync } from "@/hooks/useAsync";
@@ -59,10 +60,12 @@ export default function ManageBooksPage() {
 
   return (
     <div className="page">
-      <PageHeader
+      <PageHero
         eyebrow="Catalog"
         title="Books"
         description="Add and edit titles. A title with active loans, pickups or reservations cannot be archived."
+        leading={<BackButton fallback={ROUTES.staff.dashboard} />}
+        compact
         actions={<Button onClick={() => setDialog({ kind: "form", book: null })}>Add book</Button>}
       />
       <div className="toolbar" style={{ marginTop: 0 }}>

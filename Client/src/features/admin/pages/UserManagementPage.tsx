@@ -3,7 +3,9 @@ import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
 import Pagination from "@/components/data-display/Pagination";
 import SearchInput from "@/components/forms/SearchInput";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
+import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import { useAuth } from "@/hooks/useAuth";
 import * as adminService from "@/services/adminService";
@@ -33,7 +35,7 @@ export default function UserManagementPage() {
 
   return (
     <div className="page">
-      <PageHeader eyebrow="People" title="Users" description="Students, Librarians and Admins. Suspending an account blocks new borrowing but never changes existing loans or due dates." />
+      <PageHero eyebrow="People" title="Users" description="Students, Librarians and Admins. Suspending an account blocks new borrowing but never changes existing loans or due dates." leading={<BackButton fallback={ROUTES.admin.dashboard} />} compact />
       <div className="toolbar" style={{ marginTop: 0 }}>
         <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search name, email or number…" />
         <select className="select" style={{ width: "auto" }} aria-label="Role" value={role} onChange={(e) => { setRole(e.target.value as "" | UserRole); setPage(1); }}>

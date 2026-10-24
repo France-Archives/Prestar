@@ -7,7 +7,9 @@ import LoadingState from "@/components/feedback/LoadingState";
 import Money from "@/components/data-display/Money";
 import SearchInput from "@/components/forms/SearchInput";
 import StatusBadge from "@/components/data-display/StatusBadge";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
+import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/useToast";
@@ -74,10 +76,12 @@ export default function FinesManagementPage() {
 
   return (
     <div className="page">
-      <PageHeader
+      <PageHero
         eyebrow="Fines"
         title="Fines"
         description="Damage and lost-book fines. Unpaid balances block new borrowing and reservations."
+        leading={<BackButton fallback={ROUTES.staff.dashboard} />}
+        compact
         actions={canManage ? <Button onClick={() => setDialog({ kind: "assess" })}>Assess a fine</Button> : undefined}
       />
       {!USE_MOCKS && <Alert kind="info">The Server does not currently provide fine or payment management APIs. These operations are unavailable in live mode.</Alert>}

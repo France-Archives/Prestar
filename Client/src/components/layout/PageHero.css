@@ -35,6 +35,12 @@
   box-shadow: var(--shadow-card);
 }
 
+.page-hero--compact {
+  --hero-h-page: 96px;
+  margin-bottom: 12px;
+  padding-block: 12px;
+}
+
 .page-hero__copy {
   display: flex;
   flex-direction: column;
@@ -227,6 +233,11 @@
       ),
       url("/images/greeting-bg.jpg");
     background-position: center;
+  }
+
+  .page-hero--compact {
+    gap: 10px;
+    padding-block: 14px;
   }
 
   .page-hero__copy {

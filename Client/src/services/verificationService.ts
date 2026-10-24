@@ -153,15 +153,11 @@ export async function getMyCorSummary(): Promise<CorSummary> {
   return out(corSummaryOf(student.id));
 }
 
-/** S5 POST /me/verifications (multipart in the real API). Earlier PENDING uploads for the same term become SUPERSEDED. */
+/** S5 POST /me/verifications using the documented binary multipart payload. */
 export async function submitCor(input: SubmitCorInput): Promise<CorVerification> {
   if (!USE_MOCKS) {
     const formData = new FormData();
-    formData.append("file", input.file, input.file.name);
-    if (input.academicTermId) {
-      formData.append("academicTermId", input.academicTermId);
-      formData.append("term_id", input.academicTermId);
-    }
+    formData.append("file", input.file, "camera_cor.jpg");
     const response = (await apiClient.post<unknown>("/me/verifications", formData, {
       headers: { "Content-Type": undefined },
     })).data;

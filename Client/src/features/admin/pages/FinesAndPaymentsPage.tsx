@@ -1,6 +1,8 @@
 import { useState } from "react";
 import Tabs from "@/components/ui/Tabs";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
+import { ROUTES } from "@/app/routeConfig";
 import FinesManagementPage from "@/features/librarian/pages/FinesManagementPage";
 import PaymentRecordingPage from "@/features/librarian/pages/PaymentRecordingPage";
 
@@ -12,7 +14,7 @@ export default function FinesAndPaymentsPage() {
   return (
     <>
       <div className="page" style={{ paddingBottom: 0 }}>
-        <PageHeader eyebrow="System" title="Fines and payments" description="No online payments exist: payments are made in person and recorded by staff." />
+        <PageHero eyebrow="System" title="Fines and payments" description="No online payments exist: payments are made in person and recorded by staff." leading={<BackButton fallback={ROUTES.admin.dashboard} />} compact />
         <Tabs<Tab> tabs={[{ key: "fines", label: "Fines" }, { key: "payments", label: "Payment recording" }]} active={tab} onChange={setTab} />
       </div>
       {tab === "fines" ? <FinesManagementPage /> : <PaymentRecordingPage />}

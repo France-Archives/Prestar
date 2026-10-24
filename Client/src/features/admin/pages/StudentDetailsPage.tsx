@@ -5,7 +5,8 @@ import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
 import Money from "@/components/data-display/Money";
 import StatusBadge from "@/components/data-display/StatusBadge";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
 import Breadcrumbs from "@/components/navigation/Breadcrumbs";
 import { ROUTES } from "@/app/routeConfig";
 import PenaltySummary from "@/features/librarian/components/PenaltySummary";
@@ -54,7 +55,7 @@ export default function StudentDetailsPage() {
   return (
     <div className="page">
       <Breadcrumbs items={[{ label: "Users", to: ROUTES.admin.users }, { label: `${p.firstName} ${p.lastName}` }]} />
-      <PageHeader eyebrow="Student" title={`${p.firstName} ${p.lastName}`} description={`${p.studentNumber} · ${d.user.email}`} />
+      <PageHero eyebrow="People" title={`${p.firstName} ${p.lastName}`} description={`${p.studentNumber} · ${d.user.email}`} leading={<BackButton fallback={ROUTES.admin.users} />} compact />
       <div className="stack">
         <Card title="Profile">
           <dl className="kv">

@@ -1,10 +1,11 @@
 import { Link } from "react-router-dom";
-import { PackageCheck, Scale, ScrollText, FileCheck, Undo2, UserCog } from "lucide-react";
-import StatCard from "@/components/data-display/StatCard";
-import Card from "@/components/ui/Card";
-import PageHeader from "@/components/layout/PageHeader";
+import { Activity, LibraryBig, PackageCheck, Scale, ScrollText, FileCheck, Undo2, UserCog } from "lucide-react";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
 import { ROUTES } from "@/app/routeConfig";
 import OperationalCountCards from "@/features/dashboard/OperationalCountCards";
+import { ChartPanel, KpiCard, RankedBars, RatioRing } from "@/features/dashboard/DashboardVisuals";
+import { ActivityChart, CopyStatusDonut } from "@/features/admin/components/SystemActivityChart";
 
 const QUICK = [
   { label: "Books to Release", to: ROUTES.staff.booksToRelease, icon: PackageCheck },
@@ -18,29 +19,49 @@ const QUICK = [
 export default function AdminDashboardPage() {
   return (
     <div className="page">
-      <PageHeader eyebrow="Admin" title="Admin dashboard" description="Live circulation counts and administration shortcuts." />
-      <div className="stack">
+      <PageHero
+        eyebrow="Admin"
+        title="Admin dashboard"
+        description="Live circulation counts and administration shortcuts."
+        leading={<BackButton fallback={ROUTES.admin.dashboard} />}
+        actions={<div className="dashboard-actions">{QUICK.slice(0, 2).map(({ label, to }) => <Link key={to} to={to}>{label}</Link>)}</div>}
+      />
+      <div className="dashboard-layout">
         <OperationalCountCards />
-        <div className="grid-auto" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))" }}>
-          <StatCard label="Students" value="Not available yet" />
-          <StatCard label="Librarians" value="Not available yet" />
-          <StatCard label="Overdue loans" value="Not available yet" />
-          <StatCard label="Unpaid fine balance" value="Not available yet" />
-          <StatCard label="Copy status breakdown" value="Not available yet" />
-          <StatCard label="Activity statistics" value="Not available yet" />
-          <StatCard label="Most borrowed books" value="Not available yet" />
+        <div className="dashboard-kpi-strip">
+          <KpiCard icon={PackageCheck} label="Students" value="Not available yet" to={ROUTES.admin.users} tone="forest" index={0} />
+          <KpiCard icon={LibraryBig} label="Librarians" value="Not available yet" to={ROUTES.admin.librarians} tone="teal" index={1} />
+          <KpiCard icon={Activity} label="Overdue loans" value="Not available yet" to={ROUTES.staff.returns} tone="brick" index={2} />
         </div>
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card title="Quick links">
-            <div className="quick-links">
-              {QUICK.map(({ label, to, icon: Icon }) => (
-                <Link key={to} to={to} className="quick-link">
-                  <Icon size={18} strokeWidth={1.9} aria-hidden="true" />
-                  {label}
-                </Link>
-              ))}
+        <section className="dashboard-shortcuts" aria-label="Administration shortcuts">
+          {QUICK.slice(2).map(({ label, to, icon: Icon }) => (
+            <Link key={to} to={to}>
+              <Icon size={17} aria-hidden="true" />
+              {label}
+            </Link>
+          ))}
+        </section>
+        <div className="dashboard-grid-main">
+          <ChartPanel title="Library activity" note="Loans issued and returns, day by day." className="dashboard-panel--feature">
+            <ActivityChart days={null} />
+          </ChartPanel>
+          <ChartPanel title="Copies by status" note="Collection distribution across copy states.">
+            <CopyStatusDonut counts={null} />
+          </ChartPanel>
+        </div>
+        <div className="dashboard-grid-support">
+          <ChartPanel title="Most borrowed" note="Ranked titles by loan count.">
+            <RankedBars books={null} />
+          </ChartPanel>
+          <ChartPanel title="Unpaid fines" note="Outstanding balance across unpaid and partially paid fines.">
+            <div className="dashboard-focal-figure">
+              <strong>Not available yet</strong>
+              <Link to={ROUTES.admin.finesAndPayments}>Review fines and payments</Link>
             </div>
-          </Card>
+          </ChartPanel>
+          <ChartPanel title="Overdue share" note="Overdue loans compared with active loans.">
+            <RatioRing active={null} overdue={null} />
+          </ChartPanel>
         </div>
       </div>
     </div>

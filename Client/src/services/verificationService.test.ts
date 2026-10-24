@@ -66,7 +66,7 @@ describe("live verification service", () => {
     expect(apiClient.get).toHaveBeenCalledWith("/me/verifications");
   });
 
-  it("submits multipart FormData with the captured photo file to the live verification endpoint", async () => {
+  it("submits only the documented multipart file with the camera filename", async () => {
     vi.mocked(apiClient.post).mockResolvedValue({
       data: {
         verification_id: 30,
@@ -77,7 +77,7 @@ describe("live verification service", () => {
       },
     });
 
-    const file = new File(["fake-image-bytes"], "cor_captured.jpg", { type: "image/jpeg" });
+    const file = new File(["captured-photo-bytes"], "cor-photo-123.jpg", { type: "image/jpeg" });
     await expect(submitCor({ academicTermId: "6", file })).resolves.toMatchObject({
       id: "30",
       status: "PENDING",
@@ -87,11 +87,12 @@ describe("live verification service", () => {
     const [url, body, config] = vi.mocked(apiClient.post).mock.calls[0];
     expect(url).toBe("/me/verifications");
     expect(body).toBeInstanceOf(FormData);
-    const fd = body as FormData;
-    const uploadedFile = fd.get("file") as File;
-    expect(uploadedFile.name).toBe("cor_captured.jpg");
+    const formData = body as FormData;
+    const uploadedFile = formData.get("file") as File;
+    expect(uploadedFile.name).toBe("camera_cor.jpg");
     expect(uploadedFile.type).toBe("image/jpeg");
-    expect(fd.get("academicTermId")).toBe("6");
+    expect(await uploadedFile.text()).toBe("captured-photo-bytes");
+    expect([...formData.keys()]).toEqual(["file"]);
     expect(config).toEqual({ headers: { "Content-Type": undefined } });
   });
 

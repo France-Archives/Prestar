@@ -3,7 +3,9 @@ import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
 import SearchInput from "@/components/forms/SearchInput";
 import Tabs from "@/components/ui/Tabs";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
+import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import * as booksService from "@/services/booksService";
 import type { StaffCopyRow } from "@/types";
@@ -24,7 +26,7 @@ export default function MaintenanceCopiesPage() {
 
   return (
     <div className="page">
-      <PageHeader eyebrow="Catalog" title="Maintenance copies" description="Damaged, lost and withdrawn copies. A copy returns to circulation only when you set it back to Available." />
+      <PageHero eyebrow="Catalog" title="Maintenance copies" description="Damaged, lost and withdrawn copies. A copy returns to circulation only when you set it back to Available." leading={<BackButton fallback={ROUTES.staff.dashboard} />} compact />
       <div className="toolbar" style={{ marginTop: 0 }}>
         <SearchInput value={search} onChange={setSearch} placeholder="Search book or barcode…" />
       </div>

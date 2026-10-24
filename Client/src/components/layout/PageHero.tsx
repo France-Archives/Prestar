@@ -9,6 +9,7 @@ interface PageHeroProps {
   leading?: ReactNode;
   actions?: ReactNode;
   children?: ReactNode;
+  compact?: boolean;
 }
 
 export default function PageHero({
@@ -19,11 +20,12 @@ export default function PageHero({
   leading,
   actions,
   children,
+  compact = false,
 }: PageHeroProps) {
   const descriptionParts = description?.split(/(\*\*[^*]+\*\*)/g);
 
   return (
-    <header className="page-hero">
+    <header className={`page-hero${compact ? " page-hero--compact" : ""}`}>
       <div className="page-hero__copy">
         <div className="page-hero__meta">
           {leading}

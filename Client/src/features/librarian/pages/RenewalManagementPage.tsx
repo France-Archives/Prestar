@@ -5,7 +5,9 @@ import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
 import SearchInput from "@/components/forms/SearchInput";
 import StatusBadge from "@/components/data-display/StatusBadge";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
+import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import * as renewalsService from "@/services/renewalsService";
 import { USE_MOCKS } from "@/utils/constants";
@@ -34,7 +36,7 @@ export default function RenewalManagementPage() {
   );
   return (
     <div className="page">
-      <PageHeader eyebrow="Circulation" title="Renewals" description="History of renewal decisions. The new due date counts from the approval date." />
+      <PageHero eyebrow="Circulation" title="Renewals" description="History of renewal decisions. The new due date counts from the approval date." leading={<BackButton fallback={ROUTES.staff.dashboard} />} compact />
       {USE_MOCKS && <Alert kind="info">Renewals are approved or rejected automatically by the system, so there is nothing to approve here.</Alert>}
       {USE_MOCKS && <div className="toolbar">
         <SearchInput value={search} onChange={setSearch} placeholder="Search student or book…" />

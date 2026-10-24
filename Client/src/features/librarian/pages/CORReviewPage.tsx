@@ -6,7 +6,9 @@ import LoadingState from "@/components/feedback/LoadingState";
 import SearchInput from "@/components/forms/SearchInput";
 import StatusBadge from "@/components/data-display/StatusBadge";
 import Tabs from "@/components/ui/Tabs";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
+import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import * as verificationService from "@/services/verificationService";
 import type { StaffCorVerification, VerificationStatus } from "@/types";
@@ -45,7 +47,7 @@ export default function CORReviewPage() {
 
   return (
     <div className="page">
-      <PageHeader eyebrow="Verification" title="COR review" description="Approve or reject each student's Certificate of Registration. A rejection needs a reason, and the student may resubmit." />
+      <PageHero eyebrow="Verification" title="COR review" description="Approve or reject each student's Certificate of Registration. A rejection needs a reason, and the student may resubmit." leading={<BackButton fallback={ROUTES.staff.dashboard} />} compact />
       <div className="toolbar" style={{ marginTop: 0 }}>
         <SearchInput value={search} onChange={setSearch} placeholder="Search student, number, term or file…" />
       </div>

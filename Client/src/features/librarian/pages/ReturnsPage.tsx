@@ -7,7 +7,9 @@ import LoadingState from "@/components/feedback/LoadingState";
 import SearchInput from "@/components/forms/SearchInput";
 import StatusBadge from "@/components/data-display/StatusBadge";
 import Tabs from "@/components/ui/Tabs";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
+import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import { useToast } from "@/hooks/useToast";
 import * as librarianService from "@/services/librarianService";
@@ -73,7 +75,7 @@ export default function ReturnsPage() {
 
   return (
     <div className="page">
-      <PageHeader eyebrow="Circulation" title="Returns and loans" description="Confirm returns and record the copy condition. Returns are never blocked by overdue, fines or suspension. Overdue never becomes lost by itself." />
+      <PageHero eyebrow="Circulation" title="Returns and loans" description="Confirm returns and record the copy condition. Returns are never blocked by overdue, fines or suspension. Overdue never becomes lost by itself." leading={<BackButton fallback={ROUTES.staff.dashboard} />} compact />
       {!USE_MOCKS && <Alert kind="info">The Server does not currently provide return or mark-lost operations. These actions are unavailable in live mode.</Alert>}
       <div className="toolbar" style={{ marginTop: 0 }}>
         <SearchInput value={search} onChange={setSearch} placeholder="Search student, book or barcode…" />
