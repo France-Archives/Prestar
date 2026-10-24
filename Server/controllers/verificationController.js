@@ -16,6 +16,7 @@ import {
   detectMimeType,
   resolveCorFilePath,
   saveBase64CorImage,
+  verifyDiskFileSignature,
 } from "../utils/fileStorage.js";
 
 /**
@@ -43,8 +44,47 @@ export async function getMyVerifications(req, res, next) {
       order: [["submitted_at", "DESC"]],
     });
 
-    const formatted = verifications.map((v) => formatVerification(v));
+    const formatted = verifications.map((v) => {
+      const base = formatVerification(v);
+      return {
+        ...base,
+        originalFileName: v.proof_file,
+        proofFile: v.proof_file,
+      };
+    });
     return res.status(200).json(formatted);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/**
+ * GET /api/me/verifications/:id
+ * Student views details of their own verification record (owner only).
+ */
+export async function getMyVerificationDetails(req, res, next) {
+  try {
+    await expireOverdueVerifications();
+
+    const verificationId = req.params.id;
+    const verification = await StudentVerification.findByPk(verificationId, {
+      include: [{ model: AcademicTerm, as: "term" }],
+    });
+
+    if (!verification) {
+      return res.status(404).json({ error: "Verification record not found." });
+    }
+
+    if (String(verification.user_id) !== String(req.user.id)) {
+      return res.status(403).json({ error: "You are not authorized to view this verification." });
+    }
+
+    const base = formatVerification(verification);
+    return res.status(200).json({
+      ...base,
+      originalFileName: verification.proof_file,
+      proofFile: verification.proof_file,
+    });
   } catch (error) {
     return next(error);
   }
@@ -60,29 +100,52 @@ export async function submitVerification(req, res, next) {
     let storedFileName = null;
     let originalFileName = "cor_proof.jpg";
 
+    const candidateData =
+      req.body?.image ||
+      req.body?.file ||
+      req.body?.proof_file ||
+      req.body?.proofFile;
+
+    const isDataUrl =
+      typeof candidateData === "string" &&
+      candidateData.startsWith("data:image/");
+
     // 1. Check if uploaded via multer (multipart/form-data)
     if (req.file) {
+      if (req.file.size === 0) {
+        return res.status(400).json({ error: "Uploaded file cannot be empty." });
+      }
+      if (req.file.path) {
+        const signature = await verifyDiskFileSignature(req.file.path);
+        if (!signature) {
+          try {
+            if (fs.existsSync(req.file.path)) {
+              await fs.promises.unlink(req.file.path);
+            }
+          } catch (_) {}
+          return res.status(400).json({
+            error: "Invalid file content. Real file signature does not match allowed image types (JPEG, PNG, WebP).",
+          });
+        }
+      }
       storedFileName = req.file.filename;
       originalFileName = req.file.originalname;
     }
     // 2. Check if sent as base64 / data URL (e.g. from camera capture)
+    else if (isDataUrl) {
+      const saved = await saveBase64CorImage(
+        userId,
+        candidateData,
+        req.body?.originalFileName || "camera_cor.jpg"
+      );
+      storedFileName = saved.filename;
+      originalFileName = saved.originalName;
+    }
+    // 3. Reject empty or invalid submissions
     else {
-      const candidateData =
-        req.body?.image ||
-        req.body?.file ||
-        req.body?.proof_file ||
-        req.body?.proofFile;
-
-      if (typeof candidateData === "string" && candidateData.startsWith("data:")) {
-        const saved = await saveBase64CorImage(userId, candidateData, req.body?.originalFileName || "camera_cor.jpg");
-        storedFileName = saved.filename;
-        originalFileName = saved.originalName;
-      } else if (typeof candidateData === "string" && candidateData.trim()) {
-        storedFileName = candidateData.trim();
-        originalFileName = req.body?.originalFileName || storedFileName;
-      } else {
-        storedFileName = `cor_${userId}_${Date.now()}.jpg`;
-      }
+      return res.status(400).json({
+        error: "A valid realtime captured image (data:image/... or camera image upload) is required.",
+      });
     }
 
     // Resolve active term
@@ -132,9 +195,78 @@ export async function submitVerification(req, res, next) {
   }
 }
 
+export const STAFF_VERIFICATION_INCLUDES = [
+  { model: AcademicTerm, as: "term" },
+  {
+    model: User,
+    as: "user",
+    attributes: ["user_id", "first_name", "last_name", "email", "role"],
+    include: [
+      {
+        model: Student,
+        as: "student",
+        attributes: [
+          "student_number",
+          "middle_name",
+          "suffix",
+          "college",
+          "course",
+          "year_level",
+          "student_type",
+        ],
+      },
+    ],
+  },
+  {
+    model: User,
+    as: "reviewer",
+    attributes: ["user_id", "first_name", "last_name", "email", "role"],
+  },
+];
+
+export function formatStaffVerification(verification) {
+  const v = typeof verification?.get === "function" ? verification.get({ plain: true }) : verification;
+  if (!v) return null;
+
+  const base = formatVerification(v, v.term);
+  const studentUser = v.user;
+  const studentProfile = studentUser?.student || v.student;
+  const reviewerUser = v.reviewer;
+
+  const fullName = studentUser
+    ? `${studentUser.first_name || ""} ${studentUser.last_name || ""}`.trim()
+    : "";
+
+  return {
+    ...base,
+    originalFileName: v.proof_file,
+    proofFile: v.proof_file,
+    student: studentUser
+      ? {
+          id: String(studentUser.user_id),
+          studentNumber: studentProfile?.student_number || "",
+          name: fullName,
+          email: studentUser.email,
+          college: studentProfile?.college || null,
+          course: studentProfile?.course || null,
+          yearLevel: studentProfile?.year_level ?? null,
+          studentType: studentProfile?.student_type || null,
+        }
+      : null,
+    reviewer: reviewerUser
+      ? {
+          id: String(reviewerUser.user_id),
+          name: `${reviewerUser.first_name || ""} ${reviewerUser.last_name || ""}`.trim(),
+          email: reviewerUser.email,
+          role: reviewerUser.role,
+        }
+      : null,
+  };
+}
+
 /**
- * GET /api/staff/verifications
- * Librarian or Admin views queue with student details.
+ * GET /api/staff/verifications (and aliases: /api/admin/verifications, /api/librarian/verifications, /api/verifications)
+ * Librarian or Admin views queue with student details, status filtering, and search capability.
  */
 export async function getStaffQueue(req, res, next) {
   try {
@@ -142,49 +274,57 @@ export async function getStaffQueue(req, res, next) {
 
     const { status, search } = req.query;
     const where = {};
-    if (status) {
-      where.status = status;
+
+    if (status && String(status).trim().toUpperCase() !== "ALL") {
+      const statusStr = String(status).trim();
+      const STATUS_MAP = {
+        pending: "Pending",
+        approved: "Approved",
+        rejected: "Rejected",
+        expired: "Expired",
+        superseded: "Superseded",
+      };
+      where.status =
+        STATUS_MAP[statusStr.toLowerCase()] ||
+        (statusStr.charAt(0).toUpperCase() + statusStr.slice(1).toLowerCase());
     }
 
     const verifications = await StudentVerification.findAll({
       where,
-      include: [
-        { model: AcademicTerm, as: "term" },
-        {
-          model: User,
-          as: "user",
-          attributes: ["user_id", "first_name", "last_name", "email", "role"],
-          include: [
-            {
-              model: Student,
-              as: "student",
-              attributes: ["student_number", "college", "course"],
-            },
-          ],
-        },
-      ],
+      include: STAFF_VERIFICATION_INCLUDES,
       order: [["submitted_at", "DESC"]],
     });
 
-    const formatted = verifications.map((v) => {
-      const base = formatVerification(v);
-      const studentUser = v.user;
-      const studentProfile = studentUser?.student;
-      return {
-        ...base,
-        originalFileName: v.proof_file,
-        proofFile: v.proof_file,
-        student: studentUser
-          ? {
-              id: String(studentUser.user_id),
-              studentNumber: studentProfile?.student_number || "",
-              name: `${studentUser.first_name || ""} ${studentUser.last_name || ""}`.trim(),
-              email: studentUser.email,
-              college: studentProfile?.college || null,
-              course: studentProfile?.course || null,
-            }
-          : null,
-      };
+    let formatted = verifications.map((v) => formatStaffVerification(v));
+
+    if (search && String(search).trim()) {
+      const q = String(search).trim().toLowerCase();
+      formatted = formatted.filter((item) => {
+        const student = item.student;
+        return (
+          student?.name?.toLowerCase().includes(q) ||
+          student?.studentNumber?.toLowerCase().includes(q) ||
+          student?.email?.toLowerCase().includes(q) ||
+          student?.college?.toLowerCase().includes(q) ||
+          student?.course?.toLowerCase().includes(q) ||
+          item.termName?.toLowerCase().includes(q) ||
+          item.originalFileName?.toLowerCase().includes(q) ||
+          item.proofFile?.toLowerCase().includes(q) ||
+          item.status?.toLowerCase().includes(q) ||
+          item.remarks?.toLowerCase().includes(q) ||
+          item.rejectionReason?.toLowerCase().includes(q)
+        );
+      });
+    }
+
+    // Sort: Pending submissions first, then newest first
+    formatted.sort((a, b) => {
+      const aPending = a.status === "Pending" ? 0 : 1;
+      const bPending = b.status === "Pending" ? 0 : 1;
+      if (aPending !== bPending) return aPending - bPending;
+      const aTime = a.submittedAt ? new Date(a.submittedAt).getTime() : 0;
+      const bTime = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
+      return bTime - aTime;
     });
 
     return res.status(200).json(formatted);
@@ -194,7 +334,30 @@ export async function getStaffQueue(req, res, next) {
 }
 
 /**
- * POST /api/staff/verifications/:id/approve
+ * GET /api/staff/verifications/:id (and aliases: /api/admin/verifications/:id, /api/librarian/verifications/:id, /api/verifications/:id)
+ * Librarian or Admin views details of a verification record.
+ */
+export async function getStaffVerificationDetails(req, res, next) {
+  try {
+    await expireOverdueVerifications();
+
+    const verificationId = req.params.id;
+    const verification = await StudentVerification.findByPk(verificationId, {
+      include: STAFF_VERIFICATION_INCLUDES,
+    });
+
+    if (!verification) {
+      return res.status(404).json({ error: "Verification record not found." });
+    }
+
+    return res.status(200).json(formatStaffVerification(verification));
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/**
+ * POST /api/staff/verifications/:id/approve (and aliases: /api/admin/verifications/:id/approve, /api/librarian/verifications/:id/approve, /api/verifications/:id/approve)
  * Approves COR:
  * - Updates status to 'Approved'
  * - Sets valid_from to approval date
@@ -205,7 +368,7 @@ export async function approveVerificationHandler(req, res, next) {
   try {
     const verificationId = req.params.id;
     const reviewerId = req.user.id;
-    const remarks = req.body.remarks || "Approved";
+    const remarks = req.body?.remarks || "Approved";
 
     const result = await approveStudentVerification({
       verificationId,
@@ -230,14 +393,18 @@ export async function approveVerificationHandler(req, res, next) {
       }
     }
 
-    return res.status(200).json(result);
+    const updated = await StudentVerification.findByPk(verificationId, {
+      include: STAFF_VERIFICATION_INCLUDES,
+    });
+
+    return res.status(200).json(updated ? formatStaffVerification(updated) : result);
   } catch (error) {
     return next(error);
   }
 }
 
 /**
- * POST /api/staff/verifications/:id/reject
+ * POST /api/staff/verifications/:id/reject (and aliases: /api/admin/verifications/:id/reject, /api/librarian/verifications/:id/reject, /api/verifications/:id/reject)
  * Rejects COR:
  * - Updates status to 'Rejected'
  * - Records rejection reason in remarks
@@ -248,7 +415,7 @@ export async function rejectVerificationHandler(req, res, next) {
   try {
     const verificationId = req.params.id;
     const reviewerId = req.user.id;
-    const reason = req.body.reason || req.body.remarks;
+    const reason = req.body?.reason || req.body?.remarks;
 
     if (!reason || !reason.trim()) {
       return res.status(400).json({ error: "A reason is required to reject a COR." });
@@ -277,7 +444,11 @@ export async function rejectVerificationHandler(req, res, next) {
       }
     }
 
-    return res.status(200).json(result);
+    const updated = await StudentVerification.findByPk(verificationId, {
+      include: STAFF_VERIFICATION_INCLUDES,
+    });
+
+    return res.status(200).json(updated ? formatStaffVerification(updated) : result);
   } catch (error) {
     return next(error);
   }

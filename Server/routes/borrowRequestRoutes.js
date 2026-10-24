@@ -10,6 +10,7 @@ import {
   getAvailableCopies,
   listMyRequests,
   listRequestsQueue,
+  getRequestPickupCheck,
   rejectHandover,
   rejectRequest,
   reviewRequest,
@@ -101,6 +102,14 @@ router.post(
   validateRequestId,
   validateRejectPickup,
   rejectHandover,
+);
+
+// 5f. GET /api/borrow-requests/:id/pickup-check [Librarian, Admin]
+router.get(
+  "/:id/pickup-check",
+  staffOnly,
+  validateRequestId,
+  getRequestPickupCheck,
 );
 
 export default router;

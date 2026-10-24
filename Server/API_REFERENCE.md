@@ -1149,26 +1149,27 @@ Returns the authenticated student's COR verifications.
 
 ### 7.3 `POST /api/me/verifications`
 *(Alias: `POST /api/verifications`)*  
-Submits a student COR proof document. Supports two upload modes: **multipart file upload** (camera capture / file picker) or **JSON body with base64-encoded image data**. Previous pending verifications for the same term are automatically superseded. Creates a `COR_SUBMITTED` notification for the student.
+Submits a student COR proof document. Only **realtime captured images** (JPEG, PNG, WebP) are accepted; PDF documents and client-invented filenames are rejected with `400`. Supports camera image data URL or camera capture image upload. Previous pending verifications for the same term are automatically superseded. Creates a `COR_SUBMITTED` notification for the student.
 
 | Property | Value |
 |---|---|
 | **Auth required** | Yes |
 | **Role** | Student |
 | **Max file size** | 10 MB |
-| **Allowed types** | JPEG, PNG, WEBP, PDF |
+| **Allowed types** | JPEG, PNG, WEBP (images only; PDF rejected) |
 
-**Mode 1: Multipart/form-data (file upload)**
+**Mode 1: Multipart/form-data (camera capture image)**
 ```
 Content-Type: multipart/form-data
 
-file: <binary image/pdf>
+file: <binary image (JPEG, PNG, WebP)>
 ```
 
-**Mode 2: JSON body (base64 / data URL)**
+**Mode 2: JSON body (camera data URL)**
 ```json
 {
-  "proof_file": "data:image/jpeg;base64,/9j/4AAQ..."
+  "image": "data:image/jpeg;base64,/9j/4AAQ...",
+  "originalFileName": "camera_cor.jpg"
 }
 ```
 
@@ -1193,13 +1194,52 @@ file: <binary image/pdf>
 **Errors**
 | Code | Meaning |
 |---|---|
-| `400` | No file / image data provided |
+| `400` | No image data provided, invalid file signature, or non-image document (e.g., PDF) |
 | `401` | Not authenticated |
-| `422` | Invalid file type or file exceeds 10 MB |
 
 ---
 
-### 7.4 `GET /api/me/verifications/:id/document`
+### 7.4 `GET /api/me/verifications/:id`
+*(Alias: `GET /api/verifications/me/:id`)*  
+Returns the details of a single verification record belonging to the authenticated student (owner only). Returns the exact same shape as an item in `GET /api/me/verifications`.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Student (owner only) |
+
+**Success `200`**
+```json
+{
+  "id": 1,
+  "userId": 42,
+  "academicTermId": 1,
+  "termId": 1,
+  "termName": "1st Semester 2026-2027",
+  "status": "Pending",
+  "submittedAt": "2026-10-21T08:00:00.000Z",
+  "reviewedBy": null,
+  "reviewedAt": null,
+  "validFrom": null,
+  "effectiveFrom": null,
+  "validUntil": null,
+  "remarks": null,
+  "rejectionReason": null,
+  "originalFileName": "cor_42_1729497600000_a1b2c3d4.jpg",
+  "proofFile": "cor_42_1729497600000_a1b2c3d4.jpg"
+}
+```
+
+**Errors**
+| Code | Meaning |
+|---|---|
+| `401` | Not authenticated |
+| `403` | Not authorized (not owner) |
+| `404` | Verification record not found |
+
+---
+
+### 7.5 `GET /api/me/verifications/:id/document`
 Securely streams the stored COR document to the student who owns it. Files are served inline from private storage with appropriate MIME type detection. Prevents directory traversal.
 
 | Property | Value |
@@ -1221,41 +1261,124 @@ Securely streams the stored COR document to the student who owns it. Files are s
 
 ---
 
-### 7.5 `GET /api/staff/verifications`
-*(Role: Librarian, Admin)* Lists the verification queue with optional `?status=Pending` and `?search=`. Now includes student profile details (student number, college, course) and the stored proof file name.
+### 7.6 `GET /api/staff/verifications`
+*(Role: Librarian, Admin)*
+*(Aliases: `GET /api/admin/verifications`, `GET /api/librarian/verifications`, `GET /api/verifications`)*
+
+Lists the verification queue with optional `?status=` and `?search=` query parameters.
+
+| Query Parameter | Description |
+|---|---|
+| `status` | Case-insensitive status filter (`Pending`, `Approved`, `Rejected`, `Expired`, `Superseded`). Use `ALL` or omit to return all statuses. |
+| `search` | Free-text search matching student name, student number, email, college, course, term name, proof file name, status, or remarks. |
+
+Results are sorted with **Pending** submissions first, then by newest `submittedAt`.
 
 **Success `200`**
 ```json
-{
-  "verifications": [
-    {
-      "id": "1",
-      "verificationId": "1",
-      "userId": "42",
-      "termId": "1",
-      "termName": "1st Semester 2026-2027",
-      "status": "Pending",
-      "submittedAt": "2026-10-21T08:00:00.000Z",
-      "originalFileName": "cor_42_1729497600000_a1b2c3d4.jpg",
-      "proofFile": "cor_42_1729497600000_a1b2c3d4.jpg",
-      "student": {
-        "id": "42",
-        "studentNumber": "2024-00001",
-        "name": "Juan Dela Cruz",
-        "email": "student@wmsu.edu.ph",
-        "college": "College of Computer Studies",
-        "course": "BS Information Technology"
-      }
-    }
-  ]
+[
+  {
+    "id": 1,
+    "userId": 42,
+    "academicTermId": 1,
+    "termId": 1,
+    "termName": "1st Semester 2026-2027",
+    "status": "Pending",
+    "submittedAt": "2026-10-21T08:00:00.000Z",
+    "reviewedBy": null,
+    "reviewedAt": null,
+    "validFrom": null,
+    "effectiveFrom": null,
+    "validUntil": null,
+    "remarks": null,
+    "rejectionReason": null,
+    "originalFileName": "cor_42_1729497600000_a1b2c3d4.jpg",
+    "proofFile": "cor_42_1729497600000_a1b2c3d4.jpg",
+    "student": {
+      "id": "42",
+      "studentNumber": "2024-00001",
+      "name": "Juan Dela Cruz",
+      "email": "student@wmsu.edu.ph",
+      "college": "College of Computer Studies",
+      "course": "BS Information Technology",
+      "yearLevel": 2,
+      "studentType": "Regular"
+    },
+    "reviewer": null
+  }
+]
+```
+
+When a verification has been reviewed, `reviewer` contains:
+```json
+"reviewer": {
+  "id": "5",
+  "name": "Librarian Name",
+  "email": "librarian@wmsu.edu.ph",
+  "role": "Librarian"
 }
 ```
 
 ---
 
-### 7.6 `POST /api/staff/verifications/:id/approve`
-*(Role: Librarian, Admin)* (Alias: `POST /api/verifications/:id/approve`)
-Approves student COR, setting `valid_from` to the approval date, `valid_until` to the term's end date, and status to `Approved`. Creates a `COR_APPROVED` notification for the student.
+### 7.7 `GET /api/staff/verifications/:id`
+*(Role: Librarian, Admin)*
+*(Aliases: `GET /api/admin/verifications/:id`, `GET /api/librarian/verifications/:id`, `GET /api/verifications/:id`)*
+
+Returns the details of a single verification record for staff review, including student details, academic term, and reviewer info. Returns the exact same shape as an item in `GET /api/staff/verifications`.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Librarian, Admin |
+
+**Success `200`**
+```json
+{
+  "id": 1,
+  "userId": 42,
+  "academicTermId": 1,
+  "termId": 1,
+  "termName": "1st Semester 2026-2027",
+  "status": "Pending",
+  "submittedAt": "2026-10-21T08:00:00.000Z",
+  "reviewedBy": null,
+  "reviewedAt": null,
+  "validFrom": null,
+  "effectiveFrom": null,
+  "validUntil": null,
+  "remarks": null,
+  "rejectionReason": null,
+  "originalFileName": "cor_42_1729497600000_a1b2c3d4.jpg",
+  "proofFile": "cor_42_1729497600000_a1b2c3d4.jpg",
+  "student": {
+    "id": "42",
+    "studentNumber": "2024-00001",
+    "name": "Juan Dela Cruz",
+    "email": "student@wmsu.edu.ph",
+    "college": "College of Computer Studies",
+    "course": "BS Information Technology",
+    "yearLevel": 2,
+    "studentType": "Regular"
+  },
+  "reviewer": null
+}
+```
+
+**Errors**
+| Code | Meaning |
+|---|---|
+| `401` | Not authenticated |
+| `403` | Not authorized (Staff role required) |
+| `404` | Verification record not found |
+
+---
+
+### 7.8 `POST /api/staff/verifications/:id/approve`
+*(Role: Librarian, Admin)*
+*(Aliases: `POST /api/admin/verifications/:id/approve`, `POST /api/librarian/verifications/:id/approve`, `POST /api/verifications/:id/approve`)*
+
+Approves student COR, setting `valid_from` to the approval date, `valid_until` to the term's end date, and status to `Approved`. Creates a `COR_APPROVED` notification for the student. Returns the full staff verification shape including `student` and `reviewer`.
 
 **Payload:**
 ```json
@@ -1266,9 +1389,11 @@ Approves student COR, setting `valid_from` to the approval date, `valid_until` t
 
 ---
 
-### 7.7 `POST /api/staff/verifications/:id/reject`
-*(Role: Librarian, Admin)* (Alias: `POST /api/verifications/:id/reject`)
-Rejects student COR with a required reason. Student verification status remains unverified. Creates a `COR_REJECTED` notification for the student with the rejection reason.
+### 7.9 `POST /api/staff/verifications/:id/reject`
+*(Role: Librarian, Admin)*
+*(Aliases: `POST /api/admin/verifications/:id/reject`, `POST /api/librarian/verifications/:id/reject`, `POST /api/verifications/:id/reject`)*
+
+Rejects student COR with a required reason. Student verification status remains unverified. Creates a `COR_REJECTED` notification for the student with the rejection reason. Returns the full staff verification shape including `student` and `reviewer`.
 
 **Payload:**
 ```json
@@ -1284,8 +1409,11 @@ Rejects student COR with a required reason. Student verification status remains 
 
 ---
 
-### 7.8 `GET /api/staff/verifications/:id/document`
-*(Role: Librarian, Admin)* Securely streams the stored COR proof document for staff review. Same streaming behavior as the student endpoint (7.4).
+### 7.10 `GET /api/staff/verifications/:id/document`
+*(Role: Librarian, Admin)*
+*(Aliases: `GET /api/admin/verifications/:id/document`, `GET /api/librarian/verifications/:id/document`, `GET /api/verifications/:id/document`)*
+
+Securely streams the stored COR proof document for staff review. Same streaming behavior as the student endpoint (7.5).
 
 | Property | Value |
 |---|---|
@@ -1311,7 +1439,7 @@ COR documents are stored in a **private file system** at `Server/storage/cor/` w
 |---|---|
 | **Storage path** | `Server/storage/cor/` |
 | **Max size** | 10 MB |
-| **Allowed types** | JPEG, PNG, WEBP, PDF |
+| **Allowed types** | JPEG, PNG, WEBP (realtime captured images only) |
 | **Security** | Directory traversal prevention via `path.basename()` |
 | **Access** | Streaming only via authenticated API endpoints |
 

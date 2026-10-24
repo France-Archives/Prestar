@@ -11,7 +11,7 @@ import type {
 import type { MockCorRecord } from "@/data";
 import { apiClient } from "@/services/apiClient";
 import { USE_MOCKS } from "@/utils/constants";
-import { ApiError, fail, unsupportedOperation } from "@/utils/errors";
+import { ApiError, fail } from "@/utils/errors";
 import { getStudentDashboard } from "./reportsService";
 import { formatDate } from "@/utils/formatDate";
 import { validateCorFile } from "@/utils/validators";
@@ -60,7 +60,7 @@ function mapBackendVerification(value: unknown): CorVerification {
       ? String(row.rejectionReason ?? row.remarks)
       : null,
     originalFileName: String(row.originalFileName ?? row.original_file_name ?? row.proofFile ?? row.proof_file ?? ""),
-    submittedAt: String(row.submittedAt ?? row.submitted_at ?? ""),
+    submittedAt: String(row.submittedAt ?? row.submitted_at ?? row.createdAt ?? row.created_at ?? ""),
     reviewedAt: row.reviewedAt == null && row.reviewed_at == null
       ? null
       : String(row.reviewedAt ?? row.reviewed_at),
@@ -70,6 +70,31 @@ function mapBackendVerification(value: unknown): CorVerification {
     validUntil: row.validUntil == null && row.valid_until == null
       ? null
       : String(row.validUntil ?? row.valid_until),
+  };
+}
+
+function mapBackendStaffVerification(value: unknown): StaffCorVerification {
+  const row = backendRow(value);
+  const student = row.student && typeof row.student === "object" ? row.student as BackendRow : {};
+  const reviewer = row.reviewer && typeof row.reviewer === "object" ? row.reviewer as BackendRow : null;
+  return {
+    ...mapBackendVerification(row),
+    student: {
+      id: String(student.id ?? ""),
+      studentNumber: String(student.studentNumber ?? student.student_number ?? ""),
+      name: String(student.name ?? ""),
+      email: typeof student.email === "string" ? student.email : null,
+      college: typeof student.college === "string" ? student.college : null,
+      course: typeof student.course === "string" ? student.course : null,
+      yearLevel: student.yearLevel != null ? Number(student.yearLevel) : (student.year_level != null ? Number(student.year_level) : null),
+      studentType: typeof student.studentType === "string" ? student.studentType : (typeof student.student_type === "string" ? student.student_type : null),
+    },
+    reviewer: reviewer ? {
+      id: String(reviewer.id ?? reviewer.user_id ?? ""),
+      name: String(reviewer.name ?? ""),
+      email: typeof reviewer.email === "string" ? reviewer.email : null,
+      role: typeof reviewer.role === "string" ? reviewer.role : null,
+    } : null,
   };
 }
 
@@ -131,8 +156,14 @@ export async function getMyCorSummary(): Promise<CorSummary> {
 /** S5 POST /me/verifications (multipart in the real API). Earlier PENDING uploads for the same term become SUPERSEDED. */
 export async function submitCor(input: SubmitCorInput): Promise<CorVerification> {
   if (!USE_MOCKS) {
-    const response = (await apiClient.post<unknown>("/me/verifications", {
-      proof_file: input.file.name,
+    const formData = new FormData();
+    formData.append("file", input.file, input.file.name);
+    if (input.academicTermId) {
+      formData.append("academicTermId", input.academicTermId);
+      formData.append("term_id", input.academicTermId);
+    }
+    const response = (await apiClient.post<unknown>("/me/verifications", formData, {
+      headers: { "Content-Type": undefined },
     })).data;
     return mapBackendVerification(response);
   }
@@ -186,18 +217,7 @@ export async function listCorQueue(params: { status?: VerificationStatus; search
       },
     })).data;
     if (!Array.isArray(response)) throw new ApiError("UNKNOWN", "The Server returned an invalid verification queue.");
-    return response.map((value): StaffCorVerification => {
-      const row = backendRow(value);
-      const student = row.student && typeof row.student === "object" ? row.student as BackendRow : {};
-      return {
-        ...mapBackendVerification(row),
-        student: {
-          id: String(student.id ?? ""),
-          studentNumber: String(student.studentNumber ?? student.student_number ?? ""),
-          name: String(student.name ?? ""),
-        },
-      };
-    });
+    return response.map(mapBackendStaffVerification);
   }
   await begin();
   requireCapability("COR_REVIEW");
@@ -220,10 +240,12 @@ const pendingRecord = (id: UUID): MockCorRecord => {
 };
 
 /** V2 POST /staff/verifications/:id/approve. Valid from the term start to the term end. */
-export async function approveCor(id: UUID): Promise<CorVerification> {
+export async function approveCor(id: UUID): Promise<StaffCorVerification | CorVerification> {
   if (!USE_MOCKS) {
     const response = (await apiClient.post<unknown>(`/staff/verifications/${encodeURIComponent(id)}/approve`, {})).data;
-    return mapBackendVerification(response);
+    return response && typeof response === "object" && "student" in response
+      ? mapBackendStaffVerification(response)
+      : mapBackendVerification(response);
   }
   await begin();
   const staff = requireCapability("COR_REVIEW");
@@ -242,12 +264,14 @@ export async function approveCor(id: UUID): Promise<CorVerification> {
 }
 
 /** V3 POST /staff/verifications/:id/reject. The reason is required and kept; the student may resubmit. */
-export async function rejectCor(id: UUID, req: ReviewCorRejectRequest): Promise<CorVerification> {
+export async function rejectCor(id: UUID, req: ReviewCorRejectRequest): Promise<StaffCorVerification | CorVerification> {
   if (!USE_MOCKS) {
     const response = (await apiClient.post<unknown>(`/staff/verifications/${encodeURIComponent(id)}/reject`, {
       reason: req.reason,
     })).data;
-    return mapBackendVerification(response);
+    return response && typeof response === "object" && "student" in response
+      ? mapBackendStaffVerification(response)
+      : mapBackendVerification(response);
   }
   await begin();
   const staff = requireCapability("COR_REVIEW");
@@ -263,12 +287,82 @@ export async function rejectCor(id: UUID, req: ReviewCorRejectRequest): Promise<
   return out(toCor(record));
 }
 
-/** P3 GET /staff/verifications/:id/document (proposed). The real API streams the PRIVATE file; the mock has no file. */
-export async function getCorDocumentInfo(id: UUID): Promise<{ fileName: string; simulated: true }> {
-  if (!USE_MOCKS) unsupportedOperation("Viewing submitted COR documents");
+export interface CorDocumentInfo {
+  fileName: string;
+  simulated: boolean;
+  url?: string;
+}
+
+/** GET /staff/verifications/:id/document: Streams the stored COR document for authorized staff. */
+export async function getCorDocumentInfo(id: UUID): Promise<CorDocumentInfo> {
+  if (!USE_MOCKS) {
+    const response = await apiClient.get<Blob>(`/staff/verifications/${encodeURIComponent(id)}/document`, {
+      responseType: "blob",
+    });
+    const disposition = (response.headers as Record<string, string | undefined>)["content-disposition"] || "";
+    let fileName = "cor_document.jpg";
+    const match = disposition.match(/filename="?([^";]+)"?/i);
+    if (match?.[1]) fileName = match[1];
+    const url = URL.createObjectURL(response.data);
+    return { fileName, simulated: false, url };
+  }
   await begin();
   requireCapability("COR_REVIEW");
   const record = db.cors.find((c) => c.id === id);
   if (!record) fail("NOT_FOUND", "We could not find that COR submission.");
   return { fileName: record.originalFileName, simulated: true };
+}
+
+/** GET /me/verifications/:id/document: Streams the student's own stored COR document. */
+export async function getMyCorDocumentInfo(id: UUID): Promise<CorDocumentInfo> {
+  if (!USE_MOCKS) {
+    const response = await apiClient.get<Blob>(`/me/verifications/${encodeURIComponent(id)}/document`, {
+      responseType: "blob",
+    });
+    const disposition = (response.headers as Record<string, string | undefined>)["content-disposition"] || "";
+    let fileName = "cor_document.jpg";
+    const match = disposition.match(/filename="?([^";]+)"?/i);
+    if (match?.[1]) fileName = match[1];
+    const url = URL.createObjectURL(response.data);
+    return { fileName, simulated: false, url };
+  }
+  await begin();
+  const { student } = requireStudent();
+  const record = db.cors.find((c) => c.id === id && c.studentId === student.id);
+  if (!record) fail("NOT_FOUND", "We could not find that COR submission.");
+  return { fileName: record.originalFileName, simulated: true };
+}
+
+/** GET /staff/verifications/:id: fetch detail of a single verification for staff review. */
+export async function getStaffVerification(id: UUID): Promise<StaffCorVerification> {
+  if (!USE_MOCKS) {
+    const response = (await apiClient.get<unknown>(`/staff/verifications/${encodeURIComponent(id)}`)).data;
+    return mapBackendStaffVerification(response);
+  }
+  await begin();
+  requireCapability("COR_REVIEW");
+  const record = db.cors.find((c) => c.id === id);
+  if (!record) fail("NOT_FOUND", "We could not find that COR submission.");
+  const s = studentRef(record.studentId);
+  return out({
+    ...toCor(record),
+    student: {
+      id: s.id,
+      studentNumber: s.studentNumber,
+      name: `${s.firstName} ${s.lastName}`,
+    },
+  });
+}
+
+/** GET /me/verifications/:id: student views their own verification record. */
+export async function getMyVerification(id: UUID): Promise<CorVerification> {
+  if (!USE_MOCKS) {
+    const response = (await apiClient.get<unknown>(`/me/verifications/${encodeURIComponent(id)}`)).data;
+    return mapBackendVerification(response);
+  }
+  await begin();
+  const { student } = requireStudent();
+  const record = db.cors.find((c) => c.id === id && c.studentId === student.id);
+  if (!record) fail("NOT_FOUND", "We could not find that COR submission.");
+  return out(toCor(record));
 }

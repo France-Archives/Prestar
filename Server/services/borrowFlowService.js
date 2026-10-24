@@ -972,7 +972,7 @@ export async function rejectPickupBook({ borrowId, requestId, staffId, remarks, 
 export async function getPickupCheck(borrowId) {
   await expireStalePickups();
 
-  const loan = await BorrowedBook.findByPk(borrowId, {
+  let loan = await BorrowedBook.findByPk(borrowId, {
     include: [
       {
         model: BorrowRequest,
@@ -987,6 +987,26 @@ export async function getPickupCheck(borrowId) {
       },
     ],
   });
+
+  if (!loan) {
+    // Also check if borrowId was actually a request_id
+    loan = await BorrowedBook.findOne({
+      where: { request_id: borrowId, status: "Reserved" },
+      include: [
+        {
+          model: BorrowRequest,
+          as: "request",
+          attributes: [
+            "request_id",
+            "user_id",
+            "status",
+            "pickup_deadline",
+            "requested_days",
+          ],
+        },
+      ],
+    });
+  }
 
   if (!loan) {
     throw new BorrowFlowError(404, "LOAN_NOT_FOUND", "Borrowed book record not found.");
