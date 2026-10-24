@@ -124,9 +124,9 @@ const staffRoutes: RouteObject[] = [
   { path: "fines", element: el(P.FinesManagement) },
   { path: "payments", element: el(P.PaymentRecording) },
   { path: "notifications", element: el(P.Notifications) },
+  { path: "books", element: el(P.ManageBooks) },
   gated("COR_REVIEW", [{ path: "cor-review", element: el(P.CORReview) }]),
   gated("CATALOG_MANAGE", [
-    { path: "books", element: el(P.ManageBooks) },
     { path: "books/:bookId/copies", element: el(P.BookCopies) },
     { path: "categories", element: el(P.ManageCategories) },
     { path: "authors", element: el(P.ManageAuthors) },

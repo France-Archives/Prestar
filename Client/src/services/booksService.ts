@@ -22,11 +22,11 @@ import { ApiError, fail, toApiError } from "@/utils/errors";
 import { can } from "@/utils/permissions";
 import { validateRequired } from "@/utils/validators";
 import { USE_MOCKS } from "@/utils/constants";
-import { apiGet, apiGetPage, apiPost } from "./apiClient";
+import { apiClient, apiGet, apiGetPage, apiPatch, apiPost } from "./apiClient";
 import { authorsOf, availabilityOf, begin, fillQueues, toBookDetail, toBookSummary } from "./mockEngine";
 import { commit, db, generateCopyBarcode, matches, newId, out, paginate, requireAccount, requireCapability, requireStudent, sessionUserOf } from "./mockStore";
 
-// TEMPORARY MOCK IMPLEMENTATION: Replace with the real Books API (C1 to C7).
+// Mock implementations remain for demo mode; supported catalog reads and book writes use live endpoints when mocks are off.
 
 const check = (message: string | null): void => {
   if (message) fail("VALIDATION_ERROR", message, 422);
@@ -40,16 +40,126 @@ interface BackendBookRecord {
   publisher?: string | null;
   publicationYear?: number | null;
   language?: string | null;
+  price?: string | null;
   coverImageUrl?: string | null;
+  status?: string;
   isArchived?: boolean;
-  author?: { id: number | string; name: string | null } | null;
-  authors?: { id: number | string; name: string | null }[];
-  category?: { id: number | string; name: string } | null;
-  availability?: { availableCopies: number; totalUsableCopies: number };
+  author?: BackendAuthor | null;
+  authors?: BackendAuthor[];
+  category?: BackendBookCategory | null;
+  availability?: BackendAvailability;
   availableCopies?: number;
 }
 
-interface BackendCategory {
+interface BackendAuthor {
+  id: number | string;
+  name: string | null;
+}
+
+interface BackendBookCategory {
+  id: number | string;
+  name: string;
+}
+
+interface BackendAvailability {
+  availableCopies: number;
+  totalUsableCopies: number;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function positiveId(value: unknown): value is number | string {
+  return (typeof value === "number" && Number.isSafeInteger(value) && value > 0)
+    || (typeof value === "string" && /^[1-9]\d*$/.test(value));
+}
+
+function mapBackendBook(value: unknown): BookDetail {
+  if (!isRecord(value) || !positiveId(value.id) || typeof value.title !== "string" || !value.title.trim()) {
+    throw new ApiError("UNKNOWN", "The Server returned a book with invalid fields.");
+  }
+  const availability = value.availability;
+  if (!isRecord(availability)
+    || typeof availability.availableCopies !== "number"
+    || !Number.isSafeInteger(availability.availableCopies)
+    || availability.availableCopies < 0
+    || typeof availability.totalUsableCopies !== "number"
+    || !Number.isSafeInteger(availability.totalUsableCopies)
+    || availability.totalUsableCopies < availability.availableCopies) {
+    throw new ApiError("UNKNOWN", "The Server returned a book with invalid availability.");
+  }
+  const authorValues = value.authors ?? (value.author ? [value.author] : []);
+  if (!Array.isArray(authorValues)) {
+    throw new ApiError("UNKNOWN", "The Server returned invalid book authors.");
+  }
+  const authors: BackendAuthor[] = authorValues.map((author) => {
+    if (!isRecord(author) || !positiveId(author.id) || typeof author.name !== "string") {
+      throw new ApiError("UNKNOWN", "The Server returned invalid book authors.");
+    }
+    return { id: author.id, name: author.name };
+  });
+  const category = value.category;
+  let mappedCategory: BackendBookCategory | null = null;
+  if (category !== null && category !== undefined) {
+    if (!isRecord(category) || !positiveId(category.id) || typeof category.name !== "string") {
+      throw new ApiError("UNKNOWN", "The Server returned an invalid book status.");
+    }
+    mappedCategory = { id: category.id, name: category.name };
+  }
+  if (value.isArchived !== undefined && typeof value.isArchived !== "boolean") {
+    throw new ApiError("UNKNOWN", "The Server returned an invalid book status.");
+  }
+  if (value.price !== undefined && value.price !== null
+    && (typeof value.price !== "string" || !Number.isFinite(Number(value.price)) || Number(value.price) < 0)) {
+    throw new ApiError("UNKNOWN", "The Server returned an invalid book price.");
+  }
+  for (const field of ["isbn", "description", "publisher", "language", "coverImageUrl"] as const) {
+    if (value[field] !== undefined && value[field] !== null && typeof value[field] !== "string") {
+      throw new ApiError("UNKNOWN", `The Server returned an invalid book ${field}.`);
+    }
+  }
+  if (value.publicationYear !== undefined && value.publicationYear !== null
+    && (typeof value.publicationYear !== "number" || !Number.isInteger(value.publicationYear)
+      || value.publicationYear < 1000 || value.publicationYear > 3000)) {
+    throw new ApiError("UNKNOWN", "The Server returned an invalid book publication year.");
+  }
+  if (value.status !== undefined && value.status !== "Active" && value.status !== "Archived") {
+    throw new ApiError("UNKNOWN", "The Server returned an invalid book status.");
+  }
+  if (typeof value.isArchived !== "boolean" && value.status !== "Active" && value.status !== "Archived") {
+    throw new ApiError("UNKNOWN", "The Server returned a book without a status.");
+  }
+  if (typeof value.isArchived === "boolean" && value.status
+    && value.isArchived !== (value.status === "Archived")) {
+    throw new ApiError("UNKNOWN", "The Server returned inconsistent book status fields.");
+  }
+
+  const record: BackendBookRecord = {
+    id: value.id,
+    title: value.title,
+    isbn: typeof value.isbn === "string" ? value.isbn : null,
+    description: typeof value.description === "string" ? value.description : null,
+    publisher: typeof value.publisher === "string" ? value.publisher : null,
+    publicationYear: typeof value.publicationYear === "number" ? value.publicationYear : null,
+    language: typeof value.language === "string" ? value.language : null,
+    price: typeof value.price === "string" ? value.price : null,
+    coverImageUrl: typeof value.coverImageUrl === "string" ? value.coverImageUrl : null,
+    authors,
+    category: mappedCategory,
+    availability: {
+      availableCopies: availability.availableCopies,
+      totalUsableCopies: availability.totalUsableCopies,
+    },
+    isArchived: typeof value.isArchived === "boolean" ? value.isArchived : value.status === "Archived",
+    status: typeof value.status === "string" ? value.status : undefined,
+  };
+  return { ...mapBackendBookSummary(record), publisher: record.publisher ?? null,
+    publicationYear: record.publicationYear ?? null, language: record.language ?? null,
+    price: record.price ?? null, isArchived: record.isArchived ?? false };
+}
+
+interface BackendCategoryOption {
   id?: string | number;
   categoryId?: string | number;
   category_id?: string | number;
@@ -62,10 +172,11 @@ function mapBackendCategory(value: unknown): CategorySummary {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new ApiError("UNKNOWN", "The Server returned an invalid category.");
   }
-  const row = value as BackendCategory;
+  const row = value as BackendCategoryOption;
   const id = row.id ?? row.categoryId ?? row.category_id;
   const name = row.name ?? row.category_name;
-  if ((typeof id !== "string" && typeof id !== "number") || typeof name !== "string") {
+  if (!positiveId(id) || typeof name !== "string" || !name.trim()
+    || (row.description !== undefined && row.description !== null && typeof row.description !== "string")) {
     throw new ApiError("UNKNOWN", "The Server returned a category without an ID or name.");
   }
   return {
@@ -95,14 +206,8 @@ function mapBackendBookSummary(book: BackendBookRecord): BookSummary {
   };
 }
 
-function mapBackendBookDetail(book: BackendBookRecord): BookDetail {
-  return {
-    ...mapBackendBookSummary(book),
-    publisher: book.publisher ?? null,
-    publicationYear: book.publicationYear ?? null,
-    language: book.language ?? null,
-    isArchived: book.isArchived ?? false,
-  };
+function mapBackendBookDetail(value: unknown): BookDetail {
+  return mapBackendBook(value);
 }
 
 function liveBookQuery(params: BookListParams, page: number, limit: number) {
@@ -115,6 +220,79 @@ function liveBookQuery(params: BookListParams, page: number, limit: number) {
     limit,
     ...(categoryId === undefined ? {} : { category_id: categoryId }),
     ...(params.search?.trim() ? { search: params.search.trim() } : {}),
+  };
+}
+
+function apiId(id: UUID, label: string): number {
+  if (!/^[1-9]\d*$/.test(id) || !Number.isSafeInteger(Number(id))) {
+    fail("VALIDATION_ERROR", `${label} must be a positive integer.`, 400);
+  }
+  return Number(id);
+}
+
+function bookRequestFields(req: Partial<UpdateBookRequest>, includeInitialCopies: boolean): Record<string, string | number | boolean | null> {
+  const fields: Record<string, string | number | boolean | null> = {};
+  if (req.title !== undefined) fields.title = req.title;
+  if (req.isbn !== undefined) fields.isbn = req.isbn;
+  if (req.authorIds !== undefined) {
+    if (req.authorIds.length !== 1) fail("VALIDATION_ERROR", "Choose one author.", 422);
+    fields.authorId = apiId(req.authorIds[0], "Author id");
+  }
+  if (req.categoryId !== undefined) fields.categoryId = req.categoryId === null ? null : apiId(req.categoryId, "Category id");
+  if (req.publisher !== undefined) fields.publisher = req.publisher;
+  if (req.publicationYear !== undefined) fields.publicationYear = req.publicationYear;
+  if (req.language !== undefined) fields.language = req.language;
+  if (req.price !== undefined) fields.price = req.price;
+  if (req.description !== undefined) fields.description = req.description;
+  if (req.coverImageUrl !== undefined) fields.coverImageUrl = req.coverImageUrl;
+  if (includeInitialCopies && req.initialCopies !== undefined) fields.initialCopies = req.initialCopies;
+  if ("isArchived" in req && req.isArchived !== undefined) fields.isArchived = req.isArchived;
+  return fields;
+}
+
+function appendFormFields(form: FormData, fields: Record<string, string | number | boolean | null>): void {
+  for (const [key, value] of Object.entries(fields)) {
+    form.append(key, value === null ? "" : String(value));
+  }
+}
+
+function mapBackendAuthor(value: unknown): AuthorSummary {
+  if (!isRecord(value)) throw new ApiError("UNKNOWN", "The Server returned an invalid author.");
+  const id = value.id ?? value.authorId;
+  if (!positiveId(id) || typeof value.name !== "string") {
+    throw new ApiError("UNKNOWN", "The Server returned an author without an ID or name.");
+  }
+  return { id: String(id), name: value.name };
+}
+
+async function listLiveStaffBooks(params: BookListParams): Promise<Paginated<BookDetail>> {
+  const page = params.page ?? 1;
+  const pageSize = params.pageSize ?? 20;
+  if (!Number.isSafeInteger(page) || page < 1 || !Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 100) {
+    fail("VALIDATION_ERROR", "Page must be positive and page size must be from 1 to 100.", 400);
+  }
+  let response: Paginated<unknown>;
+  try {
+    response = await apiGetPage<unknown>("/books", liveBookQuery(params, page, pageSize));
+  } catch (error) {
+    throw toApiError(error);
+  }
+  if (!response || !Array.isArray(response.data) || !isRecord(response.meta)
+    || typeof response.meta.page !== "number"
+    || typeof response.meta.pageSize !== "number"
+    || typeof response.meta.total !== "number"
+    || !Number.isFinite(response.meta.page)
+    || !Number.isFinite(response.meta.pageSize)
+    || !Number.isFinite(response.meta.total)) {
+    throw new ApiError("UNKNOWN", "The Server returned an invalid book list.");
+  }
+  return {
+    data: response.data.map(mapBackendBook),
+    meta: {
+      page: response.meta.page,
+      pageSize: response.meta.pageSize,
+      total: response.meta.total,
+    },
   };
 }
 
@@ -179,10 +357,6 @@ export async function listBooks(params: BookListParams = {}): Promise<Paginated<
   return out(paginate(rows.map(toBookSummary), params.page, params.pageSize));
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 /** Maps the compact personalized-recommendation book shape to the shared book-card type. */
 export function mapRecommendedBook(value: unknown): BookSummary {
   if (!isRecord(value)) throw new ApiError("UNKNOWN", "The Server returned an invalid recommended book.");
@@ -233,6 +407,7 @@ export async function getRecommendedBooks(): Promise<BookSummary[]> {
 
 /** C1 for staff screens: includes archived titles and the staff-only fields. */
 export async function listBooksForStaff(params: BookListParams = {}): Promise<Paginated<BookDetail>> {
+  if (!USE_MOCKS) return listLiveStaffBooks(params);
   await begin();
   requireCapability("STAFF_AREA");
   return out(paginate(filterBooks(db.books, params).map(toBookDetail), params.page, params.pageSize));
@@ -244,7 +419,7 @@ export async function getBook(bookId: UUID): Promise<BookDetail> {
     if (!/^[1-9]\d*$/.test(bookId) || !Number.isSafeInteger(Number(bookId))) {
       fail("VALIDATION_ERROR", "Book id must be a positive integer.", 400);
     }
-    return mapBackendBookDetail(await apiGet<BackendBookRecord>(`/books/${bookId}`));
+    return mapBackendBookDetail(await apiGet<unknown>(`/books/${bookId}`));
   }
   await begin();
   const account = requireAccount();
@@ -286,6 +461,11 @@ export async function createCategory(req: SaveCategoryRequest): Promise<Category
 
 /** Mock only (no author endpoint in the source). */
 export async function listAuthors(): Promise<AuthorSummary[]> {
+  if (!USE_MOCKS) {
+    const response = await apiGet<unknown>("/authors");
+    if (!Array.isArray(response)) throw new ApiError("UNKNOWN", "The Server returned an invalid author list.");
+    return response.map(mapBackendAuthor);
+  }
   await begin();
   requireAccount();
   return out([...db.authors].sort((a, b) => a.name.localeCompare(b.name)));
@@ -305,6 +485,26 @@ function validateBookInput(req: Partial<CreateBookRequest>, partial: boolean, se
 
 /** C4 POST /books (Admin, or Librarian with catalog permission) */
 export async function createBook(req: CreateBookRequest): Promise<BookDetail> {
+  if (!USE_MOCKS) {
+    const fields = bookRequestFields(req, true);
+    if (req.authorIds === undefined || req.authorIds.length !== 1) {
+      fail("VALIDATION_ERROR", "Choose one author.", 422);
+    }
+    try {
+      if (req.coverImage) {
+        const form = new FormData();
+        appendFormFields(form, fields);
+        form.append("coverImage", req.coverImage);
+        const response = await apiClient.post<{ data: unknown }>("/books", form, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        return mapBackendBookDetail(response.data.data);
+      }
+      return mapBackendBookDetail(await apiPost<unknown>("/books", fields));
+    } catch (error) {
+      throw toApiError(error);
+    }
+  }
   await begin();
   requireCapability("CATALOG_MANAGE");
   validateBookInput(req, false);
@@ -333,6 +533,24 @@ const hasOpenCommitments = (bookId: UUID): boolean =>
 
 /** C5 PATCH /books/:bookId */
 export async function updateBook(bookId: UUID, req: UpdateBookRequest): Promise<BookDetail> {
+  if (!USE_MOCKS) {
+    apiId(bookId, "Book id");
+    const fields = bookRequestFields(req, false);
+    try {
+      if (req.coverImage) {
+        const form = new FormData();
+        appendFormFields(form, fields);
+        form.append("coverImage", req.coverImage);
+        const response = await apiClient.patch<{ data: unknown }>(`/books/${bookId}`, form, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        return mapBackendBookDetail(response.data.data);
+      }
+      return mapBackendBookDetail(await apiPatch<unknown>(`/books/${bookId}`, fields));
+    } catch (error) {
+      throw toApiError(error);
+    }
+  }
   await begin();
   requireCapability("CATALOG_MANAGE");
   const book = db.books.find((b) => b.id === bookId);

@@ -17,10 +17,11 @@ interface DataTableProps<T> {
   empty?: string;
   pageSize?: number;
   onRowClick?: (row: T) => void;
+  rowClassName?: (row: T) => string | undefined;
 }
 
 /** Client-side paginated table. Server-paginated lists should render their own Pagination. */
-export default function DataTable<T>({ columns, rows, rowKey, empty = "Nothing to show.", pageSize = 10, onRowClick }: DataTableProps<T>) {
+export default function DataTable<T>({ columns, rows, rowKey, empty = "Nothing to show.", pageSize = 10, onRowClick, rowClassName }: DataTableProps<T>) {
   const pg = usePagination(rows.length, pageSize);
   if (rows.length === 0) return <EmptyState title={empty} />;
   const slice = rows.slice((pg.page - 1) * pg.pageSize, pg.page * pg.pageSize);
@@ -42,7 +43,7 @@ export default function DataTable<T>({ columns, rows, rowKey, empty = "Nothing t
             {slice.map((row) => (
               <tr
                 key={rowKey(row)}
-                className={onRowClick ? "clickable" : ""}
+                className={[onRowClick ? "clickable" : "", rowClassName?.(row)].filter(Boolean).join(" ") || undefined}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
               >
                 {columns.map((c) => (

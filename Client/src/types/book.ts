@@ -34,6 +34,7 @@ export interface BookDetail extends BookSummary {
   publisher: string | null;
   publicationYear: number | null;
   language: string | null;
+  price?: string | null;
   isArchived: boolean;
 }
 
@@ -75,7 +76,7 @@ export interface BookListParams extends PageParams {
   availability?: AvailabilityFilter;
 }
 
-/** C4 POST /books. authorIds keeps the author order. Author endpoints are not in the source (TO CONFIRM). */
+/** Create payload shared with mocks; the live adapter maps the selected authorIds[0] to Server authorId. */
 export interface CreateBookRequest {
   isbn?: string | null;
   title: string;
@@ -86,6 +87,9 @@ export interface CreateBookRequest {
   publicationYear?: number | null;
   language?: string | null;
   coverImageUrl?: string | null;
+  price?: number | null;
+  initialCopies?: number;
+  coverImage?: File;
 }
 
 /** C5 PATCH /books/:bookId */
