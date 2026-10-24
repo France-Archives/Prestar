@@ -143,8 +143,11 @@ vite.config.ts.timestamp-*
 .vite/
 
 # Private file storage
-Server/storage/
+Server/storage/*
+!Server/storage/**/.gitkeep
 Server/uploads/
-storage/
+storage/*
+!storage/**/.gitkeep
 uploads/
+
 

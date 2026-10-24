@@ -151,25 +151,34 @@ export async function submitVerification(req, res, next) {
     // Resolve active term
     const term = await getOrCreateTermForDate(new Date());
 
-    // Mark previous pending uploads for the same term as superseded
-    await StudentVerification.update(
-      { status: "Superseded" },
-      {
-        where: {
-          user_id: userId,
-          term_id: term.term_id,
-          status: "Pending",
-        },
+    // Check if a verification record already exists for this student and term
+    let verification = await StudentVerification.findOne({
+      where: {
+        user_id: userId,
+        term_id: term.term_id,
       },
-    );
-
-    const verification = await StudentVerification.create({
-      user_id: userId,
-      term_id: term.term_id,
-      proof_file: storedFileName,
-      status: "Pending",
-      submitted_at: new Date(),
     });
+
+    if (verification) {
+      await verification.update({
+        proof_file: storedFileName,
+        status: "Pending",
+        submitted_at: new Date(),
+        reviewed_by: null,
+        reviewed_at: null,
+        valid_from: null,
+        valid_until: null,
+        remarks: null,
+      });
+    } else {
+      verification = await StudentVerification.create({
+        user_id: userId,
+        term_id: term.term_id,
+        proof_file: storedFileName,
+        status: "Pending",
+        submitted_at: new Date(),
+      });
+    }
 
     // Create notification for student
     try {

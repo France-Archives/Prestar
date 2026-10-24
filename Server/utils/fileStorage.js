@@ -23,6 +23,9 @@ const ALLOWED_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
+    if (!fs.existsSync(COR_STORAGE_DIR)) {
+      fs.mkdirSync(COR_STORAGE_DIR, { recursive: true });
+    }
     cb(null, COR_STORAGE_DIR);
   },
   filename: (req, file, cb) => {
@@ -196,6 +199,7 @@ export async function saveBase64CorImage(userId, base64String, originalName = "c
   const filename = `cor_${userId}_${Date.now()}_${unique}${ext}`;
   const filePath = path.join(COR_STORAGE_DIR, filename);
 
+  await fs.promises.mkdir(COR_STORAGE_DIR, { recursive: true });
   await fs.promises.writeFile(filePath, buffer);
 
   return {
