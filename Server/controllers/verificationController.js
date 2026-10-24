@@ -1,6 +1,7 @@
 // Server/controllers/verificationController.js
 import fs from "node:fs";
 import path from "node:path";
+import { Op } from "sequelize";
 import {
   approveStudentVerification,
   expireOverdueVerifications,
@@ -191,7 +192,32 @@ export async function submitVerification(req, res, next) {
         relatedEntityId: verification.verification_id,
       });
     } catch (notifErr) {
-      console.warn("[Notification] Error creating COR_SUBMITTED notification:", notifErr.message);
+      console.warn("[Notification] Error creating COR_SUBMITTED notification for student:", notifErr.message);
+    }
+
+    // Create notifications for staff reviewers (Librarians and Admins)
+    try {
+      const reviewers = await User.findAll({
+        where: {
+          role: { [Op.in]: ["Admin", "Librarian"] },
+          status: "Active",
+        },
+        attributes: ["user_id"],
+      });
+      await Promise.all(
+        reviewers.map((r) =>
+          createNotification({
+            userId: r.user_id,
+            type: "COR_SUBMITTED",
+            title: "New COR submitted",
+            message: "A student submitted a COR for review.",
+            relatedEntityType: "STUDENT_VERIFICATION",
+            relatedEntityId: verification.verification_id,
+          }).catch(() => null)
+        )
+      );
+    } catch (reviewerNotifErr) {
+      console.warn("[Notification] Error creating reviewer notification:", reviewerNotifErr.message);
     }
 
     return res.status(201).json({
