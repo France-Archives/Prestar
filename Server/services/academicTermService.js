@@ -111,22 +111,324 @@ export async function getOrCreateTermForDate(dateInput = new Date(), options = {
 }
 
 /**
- * Returns all academic terms, sorted by start_date descending.
+ * Checks if a string is a valid ISO date in YYYY-MM-DD format.
+ */
+function isValidDateStr(str) {
+  if (!str || typeof str !== "string") return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(str)) return false;
+  const d = new Date(`${str}T00:00:00.000Z`);
+  return !Number.isNaN(d.getTime());
+}
+
+/**
+ * Normalizes status string to match PostgreSQL check constraint ('Upcoming' | 'Active' | 'Completed').
+ */
+function normalizeTermStatus(status) {
+  if (!status) return "Upcoming";
+  const s = String(status).trim().toUpperCase();
+  if (s === "ACTIVE") return "Active";
+  if (s === "COMPLETED") return "Completed";
+  if (s === "UPCOMING") return "Upcoming";
+  const firstCap = s.charAt(0) + s.slice(1).toLowerCase();
+  if (["Active", "Upcoming", "Completed"].includes(firstCap)) return firstCap;
+  return null;
+}
+
+/**
+ * Formats an AcademicTerm database instance to match frontend expectations.
+ */
+export function formatAcademicTerm(term) {
+  const plain = typeof term.get === "function" ? term.get({ plain: true }) : term;
+  const statusStr = String(plain.status || "Upcoming").trim();
+  const statusUpper = statusStr.toUpperCase();
+
+  return {
+    id: String(plain.term_id),
+    termId: Number(plain.term_id),
+    name: plain.term_name,
+    termName: plain.term_name,
+    startDate: plain.start_date,
+    endDate: plain.end_date,
+    corDeadline: plain.cor_deadline,
+    status: statusUpper,
+    statusLabel: statusStr,
+    createdAt: plain.created_at ? new Date(plain.created_at).toISOString() : undefined,
+    updatedAt: plain.updated_at ? new Date(plain.updated_at).toISOString() : undefined,
+  };
+}
+
+/**
+ * Returns all academic terms, sorted by start_date ascending (or descending).
  */
 export async function listAcademicTerms() {
   const terms = await AcademicTerm.findAll({
-    order: [["start_date", "DESC"]],
+    order: [["start_date", "ASC"], ["term_id", "ASC"]],
   });
 
-  return terms.map((t) => ({
-    id: t.term_id,
-    name: t.term_name,
-    startDate: t.start_date,
-    endDate: t.end_date,
-    corDeadline: t.cor_deadline,
-    status: t.status,
-  }));
+  return terms.map(formatAcademicTerm);
 }
+
+/**
+ * Gets a single academic term by ID.
+ */
+export async function getAcademicTermById(termId) {
+  const id = Number(termId);
+  if (!Number.isInteger(id) || id <= 0) {
+    const err = new Error("Term ID must be a positive integer.");
+    err.status = 400;
+    err.code = "VALIDATION_ERROR";
+    throw err;
+  }
+
+  const term = await AcademicTerm.findByPk(id);
+  if (!term) {
+    const err = new Error("We could not find that academic term.");
+    err.status = 404;
+    err.code = "NOT_FOUND";
+    throw err;
+  }
+
+  return formatAcademicTerm(term);
+}
+
+/**
+ * Creates a new AcademicTerm (Admin only).
+ * Audited via withActor(actorUserId).
+ */
+export async function createAcademicTerm(payload, actorUserId) {
+  const name = String(payload.name || payload.term_name || payload.termName || "").trim();
+  const startDate = payload.startDate || payload.start_date;
+  const endDate = payload.endDate || payload.end_date;
+  const corDeadline = payload.corDeadline || payload.cor_deadline || endDate;
+  const rawStatus = payload.status;
+
+  if (!name || name.length > 100) {
+    const err = new Error("Term name is required and must not exceed 100 characters.");
+    err.status = 422;
+    err.code = "VALIDATION_ERROR";
+    throw err;
+  }
+
+  if (!isValidDateStr(startDate)) {
+    const err = new Error("A valid start date (YYYY-MM-DD) is required.");
+    err.status = 422;
+    err.code = "VALIDATION_ERROR";
+    throw err;
+  }
+
+  if (!isValidDateStr(endDate)) {
+    const err = new Error("A valid end date (YYYY-MM-DD) is required.");
+    err.status = 422;
+    err.code = "VALIDATION_ERROR";
+    throw err;
+  }
+
+  if (endDate < startDate) {
+    const err = new Error("End date must be on or after start date.");
+    err.status = 422;
+    err.code = "VALIDATION_ERROR";
+    throw err;
+  }
+
+  if (!isValidDateStr(corDeadline)) {
+    const err = new Error("A valid COR deadline (YYYY-MM-DD) is required.");
+    err.status = 422;
+    err.code = "VALIDATION_ERROR";
+    throw err;
+  }
+
+  if (corDeadline < startDate) {
+    const err = new Error("COR deadline cannot be before the start date.");
+    err.status = 422;
+    err.code = "VALIDATION_ERROR";
+    throw err;
+  }
+
+  if (corDeadline > endDate) {
+    const err = new Error("The COR deadline cannot be after the end date.");
+    err.status = 422;
+    err.code = "VALIDATION_ERROR";
+    throw err;
+  }
+
+  const normalizedStatus = normalizeTermStatus(rawStatus) || "Upcoming";
+
+  // Check unique term name
+  const existingName = await AcademicTerm.findOne({
+    where: { term_name: name },
+  });
+  if (existingName) {
+    const err = new Error(`An academic term with the name "${name}" already exists.`);
+    err.status = 409;
+    err.code = "CONFLICT";
+    throw err;
+  }
+
+  // Active term conflict check
+  if (normalizedStatus === "Active") {
+    const existingActive = await AcademicTerm.findOne({
+      where: { status: "Active" },
+    });
+    if (existingActive) {
+      const err = new Error("Another term is already active. Mark it completed first.");
+      err.status = 409;
+      err.code = "CONFLICT";
+      throw err;
+    }
+  }
+
+  return withActor(actorUserId, async (transaction) => {
+    const created = await AcademicTerm.create(
+      {
+        term_name: name,
+        start_date: startDate,
+        end_date: endDate,
+        cor_deadline: corDeadline,
+        status: normalizedStatus,
+      },
+      { transaction },
+    );
+
+    return formatAcademicTerm(created);
+  });
+}
+
+/**
+ * Updates an existing AcademicTerm (Admin only).
+ * Audited via withActor(actorUserId).
+ */
+export async function updateAcademicTerm(termId, payload, actorUserId) {
+  const id = Number(termId);
+  if (!Number.isInteger(id) || id <= 0) {
+    const err = new Error("Term ID must be a positive integer.");
+    err.status = 400;
+    err.code = "VALIDATION_ERROR";
+    throw err;
+  }
+
+  const term = await AcademicTerm.findByPk(id);
+  if (!term) {
+    const err = new Error("We could not find that academic term.");
+    err.status = 404;
+    err.code = "NOT_FOUND";
+    throw err;
+  }
+
+  const name = payload.name !== undefined || payload.term_name !== undefined || payload.termName !== undefined
+    ? String(payload.name ?? payload.term_name ?? payload.termName ?? "").trim()
+    : term.term_name;
+
+  if (name.length === 0 || name.length > 100) {
+    const err = new Error("Term name is required and must not exceed 100 characters.");
+    err.status = 422;
+    err.code = "VALIDATION_ERROR";
+    throw err;
+  }
+
+  // If name changed, check uniqueness
+  if (name !== term.term_name) {
+    const existingName = await AcademicTerm.findOne({
+      where: {
+        term_name: name,
+        term_id: { [Op.ne]: id },
+      },
+    });
+    if (existingName) {
+      const err = new Error(`An academic term with the name "${name}" already exists.`);
+      err.status = 409;
+      err.code = "CONFLICT";
+      throw err;
+    }
+  }
+
+  const startDate = payload.startDate || payload.start_date || term.start_date;
+  const endDate = payload.endDate || payload.end_date || term.end_date;
+  const corDeadline = payload.corDeadline || payload.cor_deadline || term.cor_deadline;
+
+  if (!isValidDateStr(startDate)) {
+    const err = new Error("A valid start date (YYYY-MM-DD) is required.");
+    err.status = 422;
+    err.code = "VALIDATION_ERROR";
+    throw err;
+  }
+  if (!isValidDateStr(endDate)) {
+    const err = new Error("A valid end date (YYYY-MM-DD) is required.");
+    err.status = 422;
+    err.code = "VALIDATION_ERROR";
+    throw err;
+  }
+  if (endDate < startDate) {
+    const err = new Error("End date must be on or after start date.");
+    err.status = 422;
+    err.code = "VALIDATION_ERROR";
+    throw err;
+  }
+
+  if (corDeadline) {
+    if (!isValidDateStr(corDeadline)) {
+      const err = new Error("A valid COR deadline (YYYY-MM-DD) is required.");
+      err.status = 422;
+      err.code = "VALIDATION_ERROR";
+      throw err;
+    }
+    if (corDeadline < startDate) {
+      const err = new Error("COR deadline cannot be before the start date.");
+      err.status = 422;
+      err.code = "VALIDATION_ERROR";
+      throw err;
+    }
+    if (corDeadline > endDate) {
+      const err = new Error("The COR deadline cannot be after the end date.");
+      err.status = 422;
+      err.code = "VALIDATION_ERROR";
+      throw err;
+    }
+  }
+
+  let normalizedStatus = term.status;
+  if (payload.status !== undefined) {
+    const parsed = normalizeTermStatus(payload.status);
+    if (!parsed) {
+      const err = new Error("Invalid status. Allowed values are Upcoming, Active, Completed.");
+      err.status = 422;
+      err.code = "VALIDATION_ERROR";
+      throw err;
+    }
+    normalizedStatus = parsed;
+  }
+
+  // Active term conflict check if becoming active
+  if (normalizedStatus === "Active" && term.status !== "Active") {
+    const existingActive = await AcademicTerm.findOne({
+      where: {
+        status: "Active",
+        term_id: { [Op.ne]: id },
+      },
+    });
+    if (existingActive) {
+      const err = new Error("Another term is already active. Mark it completed first.");
+      err.status = 409;
+      err.code = "CONFLICT";
+      throw err;
+    }
+  }
+
+  return withActor(actorUserId, async (transaction) => {
+    await term.update(
+      {
+        term_name: name,
+        start_date: startDate,
+        end_date: endDate,
+        cor_deadline: corDeadline,
+        status: normalizedStatus,
+      },
+      { transaction },
+    );
+
+    return formatAcademicTerm(term);
+  });
+}
+
 
 /**
  * Checks and updates any 'Approved' verifications whose valid_until

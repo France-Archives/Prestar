@@ -95,6 +95,7 @@ BorrowRequest.hasOne(BorrowedBook, { foreignKey: "request_id", as: "borrowedBook
 BorrowedBook.belongsTo(BorrowRequest, { foreignKey: "request_id", as: "request" });
 BorrowedBook.belongsTo(Book, { foreignKey: "book_id", as: "book" });
 BorrowedBook.belongsTo(BookCopy, { foreignKey: "copy_id", as: "copy" });
+BookCopy.hasMany(BorrowedBook, { foreignKey: "copy_id", as: "loans" });
 BorrowedBook.belongsTo(User, { foreignKey: "issued_by", as: "issuer" });
 BorrowedBook.belongsTo(User, { foreignKey: "assigned_by", as: "assigner" });
 

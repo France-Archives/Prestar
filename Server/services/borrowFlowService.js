@@ -853,6 +853,17 @@ export async function pickupBook({ borrowId, requestId, issuerId, copyBarcode })
       id: loan.borrow_id,
       borrowId: loan.borrow_id,
       requestId: request.request_id,
+      copyId: copy.copy_id,
+      accessionNo: copy.accession_no,
+      shelfLocation: copy.shelf_location,
+      copy: {
+        id: String(copy.copy_id),
+        copyId: copy.copy_id,
+        accessionNo: copy.accession_no,
+        shelfLocation: copy.shelf_location,
+        status: copy.status,
+        conditionStatus: copy.condition_status,
+      },
       borrowDate: now,
       dueAt: dueDateStr,
       dueDate: dueDateStr,
@@ -985,6 +996,11 @@ export async function getPickupCheck(borrowId) {
           "requested_days",
         ],
       },
+      {
+        model: BookCopy,
+        as: "copy",
+        attributes: ["copy_id", "accession_no", "shelf_location", "condition_status", "status"],
+      },
     ],
   });
 
@@ -1003,6 +1019,11 @@ export async function getPickupCheck(borrowId) {
             "pickup_deadline",
             "requested_days",
           ],
+        },
+        {
+          model: BookCopy,
+          as: "copy",
+          attributes: ["copy_id", "accession_no", "shelf_location", "condition_status", "status"],
         },
       ],
     });
@@ -1075,6 +1096,19 @@ export async function getPickupCheck(borrowId) {
   return {
     can_release: canRelease,
     reasons: eligibility.reasons,
+    copy: loan.copy
+      ? {
+          id: String(loan.copy.copy_id),
+          copyId: loan.copy.copy_id,
+          accessionNo: loan.copy.accession_no,
+          shelfLocation: loan.copy.shelf_location,
+          status: loan.copy.status,
+          conditionStatus: loan.copy.condition_status,
+        }
+      : null,
+    copyId: loan.copy?.copy_id ?? loan.copy_id,
+    accessionNo: loan.copy?.accession_no ?? null,
+    shelfLocation: loan.copy?.shelf_location ?? null,
     penalties: {
       list: penaltiesRows,
       total_balance: Number(totalBalance.toFixed(2)),

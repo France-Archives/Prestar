@@ -14,6 +14,11 @@ import {
   streamVerificationDocument,
   submitVerification,
 } from "../controllers/verificationController.js";
+import {
+  createAcademicTermHandler,
+  getAcademicTermDetailsHandler,
+  updateAcademicTermHandler,
+} from "../controllers/academicTermController.js";
 
 const router = Router();
 
@@ -33,6 +38,10 @@ const uploadHandler = (req, res, next) => {
 
 // Public / Authenticated terms list
 router.get("/academic-terms", authMiddleware, getTerms);
+router.get("/academic-terms/:id", authMiddleware, getAcademicTermDetailsHandler);
+router.post("/academic-terms", authMiddleware, requireRole(["Admin"]), createAcademicTermHandler);
+router.patch("/academic-terms/:id", authMiddleware, requireRole(["Admin"]), updateAcademicTermHandler);
+router.put("/academic-terms/:id", authMiddleware, requireRole(["Admin"]), updateAcademicTermHandler);
 
 // Student verification endpoints
 router.get("/me/verifications", authMiddleware, getMyVerifications);

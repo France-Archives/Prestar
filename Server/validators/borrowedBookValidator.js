@@ -102,6 +102,19 @@ export function validateReturnLoan(req, res, next) {
   req.returnFineType = typeof fineType === "string" ? fineType.trim() : null;
   req.returnFineAmount = Number(fineAmount) > 0 ? Number(fineAmount) : null;
 
+  const rawShelf = req.body?.shelfLocation ?? req.body?.shelf_location;
+  if (rawShelf !== undefined && rawShelf !== null) {
+    if (typeof rawShelf !== "string") {
+      return res.status(400).json({ error: "shelfLocation must be a string." });
+    }
+    if (rawShelf.length > 100) {
+      return res.status(400).json({ error: "shelfLocation cannot exceed 100 characters." });
+    }
+    req.returnShelfLocation = rawShelf.trim() || null;
+  } else {
+    req.returnShelfLocation = null;
+  }
+
   return next();
 }
 

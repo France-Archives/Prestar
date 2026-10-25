@@ -136,6 +136,7 @@ export async function returnLoanHandler(req, res) {
       notes: req.returnNotes,
       fineType: req.returnFineType,
       fineAmount: req.returnFineAmount,
+      shelfLocation: req.returnShelfLocation,
     });
     return res.status(200).json(result);
   } catch (error) {

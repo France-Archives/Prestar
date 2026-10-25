@@ -213,6 +213,7 @@ export async function returnBorrowedBook({
   notes = null,
   fineType = null,
   fineAmount = null,
+  shelfLocation = null,
 }) {
   const normalizedCond = normalizeCondition(condition);
 
@@ -304,24 +305,28 @@ export async function returnBorrowedBook({
     await loan.update({ status: "Returned" }, { transaction });
 
     // Update Copy status based on condition
+    const trimmedShelf = typeof shelfLocation === "string" && shelfLocation.trim() ? shelfLocation.trim() : null;
+
     if (normalizedCond === "DAMAGED" || normalizedCond === "UNUSABLE") {
       resultingCopyStatus = "Maintenance";
-      await copy.update(
-        {
-          status: "Maintenance",
-          condition_status: "Damaged",
-        },
-        { transaction },
-      );
+      const copyUpdates = {
+        status: "Maintenance",
+        condition_status: "Damaged",
+      };
+      if (trimmedShelf) {
+        copyUpdates.shelf_location = trimmedShelf;
+      }
+      await copy.update(copyUpdates, { transaction });
     } else {
       resultingCopyStatus = "Available";
-      await copy.update(
-        {
-          status: "Available",
-          condition_status: "Good",
-        },
-        { transaction },
-      );
+      const copyUpdates = {
+        status: "Available",
+        condition_status: "Good",
+      };
+      if (trimmedShelf) {
+        copyUpdates.shelf_location = trimmedShelf;
+      }
+      await copy.update(copyUpdates, { transaction });
     }
 
     // Optional damage penalty creation
@@ -396,6 +401,7 @@ export async function returnBorrowedBook({
     message: "Book return processed successfully.",
     loan: updatedLoan,
     copyStatus: resultingCopyStatus.toUpperCase(),
+    shelfLocation: updatedLoan.copy?.shelfLocation ?? null,
     offeredToReservationId,
     penalty: assessedPenalty,
   };

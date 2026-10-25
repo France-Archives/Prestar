@@ -19,6 +19,12 @@ import {
   getAuditLogsHandler,
   recordAuditLogHandler,
 } from "../controllers/auditLogController.js";
+import {
+  createAcademicTermHandler,
+  getAcademicTermDetailsHandler,
+  getAcademicTermsHandler,
+  updateAcademicTermHandler,
+} from "../controllers/academicTermController.js";
 
 const router = Router();
 
@@ -49,5 +55,12 @@ router.get("/verifications/:id/document", streamVerificationDocument);
 // Audit logs endpoints (Admin)
 router.get("/audit-logs", getAuditLogsHandler);
 router.post("/audit-logs", recordAuditLogHandler);
+
+// Academic terms management endpoints (Admin only)
+router.get("/academic-terms", getAcademicTermsHandler);
+router.get("/academic-terms/:id", getAcademicTermDetailsHandler);
+router.post("/academic-terms", createAcademicTermHandler);
+router.patch("/academic-terms/:id", updateAcademicTermHandler);
+router.put("/academic-terms/:id", updateAcademicTermHandler);
 
 export default router;

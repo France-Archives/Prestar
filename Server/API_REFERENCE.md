@@ -19,13 +19,20 @@
 5. [Borrowed Books](#5-borrowed-books)
 6. [Common Error Responses](#6-common-error-responses)
 7. [Academic Terms & COR Verification](#7-academic-terms--cor-verification)
+   - [Create & Update Terms (Admin)](#71a-post-apiadminacademic-terms)
 8. [Reservations (FIFO Queue System)](#8-reservations-fifo-queue-system)
    - [Renewals](#8b-renewals)
 9. [Notifications](#9-notifications)
 10. [Admin Account Management & Audit Logs](#10-admin-account-management)
    - [Audit Logs (`GET /api/admin/audit-logs`)](#103-get-apiadminaudit-logs)
-11. [Users](#11-users)
 12. [Fines & Payments (Cash Only)](#12-fines--payments-cash-only)
+13. [Shelf Locator & Inventory Management](#13-shelf-locator--inventory-management)
+   - [Search Shelf Copies (`GET /api/shelf-locator`)](#131-get-apishelf-locator-or-get-apishelf-locations)
+   - [Search Books with Grouped Copies (`GET /api/shelf-locator/books`)](#132-get-apishelf-locatorbooks)
+   - [List Distinct Shelves (`GET /api/shelf-locator/shelves`)](#133-get-apishelf-locatorshelves)
+   - [Get Copies of a Book (`GET /api/books/:id/copies`)](#134-get-apibooksidcopies)
+   - [Update Copy Shelf Location (`PATCH /api/shelf-locator/copies/:copyId`)](#135-patch-apishelf-locatorcopiescopyid)
+   - [Bulk Update Shelf Locations (`PATCH /api/shelf-locator/bulk`)](#136-patch-apishelf-locatorbulk)
 
 ---
 
@@ -1307,6 +1314,17 @@ Confirm book handover by request ID. Releases the reserved copy to the student a
   "id": 55,
   "borrowId": 55,
   "requestId": 101,
+  "copyId": 12,
+  "accessionNo": "ACC-00012",
+  "shelfLocation": "Shelf-051",
+  "copy": {
+    "id": "12",
+    "copyId": 12,
+    "accessionNo": "ACC-00012",
+    "shelfLocation": "Shelf-051",
+    "status": "Borrowed",
+    "conditionStatus": "Good"
+  },
   "borrowDate": "2026-10-12T10:00:00.000Z",
   "dueAt": "2026-10-26",
   "dueDate": "2026-10-26",
@@ -1631,6 +1649,7 @@ Accept a returned physical copy at the circulation desk. Never blocked by overdu
 ```json
 {
   "condition": "GOOD",
+  "shelfLocation": "Shelf-051",
   "notes": "Book returned in excellent condition.",
   "fineType": "DAMAGE_MINOR",
   "fineAmount": 100
@@ -1640,6 +1659,7 @@ Accept a returned physical copy at the circulation desk. Never blocked by overdu
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `condition` | string | Yes | One of `NEW`, `GOOD`, `FAIR`, `DAMAGED`, `UNUSABLE`. |
+| `shelfLocation` | string | Optional | Shelf location where the returned copy is placed (e.g. `Shelf-051`). Updates `book_copies.shelf_location`. |
 | `notes` | string | Optional | Inspection notes up to 2000 characters. |
 | `fineType` | string | Optional | `DAMAGE_MINOR` (₱100) or `DAMAGE_MAJOR` (₱200) if damage is assessed. |
 | `fineAmount` | number | Optional | Non-negative penalty amount to assess. |
@@ -1647,15 +1667,23 @@ Accept a returned physical copy at the circulation desk. Never blocked by overdu
 **Success `200`**
 ```json
 {
-  "message": "Book return accepted successfully.",
+  "message": "Book return processed successfully.",
   "loan": {
     "id": 55,
     "borrowId": 55,
     "status": "Returned",
     "returnedAt": "2026-10-24T06:12:46.000Z",
-    "daysOverdue": 0
+    "daysOverdue": 0,
+    "copy": {
+      "id": "12",
+      "accessionNo": "ACC-00012",
+      "shelfLocation": "Shelf-051",
+      "status": "Available",
+      "conditionStatus": "Good"
+    }
   },
   "copyStatus": "AVAILABLE",
+  "shelfLocation": "Shelf-051",
   "penalty": null
 }
 ```
@@ -1773,23 +1801,160 @@ Error responses return JSON with standardized message and error code structures:
 4. **Expiration (`status = 'Expired'`):** When the current date passes `valid_until`, the COR status becomes `Expired`, and borrowing is blocked with `VERIFICATION_EXPIRED`.
 
 ### 7.1 `GET /api/academic-terms`
-Returns the list of academic terms sorted by start date.
+*(Also available at `GET /api/admin/academic-terms`)*  
+Returns the list of academic terms sorted by start date ascending.
 
 **Success `200`**
 ```json
 [
   {
-    "id": 1,
+    "id": "1",
     "termId": 1,
-    "term_id": 1,
     "name": "1st Semester 2026-2027",
+    "termName": "1st Semester 2026-2027",
     "startDate": "2026-08-01",
     "endDate": "2026-12-31",
     "corDeadline": "2026-12-31",
-    "status": "Active"
+    "status": "ACTIVE",
+    "statusLabel": "Active"
   }
 ]
 ```
+
+---
+
+### 7.1a `POST /api/admin/academic-terms`
+*(Alias: `POST /api/academic-terms`)*  
+Admin-only: Creates a new academic term. Configures the term start date, end date, and COR deadline. Automatically audited with the admin actor ID.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | `Admin` only |
+
+**Request body**
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | Yes | Term name (max 100 chars, unique) |
+| `startDate` | string (YYYY-MM-DD) | Yes | Term start date |
+| `endDate` | string (YYYY-MM-DD) | Yes | Term end date (`>= startDate`) |
+| `corDeadline` | string (YYYY-MM-DD) | Yes | Student COR submission deadline (`>= startDate` and `<= endDate`) |
+| `status` | string | No | `UPCOMING` (default), `ACTIVE`, or `COMPLETED` |
+
+```json
+{
+  "name": "1st Semester 2027-2028",
+  "startDate": "2027-08-01",
+  "endDate": "2027-12-31",
+  "corDeadline": "2027-08-31",
+  "status": "UPCOMING"
+}
+```
+
+**Success `201`**
+```json
+{
+  "message": "Academic term created successfully.",
+  "term": {
+    "id": "35",
+    "termId": 35,
+    "name": "1st Semester 2027-2028",
+    "termName": "1st Semester 2027-2028",
+    "startDate": "2027-08-01",
+    "endDate": "2027-12-31",
+    "corDeadline": "2027-08-31",
+    "status": "UPCOMING",
+    "statusLabel": "Upcoming"
+  }
+}
+```
+
+**Errors**
+| Code | Meaning |
+|---|---|
+| `401` | Not authenticated |
+| `403` | Not an Admin |
+| `409` | Conflict: term name already exists, or another term is already active |
+| `422` | Validation error (missing fields, endDate < startDate, or corDeadline > endDate) |
+
+---
+
+### 7.1b `PATCH /api/admin/academic-terms/:id`
+*(Aliases: `PUT /api/admin/academic-terms/:id`, `PATCH /api/academic-terms/:id`, `PUT /api/academic-terms/:id`)*  
+Admin-only: Updates an existing academic term's dates, COR deadline, name, or status (e.g. transitioning `ACTIVE` to `COMPLETED`). Automatically audited.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | `Admin` only |
+
+**URL parameters**
+| Param | Type | Description |
+|---|---|---|
+| `id` | integer | Academic term ID |
+
+**Request body**
+Any subset of term fields can be provided:
+```json
+{
+  "name": "1st Semester 2027-2028",
+  "startDate": "2027-08-01",
+  "endDate": "2027-12-31",
+  "corDeadline": "2027-09-15",
+  "status": "ACTIVE"
+}
+```
+
+**Success `200`**
+```json
+{
+  "message": "Academic term updated successfully.",
+  "term": {
+    "id": "35",
+    "termId": 35,
+    "name": "1st Semester 2027-2028",
+    "termName": "1st Semester 2027-2028",
+    "startDate": "2027-08-01",
+    "endDate": "2027-12-31",
+    "corDeadline": "2027-09-15",
+    "status": "ACTIVE",
+    "statusLabel": "Active"
+  }
+}
+```
+
+**Errors**
+| Code | Meaning |
+|---|---|
+| `400` | Invalid term ID |
+| `401` | Not authenticated |
+| `403` | Not an Admin |
+| `404` | Term not found |
+| `409` | Conflict: name already in use by another term, or another term is already active |
+| `422` | Validation error |
+
+---
+
+### 7.1c `GET /api/admin/academic-terms/:id`
+*(Alias: `GET /api/academic-terms/:id`)*  
+Returns a single academic term by ID.
+
+**Success `200`**
+```json
+{
+  "id": "35",
+  "termId": 35,
+  "name": "1st Semester 2027-2028",
+  "termName": "1st Semester 2027-2028",
+  "startDate": "2027-08-01",
+  "endDate": "2027-12-31",
+  "corDeadline": "2027-09-15",
+  "status": "ACTIVE",
+  "statusLabel": "Active"
+}
+```
+
+---
 
 ### 7.2 `GET /api/me/verifications`
 *(Alias: `GET /api/verifications/me`)*  
@@ -3098,6 +3263,302 @@ Student views their own penalties. Also accessible at `GET /api/me/fines`.
 ```
 
 > If the user is not a student or has no borrowed books, returns an empty array with `totalBalance: 0`.
+
+---
+
+## 13. Shelf Locator & Inventory Management
+
+Endpoints dedicated to searching book copies by shelf location, viewing library shelf layout statistics, and updating shelf locations for individual copies or entire book titles.
+
+**Base URLs / Mount points**:
+- `/api/shelf-locator`
+- `/api/shelf-locations` (alias)
+- `/api/books/:id/copies` & `/api/books/copies/:copyId/shelf-location`
+
+---
+
+### 13.1 `GET /api/shelf-locator` (or `GET /api/shelf-locations`)
+Search and filter book copies with shelf locations and book details.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Any authenticated user (`Student`, `Librarian`, `Admin`) |
+
+**Query parameters**:
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `search` | string | Optional | Keyword search across title, ISBN, publisher, author first/last name, copy accession number, and shelf location. |
+| `shelfLocation` | string | Optional | Filter by shelf location (e.g. `Shelf-051` or `unassigned` for copies with no shelf). |
+| `bookId` | number | Optional | Filter copies for a specific book ID. |
+| `status` | string | Optional | Copy status filter (`Available`, `Borrowed`, `Reserved`, `Maintenance`, `Lost`). |
+| `conditionStatus` | string | Optional | Copy condition filter (`Good`, `Damaged`). |
+| `page` | number | Optional | Page number (default: `1`). |
+| `limit` | number | Optional | Page size (default: `20`, max: `100`). |
+
+**Success `200`**
+```json
+{
+  "copies": [
+    {
+      "id": "101",
+      "copyId": 101,
+      "bookId": 25,
+      "accessionNo": "ACC-00101",
+      "barcode": "ACC-00101",
+      "shelfLocation": "Shelf-051",
+      "conditionStatus": "Good",
+      "status": "Available",
+      "createdAt": "2026-10-20T08:00:00.000Z",
+      "updatedAt": "2026-10-25T02:00:00.000Z",
+      "book": {
+        "id": "25",
+        "bookId": 25,
+        "title": "Clean Code",
+        "isbn": "978-0132350884",
+        "coverImageUrl": "https://example.com/cover.jpg",
+        "publisher": "Prentice Hall",
+        "publicationYear": 2008,
+        "status": "Active",
+        "category": { "id": "3", "categoryId": 3, "name": "Computer Science" },
+        "author": "Robert C. Martin",
+        "authorDetails": { "id": "5", "authorId": 5, "name": "Robert C. Martin", "firstName": "Robert", "lastName": "Martin" }
+      },
+      "activeLoan": null
+    }
+  ],
+  "data": [ /* alias of copies array */ ],
+  "pagination": {
+    "total": 1,
+    "page": 1,
+    "limit": 20,
+    "totalPages": 1
+  },
+  "meta": {
+    "total": 1,
+    "page": 1,
+    "pageSize": 20
+  }
+}
+```
+
+---
+
+### 13.2 `GET /api/shelf-locator/books`
+Search books with grouped copies, copy counts, and distinct shelf locations.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Any authenticated user (`Student`, `Librarian`, `Admin`) |
+
+**Query parameters**:
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `search` | string | Optional | Search by book title, ISBN, publisher, author, accession number, or shelf location. |
+| `categoryId` | number | Optional | Filter by book category. |
+| `shelfLocation` | string | Optional | Filter books that have copies on this shelf. |
+| `page` | number | Optional | Page number (default: `1`). |
+| `limit` | number | Optional | Page size (default: `20`, max: `100`). |
+
+**Success `200`**
+```json
+{
+  "books": [
+    {
+      "id": "25",
+      "bookId": 25,
+      "title": "Clean Code",
+      "isbn": "978-0132350884",
+      "coverImageUrl": "https://example.com/cover.jpg",
+      "publisher": "Prentice Hall",
+      "publicationYear": 2008,
+      "category": { "id": "3", "categoryId": 3, "name": "Computer Science" },
+      "author": "Robert C. Martin",
+      "copiesCount": 3,
+      "availableCopiesCount": 2,
+      "shelfLocations": ["Shelf-051", "Shelf-052"],
+      "copies": [
+        {
+          "id": "101",
+          "copyId": 101,
+          "accessionNo": "ACC-00101",
+          "shelfLocation": "Shelf-051",
+          "conditionStatus": "Good",
+          "status": "Available"
+        },
+        {
+          "id": "102",
+          "copyId": 102,
+          "accessionNo": "ACC-00102",
+          "shelfLocation": "Shelf-052",
+          "conditionStatus": "Good",
+          "status": "Available"
+        }
+      ]
+    }
+  ],
+  "pagination": {
+    "total": 1,
+    "page": 1,
+    "limit": 20,
+    "totalPages": 1
+  }
+}
+```
+
+---
+
+### 13.3 `GET /api/shelf-locator/shelves`
+List all distinct shelf locations in the library with copy counts, available copies, and unassigned statistics.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Any authenticated user (`Student`, `Librarian`, `Admin`) |
+
+**Success `200`**
+```json
+{
+  "shelves": [
+    {
+      "shelfLocation": "Shelf-051",
+      "name": "Shelf-051",
+      "totalCopies": 8,
+      "availableCopies": 6,
+      "distinctTitles": 4
+    },
+    {
+      "shelfLocation": "Shelf-052",
+      "name": "Shelf-052",
+      "totalCopies": 10,
+      "availableCopies": 9,
+      "distinctTitles": 5
+    }
+  ],
+  "totalShelves": 2,
+  "unassigned": {
+    "shelfLocation": null,
+    "name": "Unassigned",
+    "totalCopies": 3,
+    "availableCopies": 2,
+    "distinctTitles": 2
+  }
+}
+```
+
+---
+
+### 13.4 `GET /api/books/:id/copies`
+Get all physical copies and their shelf locations for a specific book title.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Any authenticated user (`Student`, `Librarian`, `Admin`) |
+
+**Success `200`**
+```json
+{
+  "book": {
+    "id": "25",
+    "bookId": 25,
+    "title": "Clean Code",
+    "isbn": "978-0132350884",
+    "coverImageUrl": "https://example.com/cover.jpg",
+    "publisher": "Prentice Hall",
+    "category": "Computer Science",
+    "author": "Robert C. Martin"
+  },
+  "copies": [
+    {
+      "id": "101",
+      "copyId": 101,
+      "bookId": 25,
+      "accessionNo": "ACC-00101",
+      "barcode": "ACC-00101",
+      "shelfLocation": "Shelf-051",
+      "conditionStatus": "Good",
+      "status": "Available",
+      "activeLoan": null
+    }
+  ],
+  "totalCopies": 1,
+  "availableCopies": 1
+}
+```
+
+---
+
+### 13.5 `PATCH /api/shelf-locator/copies/:copyId`
+*(Role: Librarian, Admin)* Update the shelf location of a specific book copy. (Also accessible at `PATCH /api/books/copies/:copyId/shelf-location` and `PATCH /api/books/copies/:copyId`).
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Librarian or Admin |
+
+**Request body**:
+```json
+{
+  "shelfLocation": "Shelf-055"
+}
+```
+
+**Success `200`**
+```json
+{
+  "message": "Shelf location updated successfully.",
+  "copy": {
+    "id": "101",
+    "copyId": 101,
+    "bookId": 25,
+    "accessionNo": "ACC-00101",
+    "shelfLocation": "Shelf-055",
+    "conditionStatus": "Good",
+    "status": "Available",
+    "book": {
+      "bookId": 25,
+      "title": "Clean Code"
+    }
+  }
+}
+```
+
+---
+
+### 13.6 `PATCH /api/shelf-locator/bulk`
+*(Role: Librarian, Admin)* Bulk update shelf location for multiple copies or all copies of a book.
+
+| Property | Value |
+|---|---|
+| **Auth required** | Yes |
+| **Role** | Librarian or Admin |
+
+**Request body (by copy IDs)**:
+```json
+{
+  "copyIds": [101, 102, 103],
+  "shelfLocation": "Shelf-060"
+}
+```
+
+**Request body (by book ID)**:
+```json
+{
+  "bookId": 25,
+  "shelfLocation": "Shelf-060"
+}
+```
+
+**Success `200`**
+```json
+{
+  "message": "Updated shelf location for 3 book copy/copies.",
+  "updatedCount": 3,
+  "shelfLocation": "Shelf-060"
+}
+```
 
 ---
 

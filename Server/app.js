@@ -20,6 +20,7 @@ import renewalRoutes from "./routes/renewalRoutes.js";
 import interestRoutes from "./routes/interestRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import penaltyRoutes from "./routes/penaltyRoutes.js";
+import shelfLocatorRoutes from "./routes/shelfLocatorRoutes.js";
 import authMiddleware from "./middleware/authMiddleware.js";
 import { requireRole } from "./middleware/roleMiddleware.js";
 import { getAuthorsHandler } from "./controllers/bookController.js";
@@ -89,6 +90,10 @@ app.get("/api/me/recommended-books", authMiddleware, getRecommendedBooksHandler)
 
 // Catalog helper lists (authenticated, any role)
 app.get("/api/authors", authMiddleware, getAuthorsHandler);
+
+// Shelf locator & inventory management routes
+app.use("/api/shelf-locator", shelfLocatorRoutes);
+app.use("/api/shelf-locations", shelfLocatorRoutes);
 
 // Audit logs list endpoint
 app.get("/api/audit-logs", authMiddleware, requireRole(["Admin", "Librarian"]), getAuditLogsHandler);
