@@ -1138,3 +1138,120 @@
     justify-content: center;
   }
 }
+
+.book-details-dialog .dialog-body {
+  padding: 0;
+}
+
+.book-details-dialog .bk-modal__scroll {
+  max-height: none;
+  overflow: visible;
+}
+
+.book-details-dialog .bk-detail--modal.bk-modal-layout {
+  min-height: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+.book-details-dialog .bk-detail--modal .bk-modal__shelf {
+  background: color-mix(in srgb, var(--color-cream-deep) 55%, var(--color-paper));
+}
+
+.book-details-dialog .bk-modal__shelf::after,
+.book-details-dialog .bk-modal__glow,
+.book-details-dialog .bk-modal__book-stage::before,
+.book-details-dialog .bk-modal__book-stage::after {
+  display: none;
+}
+
+.book-details-dialog .bk-detail--modal .bk-modal__body {
+  overflow: visible;
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+.book-details-dialog .bk-modal__head .subtle,
+.book-details-dialog .bk-modal__head .subtle strong,
+.book-details-dialog .bk-modal__availability-count,
+.book-details-dialog .bk-modal__fact dd {
+  color: var(--color-muted);
+}
+
+.book-details-dialog .bk-modal__category {
+  border-color: var(--tone-info-border);
+  background: var(--tone-info-bg);
+  color: var(--tone-info-text);
+}
+
+.book-details-dialog .bk-modal__availability.is-available,
+.book-details-dialog .bk-modal__availability.is-unavailable {
+  border-color: var(--color-line);
+  background: var(--color-cream);
+  color: var(--color-forest-deep);
+}
+
+.book-details-dialog .bk-modal__availability-bar span {
+  background: var(--color-line-soft);
+}
+
+.book-details-dialog .bk-modal__availability-bar span.is-filled {
+  background: var(--color-sage);
+}
+
+.book-details-dialog .bk-modal__availability-dot {
+  background: var(--color-green);
+}
+
+.book-details-dialog .bk-modal__description {
+  color: var(--color-ink);
+}
+
+.book-details-dialog .bk-modal__fact {
+  border-color: var(--color-line-soft);
+  border-radius: 12px;
+  background: var(--color-cream);
+}
+
+.book-details-dialog .bk-modal__fact-icon {
+  background: var(--color-mist);
+  color: var(--color-forest);
+}
+
+.book-details-dialog .bk-modal__fact dt {
+  color: var(--color-muted);
+}
+
+.book-details-dialog .bk-modal .bk-action__buttons .bk-modal__action-button {
+  border: 1px solid var(--color-forest);
+  background: var(--color-forest);
+  box-shadow: var(--shadow-soft);
+  color: var(--color-paper);
+}
+
+.book-details-dialog .bk-modal .bk-action__buttons .bk-modal__action-button::after {
+  display: none;
+}
+
+.book-details-dialog .bk-modal .bk-action__buttons .bk-modal__action-button.is-added {
+  border-color: var(--tone-success-border);
+  background: var(--tone-success-bg);
+  color: var(--tone-success-text);
+}
+
+.book-details-dialog .bk-modal .bk-action__buttons .bk-modal__more-link,
+.book-details-dialog .bk-modal .bk-action__buttons .bk-modal__review-link {
+  border: 1px solid var(--color-line);
+  background: var(--color-cream);
+  color: var(--color-forest);
+}
+
+.book-details-dialog .bk-modal__helper {
+  color: var(--color-muted);
+}
+
+@media (max-width: 639px) {
+  .book-details-dialog .bk-detail--modal .bk-modal__body {
+    padding: 20px 16px;
+  }
+}

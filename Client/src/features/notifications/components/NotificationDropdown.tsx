@@ -29,7 +29,7 @@ export default function NotificationDropdown() {
       {open && (
         <div className="card" style={{ position: "absolute", right: 0, top: "calc(100% + 6px)", width: 320, maxWidth: "90vw", padding: 12, zIndex: 60, boxShadow: "var(--shadow-raised)" }}>
           {!available ? (
-            <p className="subtle">Notifications are not available from the live Server API yet.</p>
+            <p className="subtle">Notifications are not available yet.</p>
           ) : recent?.length === 0 ? (
             <p className="subtle">You're all caught up.</p>
           ) : (

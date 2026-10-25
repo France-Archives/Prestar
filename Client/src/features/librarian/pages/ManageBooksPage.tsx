@@ -151,7 +151,7 @@ export default function ManageBooksPage() {
           </select>
         </label>
       </div>
-      <Alert kind="info">Archived titles changed during this session remain available to restore. Copy status and condition are managed by circulation workflows.</Alert>
+      <Alert kind="info">Archived titles stay in the catalog so they can be restored. Copy status and condition are updated through circulation.</Alert>
       {categories.error && <p className="subtle" role="status">Category filtering is unavailable: {categories.error}</p>}
 
       {books.loading ? (
@@ -224,7 +224,7 @@ export default function ManageBooksPage() {
           onDone={() => void books.reload()}
         />
       )}
-      {dialog?.kind === "copies" && <Modal title={`Copies of ${dialog.book.title}`} onClose={() => setDialog(null)} className="book-copies-modal">
+      {dialog?.kind === "copies" && <Modal title={`Copies of ${dialog.book.title}`} size="data" onClose={() => setDialog(null)} className="book-copies-modal">
         <BookCopiesPanel bookId={dialog.book.id} />
       </Modal>}
       {dialog?.kind === "archive" && (
@@ -233,7 +233,6 @@ export default function ManageBooksPage() {
           message={dialog.book.isArchived
             ? `${dialog.book.title} will appear in the student catalog again.`
             : `${dialog.book.title} will be hidden from students; loans and history will be kept.`}
-          details={[{ label: "Book", value: dialog.book.title }, { label: "Action", value: dialog.book.isArchived ? "Restore" : "Archive" }]}
           variant={dialog.book.isArchived ? "normal" : "destructive"}
           confirmLabel={dialog.book.isArchived ? "Restore book" : "Archive book"}
           onClose={() => setDialog(null)}

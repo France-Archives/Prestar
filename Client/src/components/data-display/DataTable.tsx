@@ -33,8 +33,8 @@ export default function DataTable<T>({ columns, rows, rowKey, empty = "Nothing t
           <thead>
             <tr>
               {columns.map((c) => (
-                <th key={c.key} scope="col" className={c.className}>
-                  {c.header}
+                <th key={c.key} scope="col" className={`${c.className ?? ""}${c.header ? "" : " table-actions-heading"}`}>
+                  {c.header || "Actions"}
                 </th>
               ))}
             </tr>
@@ -47,8 +47,21 @@ export default function DataTable<T>({ columns, rows, rowKey, empty = "Nothing t
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
               >
                 {columns.map((c) => (
-                  <td key={c.key} className={c.className}>
-                    {c.render ? c.render(row) : String((row as Record<string, unknown>)[c.key] ?? "—")}
+                  <td
+                    key={c.key}
+                    className={c.className}
+                    data-label={c.header || "Actions"}
+                    data-primary={columns[0]?.key === c.key || undefined}
+                    data-status={/^(status|state)$/i.test(c.header) || undefined}
+                    data-actions={!c.header || /^actions?$/i.test(c.header) || undefined}
+                    data-nowrap={/\b(accession|copy|code|date|student\s*(no|number)|shelf|status|condition)\b/i.test(`${c.key} ${c.header}`) || undefined}
+                  >
+                    {(() => {
+                      const content = c.render ? c.render(row) : String((row as Record<string, unknown>)[c.key] ?? "—");
+                      return content === null || content === undefined || content === "" || content === false
+                        ? <span className="table-empty">—</span>
+                        : content;
+                    })()}
                   </td>
                 ))}
               </tr>

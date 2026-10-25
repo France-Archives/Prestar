@@ -32,7 +32,7 @@ export default function HandoverDetailsPage() {
         <Card title="Request">
           <dl className="kv">
             <div><dt>Status</dt><dd><StatusBadge status={request.status} /></dd></div>
-            <div><dt>Loan duration</dt><dd>{request.requestedDurationDays ? `${request.requestedDurationDays} days` : "Not provided by Server"}</dd></div>
+            <div><dt>Loan duration</dt><dd>{request.requestedDurationDays ? `${request.requestedDurationDays} days` : "Not provided yet"}</dd></div>
             <div><dt>Assigned copy</dt><dd>{request.copy?.barcode ?? "—"}</dd></div>
             <div><dt>Requested</dt><dd>{formatDate(request.requestedAt)}</dd></div>
             <div><dt>Pickup deadline</dt><dd>{request.pickupDeadline ? formatDate(request.pickupDeadline) : "—"}</dd></div>
@@ -57,7 +57,7 @@ export default function HandoverDetailsPage() {
             />
           </Card>
         ) : (
-          <Alert kind="info">Handover attempt history is not available from the Server API.</Alert>
+          <p className="subtle handover-history-note">Handover history isn't available yet.</p>
         )}
       </div>
     </div>

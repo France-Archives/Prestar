@@ -59,8 +59,8 @@ export default function ReturnsPage() {
   return (
     <div className="page">
       <PageHero eyebrow="Circulation" title="Returns and loans" description="Confirm returns and record the copy condition. Returns are never blocked by overdue, fines or suspension. Overdue never becomes lost by itself." leading={<BackButton fallback={ROUTES.staff.dashboard} />} compact />
-      {!USE_MOCKS && <Alert kind="info">Returns and mark-lost are not available from the live Server yet. Student search and loan details are available, but these actions cannot be confirmed.</Alert>}
-      <div className="toolbar" style={{ marginTop: 0 }}>
+      {!USE_MOCKS && <Alert kind="info">Returning and marking copies as lost isn't available yet. You can still search students and view loan details.</Alert>}
+      <div className="toolbar">
         <SearchInput value={search} onChange={setSearch} placeholder="Search student number or name…" />
       </div>
       <Tabs<Tab>

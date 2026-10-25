@@ -112,7 +112,7 @@ export default function UploadCORPage() {
               ))}
             </SelectField>
           ) : activeTerm ? (
-            <Alert kind="info">The Server assigns the submission to the current academic term. Current term: {activeTerm.name}.</Alert>
+            <Alert kind="info">Your submission is assigned to the current academic term. Current term: {activeTerm.name}.</Alert>
           ) : (
             <Alert kind="warn">There is no active academic term, so a COR cannot be submitted right now.</Alert>
           )}

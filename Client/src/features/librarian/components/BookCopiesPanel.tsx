@@ -110,7 +110,7 @@ export default function BookCopiesPanel({ bookId }: Props) {
         {canMove && selected.length > 0 && <Button onClick={() => { setBulkShelf(""); setBulkMode("selected"); }}>Move selected ({selected.length})</Button>}
         {canMove && rows.length > 0 && <Button variant="ghost" onClick={() => { setBulkShelf(""); setBulkMode("book"); }}>Move all copies of this book</Button>}
       </div>
-      {canMove && <Alert kind="info">A shelf location is required. This Server API does not document an empty value for unassigned copies.</Alert>}
+      {canMove && <Alert kind="info">A shelf is required. Copies can't be moved to "Unassigned" from here.</Alert>}
       {!canMove && <Alert kind="info">Copy locations are read-only for your account.</Alert>}
       {error && <Alert kind="error">{error}</Alert>}
       <DataTable columns={columns} rows={rows} rowKey={(copy) => copy.id} empty="This title has no copies yet." />

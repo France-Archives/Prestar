@@ -18,7 +18,7 @@ export default function LibrarianDashboardPage() {
       <PageHero
         eyebrow={adminView ? "Admin · circulation" : "Librarian"}
         title="Circulation dashboard"
-        description="Current circulation counts from the live Server API."
+        description="Current circulation activity across the library."
         leading={<BackButton fallback={ROUTES.staff.dashboard} />}
         actions={
           <div className="dashboard-actions">

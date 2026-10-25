@@ -100,7 +100,7 @@ export default function ReturnConditionForm({ loan, onClose, onDone }: ReturnCon
             : "An unusable copy is withdrawn. Record a damage fine afterwards from the Fines page if needed."}
       </p>
       {error && <Alert kind="error">{error}</Alert>}
-      {!USE_MOCKS && <Alert kind="info">Returns are not available from the live Server yet. This return will not be submitted.</Alert>}
+      {!USE_MOCKS && <Alert kind="info">Returns can't be confirmed yet. Nothing will be saved if you continue.</Alert>}
       {condition === "DAMAGED" && (!damageType || !photo) && <p className="subtle">A damage type and captured photo are required.</p>}
     </Modal>
       {confirming && (

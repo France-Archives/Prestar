@@ -17,7 +17,6 @@
   }
   body {
     min-width: 320px;
-    overflow-x: clip;
     font-family: var(--font-sans);
     font-size: 0.9375rem;
     background: var(--color-canvas);

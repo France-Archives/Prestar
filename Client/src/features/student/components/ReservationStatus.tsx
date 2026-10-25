@@ -16,7 +16,7 @@ export default function ReservationStatus({ reservation: r, onCancel, highlighte
         <StatusBadge status={r.status} />
       </div>
       <p className="subtle">Reserved {formatDate(r.reservedAt)}</p>
-      <p>Borrowing duration: <b>{r.requestedDurationDays === null ? "Not provided by Server" : `${r.requestedDurationDays} days`}</b></p>
+      <p>Borrowing duration: <b>{r.requestedDurationDays === null ? "Not provided yet" : `${r.requestedDurationDays} days`}</b></p>
       {r.status === "WAITING" && <p>Your place in the queue: <b>{r.queuePosition ?? "—"}</b>. We notify you when a copy is offered.</p>}
       {r.status === "OFFERED" && (
         <p>Pickup: collect your held copy at the library{r.pickupDeadline ? ` before ${formatDate(r.pickupDeadline)}` : ""}.</p>

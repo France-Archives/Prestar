@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowUpRight, Barcode, BookOpen, Building2, CalendarDays, Check, Info, Languages, Plus, Tag, X } from "lucide-react";
+import { ArrowUpRight, Barcode, BookOpen, Building2, CalendarDays, Check, Info, Languages, Plus, Tag } from "lucide-react";
 import Alert from "@/components/feedback/Alert";
 import Button from "@/components/common/Button";
 import ConfirmDialog from "@/components/feedback/ConfirmDialog";
 import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
 import { SelectField } from "@/components/forms/FormField";
+import Modal from "@/components/ui/Modal";
 import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import { useAuth } from "@/hooks/useAuth";
@@ -261,7 +261,6 @@ export function BookDetailsContent({ book, reload, onNavigate, large = false, mo
               <BookOpen size={14} aria-hidden="true" />
               {book.category?.name ?? "Book"}
             </span>
-            <h2 id="bk-detail-title">{book.title}</h2>
             <p className="subtle">by <strong>{authors}</strong></p>
           </header>
 
@@ -397,37 +396,11 @@ interface ModalProps {
 /** Netflix-style details popup over a dimmed, blurred page. Esc, the close button and a click outside all close it. */
 export default function BookDetailsModal({ bookId, title, onClose }: ModalProps) {
   const { data: book, loading, error, reload } = useAsync(() => booksService.getBook(bookId), [bookId]);
-  const closeBtn = useRef<HTMLButtonElement>(null);
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCloseRef.current();
-    };
-    document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    closeBtn.current?.focus();
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
-    };
-  }, []);
-
-  // Portal to <body> so no parent (card, animation, overflow) can clip or offset the overlay.
-  return createPortal(
-    <div className="bk-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="bk-modal" role="dialog" aria-modal="true" aria-labelledby="bk-modal-title" aria-describedby="bk-modal-a11y-description">
-        <h2 id="bk-modal-title" className="bk-modal__sr-only">{book?.title ?? title}</h2>
-        <p id="bk-modal-a11y-description" className="bk-modal__sr-only">Book details and availability.</p>
-        <button ref={closeBtn} type="button" className="bk-close" aria-label="Close details" onClick={onClose}>
-          <X size={18} strokeWidth={2.2} aria-hidden="true" />
-        </button>
-        <div className="bk-modal__scroll">
+  return (
+    <Modal title={book?.title ?? title} size="data" onClose={onClose} className="book-details-dialog">
+      <div className="bk-modal__scroll">
           {loading && !book ? (
             <div className="bk-modal__state">
-              <h2>{title}</h2>
               <LoadingState rows={3} />
             </div>
           ) : error || !book ? (
@@ -437,9 +410,7 @@ export default function BookDetailsModal({ bookId, title, onClose }: ModalProps)
           ) : (
             <BookDetailsContent book={book} reload={() => void reload()} onNavigate={onClose} modal />
           )}
-        </div>
       </div>
-    </div>,
-    document.body,
+    </Modal>
   );
 }

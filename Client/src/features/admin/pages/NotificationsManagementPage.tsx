@@ -77,7 +77,7 @@ export default function NotificationsManagementPage() {
       <div className="stack">
         <Card title="Send a notice" note="Appears in the recipients' notification bell. No email is sent.">
           <div className="stack">
-            <Alert kind="warn"><MockTag>Simulated</MockTag> Broadcast notices are a demo feature with no documented endpoint yet.</Alert>
+            <Alert kind="warn"><MockTag>Simulated</MockTag> Broadcast notices are a demo feature and aren't available yet.</Alert>
             <SelectField label="Audience" value={form.audience} onChange={(e) => setForm({ ...form, audience: e.target.value as BroadcastAudience })}>
               {AUDIENCES.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
             </SelectField>

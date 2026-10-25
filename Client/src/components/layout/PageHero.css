@@ -1,5 +1,5 @@
 :root {
-  --hero-h-page: 128px;
+  --hero-h-page: 96px;
 }
 
 .app-main:has(.page-hero) > .backbar {
@@ -91,25 +91,23 @@
 
 .page-hero__title {
   max-width: 100%;
-  overflow: hidden;
+  overflow-wrap: anywhere;
   color: var(--color-forest-deep);
   font-family: var(--font-serif);
   font-size: clamp(26px, 2.6vw, 34px);
   font-weight: 700;
   line-height: 1.08;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .page-hero__description {
   max-width: 52ch;
   margin: 0;
-  overflow: hidden;
+  overflow-wrap: anywhere;
   color: var(--color-forest-deep);
   font-size: 14px;
-  line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.45;
+  white-space: normal;
 }
 
 .page-hero__description strong {
@@ -159,9 +157,9 @@
   padding: 9px 15px;
   border: 1px solid var(--color-forest);
   border-radius: var(--radius-md);
-  background: var(--color-forest);
+  background: var(--color-paper);
   box-shadow: var(--shadow-soft);
-  color: #fff;
+  color: var(--color-forest);
   font-size: 13px;
   font-weight: 700;
   line-height: 1.2;
@@ -174,15 +172,26 @@
 
 .page-hero__actions > :is(a, button):hover:not(:disabled) {
   transform: translateY(-1px);
-  background: var(--color-forest-deep);
+  background: var(--color-mist);
   box-shadow: var(--shadow-card);
-  color: #fff;
+  color: var(--color-forest-deep);
   text-decoration: none;
 }
 
 .page-hero :is(a, button):focus-visible {
   outline: 3px solid var(--color-amber);
   outline-offset: 3px;
+}
+
+.page-hero__actions .btn-primary {
+  border-color: var(--color-forest);
+  background: var(--color-forest);
+  color: var(--color-paper);
+}
+
+.page-hero__actions .btn-primary:hover:not(:disabled) {
+  background: var(--color-forest-deep);
+  color: var(--color-paper);
 }
 
 .page-hero__children {
@@ -217,7 +226,7 @@
   }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 767.98px) {
   .page-hero {
     flex-direction: column;
     align-items: stretch;
@@ -225,12 +234,7 @@
     min-height: 0;
     padding: 18px;
     background-image:
-      linear-gradient(
-        180deg,
-        rgba(245, 243, 234, 0.96) 0%,
-        rgba(245, 243, 234, 0.82) 58%,
-        rgba(245, 243, 234, 0.48) 100%
-      ),
+      linear-gradient(90deg, rgba(245, 243, 234, 0.97) 0%, rgba(245, 243, 234, 0.9) 72%, rgba(245, 243, 234, 0.55) 100%),
       url("/images/greeting-bg.jpg");
     background-position: center;
   }
@@ -249,9 +253,17 @@
     white-space: normal;
   }
 
+  .page-hero__title {
+    font-size: clamp(24px, 6vw, 28px);
+  }
+
   .page-hero__actions {
     flex: none;
-    justify-content: flex-start;
+    justify-content: stretch;
     max-width: 100%;
+  }
+
+  .page-hero__actions > :only-child {
+    width: 100%;
   }
 }

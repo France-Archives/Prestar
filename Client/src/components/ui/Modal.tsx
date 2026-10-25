@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 interface ModalProps {
   title: string;
@@ -6,6 +7,7 @@ interface ModalProps {
   children: ReactNode;
   footer?: ReactNode;
   wide?: boolean;
+  size?: "confirm" | "form" | "data";
   className?: string;
   descriptionId?: string;
   role?: "dialog" | "alertdialog";
@@ -21,6 +23,7 @@ export default function Modal({
   children,
   footer,
   wide = false,
+  size,
   cinema = false,
   className = "",
   descriptionId,
@@ -30,6 +33,7 @@ export default function Modal({
 }: ModalProps) {
   const titleId = useId();
   const overlayClass = className.split(" ").includes("confirm-dialog") ? " dialog-overlay--confirm" : "";
+  const dialogSize = size ?? (overlayClass ? "confirm" : wide ? "data" : "form");
   const overlayRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
@@ -89,11 +93,11 @@ export default function Modal({
     };
   }, [initialFocus]);
 
-  return (
+  return createPortal(
     <div ref={overlayRef} className={`dialog-overlay${cinema ? " dialog-overlay-cinema" : ""}${overlayClass}`} onMouseDown={(e) => e.target === e.currentTarget && !closeBlocked && onClose()}>
       <div
         ref={dialogRef}
-        className={`dialog ${wide ? "dialog-wide" : ""} ${cinema ? "dialog-cinema" : ""} ${className}`}
+        className={`dialog dialog-size-${dialogSize} ${wide ? "dialog-wide" : ""} ${cinema ? "dialog-cinema" : ""} ${className}`}
         role={role}
         aria-modal="true"
         aria-labelledby={titleId}
@@ -109,6 +113,7 @@ export default function Modal({
         <div className="dialog-body">{children}</div>
         {footer && <div className="dialog-foot">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

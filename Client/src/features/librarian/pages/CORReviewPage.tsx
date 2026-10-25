@@ -31,7 +31,7 @@ export default function CORReviewPage() {
   const columns: Column<StaffCorVerification>[] = [
     { key: "student", header: "Student", render: (c) => `${c.student.name}${c.student.studentNumber ? ` (${c.student.studentNumber})` : ""}` },
     { key: "termName", header: "Term" },
-    { key: "originalFileName", header: "File", render: (c) => c.originalFileName || "Not provided by Server" },
+    { key: "originalFileName", header: "File", render: (c) => c.originalFileName || "Not provided yet" },
     { key: "submittedAt", header: "Submitted", render: (c) => formatDate(c.submittedAt) },
     { key: "status", header: "Status", render: (c) => <StatusBadge status={c.status} /> },
     {

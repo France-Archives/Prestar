@@ -111,7 +111,6 @@ export default function ConfirmDialog({
       <div className={`confirm-dialog__icon is-${selectedVariant}`} aria-hidden="true">
         <Icon size={24} strokeWidth={2} />
       </div>
-      <h3 className="confirm-dialog__heading">{title}</h3>
       {message && <p id={messageId} className="confirm-dialog__message">{message}</p>}
       {details && details.length > 0 && (
         <dl className="confirm-dialog__details">
