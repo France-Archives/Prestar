@@ -31,7 +31,7 @@ describe("staff access and navigation", () => {
   });
 
   describe("student penalties navigation", () => {
-    it("places Penalties after COR and before My interests in the student Account section", () => {
+    it("places Penalties after COR and routes profile interests through Profile", () => {
       const sections = getNavSections(sessionUser("STUDENT"));
       const account = sections.find((section) => section.id === "student-account");
       const items = account?.items ?? [];
@@ -39,12 +39,12 @@ describe("staff access and navigation", () => {
       expect(items.map((item) => item.label)).toEqual([
         "COR",
         "Penalties",
-        "My interests",
         "Profile",
         "Notifications",
       ]);
       expect(items[1]?.to).toBe(ROUTES.student.penalties);
       expect(items[1]?.capability).toBe("STUDENT_AREA");
+      expect(items.map((item) => item.label)).not.toContain("My interests");
       expect(navPaths("LIBRARIAN")).not.toContain(ROUTES.student.penalties);
       expect(navPaths("ADMIN")).not.toContain(ROUTES.student.penalties);
     });

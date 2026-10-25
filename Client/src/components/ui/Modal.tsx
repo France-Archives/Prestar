@@ -41,9 +41,16 @@ export default function Modal({
   useEffect(() => {
     previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const dialog = dialogRef.current;
-    if (initialFocus) {
-      dialog?.querySelector<HTMLElement>(`[data-modal-focus="${initialFocus}"]`)?.focus();
-    }
+    const getFocusable = () => [...(dialog?.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ) ?? [])].filter((element) => {
+      const style = window.getComputedStyle(element);
+      return !element.closest("[hidden]") && style.visibility !== "hidden" && style.display !== "none";
+    });
+    const preferredFocus = initialFocus
+      ? dialog?.querySelector<HTMLElement>(`[data-modal-focus="${initialFocus}"]:not([disabled])`)
+      : null;
+    (preferredFocus ?? getFocusable()[0] ?? dialog)?.focus();
     const onKey = (e: KeyboardEvent) => {
       const overlays = document.querySelectorAll(".dialog-overlay");
       if (overlays[overlays.length - 1] !== overlayRef.current) return;
@@ -53,9 +60,7 @@ export default function Modal({
         return;
       }
       if (e.key !== "Tab" || !dialog) return;
-      const focusable = [...dialog.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-      )].filter((element) => element.offsetParent !== null);
+      const focusable = getFocusable();
       if (focusable.length === 0) {
         e.preventDefault();
         dialog.focus();
@@ -63,7 +68,10 @@ export default function Modal({
       }
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
-      if (e.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+      if (!dialog.contains(document.activeElement)) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      } else if (e.shiftKey && document.activeElement === first) {
         e.preventDefault();
         last.focus();
       } else if (!e.shiftKey && document.activeElement === last) {

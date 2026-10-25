@@ -46,7 +46,7 @@ export default function RecommendedBooks({ books }: { books: BookSummary[] | nul
       ) : (
         <EmptyState
           title="No books match your interests yet"
-          action={<Link to={ROUTES.student.interests} className="link-btn">Edit interests</Link>}
+          action={<Link to={ROUTES.student.profile} className="link-btn">Edit interests</Link>}
         />
       )}
     </>

@@ -1,6 +1,5 @@
 import { Link, Navigate, Outlet, useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import Alert from "@/components/feedback/Alert";
 import { can, type Capability } from "@/utils/permissions";
 import { ROUTES, homePathFor, safeNext } from "./routeConfig";
 
@@ -84,30 +83,5 @@ export function RequireCapability({ capability }: { capability: Capability }) {
     return <Navigate to={ROUTES.verificationPending} replace state={{ email: user.email }} />;
   }
   if (!user || !can(user, capability)) return <Forbidden />;
-  return <Outlet />;
-}
-
-/** Keeps the student interest lookup cached in AuthContext and recovers visibly on lookup errors. */
-export function RequireStudentInterests() {
-  const { user, interests, interestsStatus, interestsError, refreshInterests } = useAuth();
-  const location = useLocation();
-
-  if (user?.role !== "STUDENT" || location.pathname === ROUTES.student.interestsWelcome) {
-    return <Outlet />;
-  }
-  if (interestsStatus === "loading" || interestsStatus === "not-required") return <PageLoading />;
-  if (interestsStatus === "error") {
-    return (
-      <div className="page">
-        <Alert kind="error">{interestsError ?? "Could not load your reading interests."}</Alert>
-        <button className="btn btn-primary" type="button" onClick={() => void refreshInterests()}>
-          Retry
-        </button>
-      </div>
-    );
-  }
-  if (interests?.length === 0) {
-    return <Navigate to={ROUTES.student.interestsWelcome} replace state={{ from: location.pathname }} />;
-  }
   return <Outlet />;
 }

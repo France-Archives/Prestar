@@ -16,7 +16,7 @@ import { useAsync } from "@/hooks/useAsync";
 import { useToast } from "@/hooks/useToast";
 import * as verificationService from "@/services/verificationService";
 import { USE_MOCKS } from "@/utils/constants";
-import { describeError } from "@/utils/errors";
+import { ApiError, describeError } from "@/utils/errors";
 import { formatDate } from "@/utils/formatDate";
 import { validateCorFile } from "@/utils/validators";
 import CorCameraCapture from "../components/CorCameraCapture";
@@ -29,6 +29,7 @@ export default function UploadCORPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const terms = useAsync(() => verificationService.listAcademicTerms(), []);
+  const verifications = useAsync(() => verificationService.listMyVerifications(), []);
   const [termId, setTermId] = useState("");
   const [source, setSource] = useState<Source>("camera");
   const [file, setFile] = useState<File | null>(null);
@@ -37,14 +38,20 @@ export default function UploadCORPage() {
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
-  if (terms.loading) return <div className="page"><LoadingState rows={3} /></div>;
+  if (terms.loading || (!USE_MOCKS && verifications.loading)) return <div className="page"><LoadingState rows={3} /></div>;
   if (terms.error) return <div className="page"><ErrorState message={terms.error} onRetry={() => void terms.reload()} /></div>;
+  if (!USE_MOCKS && verifications.error) return <div className="page"><ErrorState message={verifications.error} onRetry={() => void verifications.reload()} /></div>;
 
   // A COR is submitted for the current or the next term.
   const options = (terms.data ?? []).filter((t) => USE_MOCKS
     ? t.status === "ACTIVE" || t.status === "UPCOMING"
     : t.status === "ACTIVE");
   const chosen = termId || options.find((t) => t.status === "ACTIVE")?.id || options[0]?.id || "";
+  const activeTerm = options.find((term) => term.status === "ACTIVE");
+  const activeTermVerification = !USE_MOCKS && activeTerm
+    ? (verifications.data ?? []).find((verification) => verification.academicTermId === activeTerm.id)
+    : undefined;
+  const uploadLocked = activeTermVerification?.status === "PENDING" || activeTermVerification?.status === "APPROVED";
 
   // Switching tabs clears the file, so a photo can never be submitted by accident from the other tab.
   // (Leaving the camera tab also unmounts the camera component, which stops the camera stream.)
@@ -74,6 +81,9 @@ export default function UploadCORPage() {
       navigate(ROUTES.student.cor);
     } catch (err) {
       setFormError(describeError(err));
+      if (!USE_MOCKS && err instanceof ApiError && (err.status === 409 || err.status === 422)) {
+        await verifications.reload();
+      }
       throw err;
     } finally {
       setBusy(false);
@@ -91,19 +101,24 @@ export default function UploadCORPage() {
             <Alert kind="info">Your captured COR photo will be securely uploaded and stored in private storage for library staff review.</Alert>
           )}
           <Alert kind="info">A photo is a submission. Library staff still review every COR, and you can borrow books once approved.</Alert>
-          {USE_MOCKS ? (
+          {uploadLocked ? (
+            <Alert kind="info">
+              You already submitted your COR for this term. Current status: <b>{activeTermVerification.status}</b>.
+            </Alert>
+          ) : USE_MOCKS ? (
             <SelectField label="Academic term" value={chosen} onChange={(e) => setTermId(e.target.value)} required>
               {options.map((t) => (
                 <option key={t.id} value={t.id}>{t.name} (COR deadline {formatDate(t.corDeadline)})</option>
               ))}
             </SelectField>
+          ) : activeTerm ? (
+            <Alert kind="info">The Server assigns the submission to the current academic term. Current term: {activeTerm.name}.</Alert>
           ) : (
-            <Alert kind="info">
-              The Server assigns the submission to the current academic term.
-              {options[0] ? ` Current term: ${options[0].name}.` : ""}
-            </Alert>
+            <Alert kind="warn">There is no active academic term, so a COR cannot be submitted right now.</Alert>
           )}
 
+          {!uploadLocked && (
+          <>
           <Tabs<Source> tabs={[{ key: "camera", label: "Camera Photo" }, { key: "file", label: "Upload Image" }]} active={source} onChange={switchSource} />
 
           {source === "camera" ? (
@@ -123,9 +138,11 @@ export default function UploadCORPage() {
 
           {formError && <Alert kind="error">{formError}</Alert>}
           <div className="row-actions">
-            <Button type="submit" disabled={busy || (USE_MOCKS && !chosen)}>Submit COR</Button>
+            <Button type="submit" disabled={busy || !chosen}>Submit COR</Button>
             <Button variant="ghost" onClick={() => navigate(ROUTES.student.cor)} disabled={busy}>Cancel</Button>
           </div>
+          </>
+          )}
         </form>
       </Card>
       {confirming && (

@@ -1,16 +1,22 @@
-import { Link } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { notificationsPathFor } from "@/app/routeConfig";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
 
 export default function NotificationBell() {
   const { user } = useAuth();
-  const { unreadCount } = useNotifications();
+  const { unreadCount, error, refresh } = useNotifications();
+  const { pathname } = useLocation();
+  useEffect(() => {
+    void refresh();
+  }, [pathname, refresh]);
   if (!user) return null;
   return (
     <Link
       to={notificationsPathFor(user)}
-      aria-label={`Notifications, ${unreadCount ?? 0} unread`}
+      aria-label={`Notifications, ${unreadCount ?? 0} unread${error ? ". Count may be outdated." : ""}`}
+      title={error ?? "Notifications"}
       className="relative grid h-10 w-10 place-items-center rounded-lg text-forest hover:bg-mist"
       style={{ textDecoration: "none" }}
     >

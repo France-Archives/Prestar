@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import { AlertCircle, Barcode, CheckCircle2, Info, LockKeyhole } from "lucide-react";
 import Alert from "@/components/feedback/Alert";
 import Card from "@/components/ui/Card";
@@ -12,7 +11,7 @@ import { MOCK_COLLEGES } from "@/data";
 import { useAsync } from "@/hooks/useAsync";
 import { useAuth } from "@/hooks/useAuth";
 import * as authService from "@/services/authService";
-import { USE_MOCKS } from "@/utils/constants";
+import StudentInterestsSection from "../components/StudentInterestsSection";
 import "@/styles/profile.css";
 
 export default function StudentProfilePage() {
@@ -103,13 +102,7 @@ export default function StudentProfilePage() {
           </Card>
         </section>
 
-        <Card title="Reading interests" actions={USE_MOCKS ? <Link to={ROUTES.student.interests} className="link-btn">Edit</Link> : undefined}>
-          {p.interests.length === 0 ? <p className="subtle">{USE_MOCKS ? "No interests chosen yet." : "Reading interests are not available from the live Server API."}</p> : (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {p.interests.map((i) => <span key={i.id} className="badge badge-ok">{i.name}</span>)}
-            </div>
-          )}
-        </Card>
+        <StudentInterestsSection />
       </div>
     </div>
   );

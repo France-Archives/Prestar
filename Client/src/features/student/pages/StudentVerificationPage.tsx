@@ -13,6 +13,7 @@ import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import * as verificationService from "@/services/verificationService";
 import type { CorVerification } from "@/types";
+import { USE_MOCKS } from "@/utils/constants";
 import { formatDate } from "@/utils/formatDate";
 import CORStatusCard from "../components/CORStatusCard";
 
@@ -21,6 +22,12 @@ export default function StudentVerificationPage() {
   const history = useAsync(() => verificationService.listMyVerifications(), []);
   const [docModal, setDocModal] = useState<{ url: string | null; note?: string; name: string } | null>(null);
   const [loadingDocId, setLoadingDocId] = useState<string | null>(null);
+  const canUpload = USE_MOCKS || (
+    !summary.loading
+    && !summary.error
+    && summary.data?.status !== "PENDING"
+    && summary.data?.status !== "APPROVED"
+  );
 
   const viewDoc = async (c: CorVerification) => {
     setLoadingDocId(c.id);
@@ -58,10 +65,13 @@ export default function StudentVerificationPage() {
 
   return (
     <div className="page">
-      <PageHero eyebrow="Account" title="Certificate of Registration" description="A COR is submitted once per academic term and reviewed by authorized staff." leading={<BackButton fallback={ROUTES.student.dashboard} />} actions={<Link to={ROUTES.student.uploadCor} className="btn btn-primary" style={{ textDecoration: "none", color: "#fff" }}>Upload COR</Link>} />
+      <PageHero eyebrow="Account" title="Certificate of Registration" description="A COR is submitted once per academic term and reviewed by authorized staff." leading={<BackButton fallback={ROUTES.student.dashboard} />} actions={canUpload ? <Link to={ROUTES.student.uploadCor} className="btn btn-primary" style={{ textDecoration: "none", color: "#fff" }}>Upload COR</Link> : undefined} />
       <div className="stack">
         <Alert kind="info">An expired or unapproved COR blocks only new borrowing, reservations and renewals. Your existing loans and due dates are not changed.</Alert>
         {summary.loading ? <LoadingState rows={2} /> : summary.error || !summary.data ? <ErrorState message={summary.error ?? ""} onRetry={() => void summary.reload()} /> : <CORStatusCard cor={summary.data} />}
+        {!USE_MOCKS && summary.data && (summary.data.status === "PENDING" || summary.data.status === "APPROVED") && (
+          <Alert kind="info">You already submitted your COR for this term. Current status: <b>{summary.data.status}</b>.</Alert>
+        )}
         <h2>Submission history</h2>
         {history.loading ? <LoadingState rows={3} /> : history.error ? <ErrorState message={history.error} onRetry={() => void history.reload()} /> : (
           <div className="card"><DataTable columns={columns} rows={history.data ?? []} rowKey={(c) => c.id} empty="No COR submitted yet." /></div>

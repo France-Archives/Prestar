@@ -1,7 +1,7 @@
 import { lazy, Suspense, type ComponentType, type LazyExoticComponent } from "react";
 import { createBrowserRouter, Navigate, type RouteObject } from "react-router-dom";
 import type { Capability } from "@/utils/permissions";
-import { GuestOnly, PageLoading, RequireAuth, RequireCapability, RequireStudentInterests, RoleDashboardRedirect } from "./guards";
+import { GuestOnly, PageLoading, RequireAuth, RequireCapability, RoleDashboardRedirect } from "./guards";
 import { ROUTES } from "./routeConfig";
 import PublicLayout from "@/layouts/PublicLayout";
 import StudentLayout from "@/layouts/StudentLayout";
@@ -33,8 +33,6 @@ const P = {
   BookDetails: page(() => import("@/features/books/pages/BookDetailsPage")),
   // student
   StudentDashboard: page(() => import("@/features/student/pages/StudentDashboardPage")),
-  MyInterests: page(() => import("@/features/student/pages/MyInterestsPage")),
-  InterestsWelcome: page(() => import("@/features/student/pages/InterestsWelcomePage")),
   MyBorrowings: page(() => import("@/features/student/pages/MyBorrowingsPage")),
   MyBorrowList: page(() => import("@/features/student/pages/MyBorrowListPage")),
   MyRequests: page(() => import("@/features/student/pages/MyRequestsPage")),
@@ -90,13 +88,13 @@ const gated = (capability: Capability, children: RouteObject[]): RouteObject => 
   children,
 });
 
-const studentRoutes: RouteObject[] = [
+export const studentRoutes: RouteObject[] = [
   { index: true, element: <Navigate to="dashboard" replace /> },
   { path: "dashboard", element: el(P.StudentDashboard) },
   { path: "books", element: el(P.BookCatalog) },
   { path: "books/:bookId", element: el(P.BookDetails) },
-  { path: "interests/welcome", element: el(P.InterestsWelcome) },
-  { path: "interests", element: el(P.MyInterests) },
+  { path: "interests/welcome", element: <Navigate to={ROUTES.student.profile} replace /> },
+  { path: "interests", element: <Navigate to={ROUTES.student.profile} replace /> },
   { path: "borrowing", element: el(P.MyBorrowings) },
   { path: "borrow-list", element: el(P.MyBorrowList) },
   { path: "requests", element: el(P.MyRequests) },
@@ -186,10 +184,7 @@ export const router = createBrowserRouter([
       {
         path: "/app",
         element: <RequireCapability capability="STUDENT_AREA" />,
-        children: [{
-          element: <RequireStudentInterests />,
-          children: [{ element: <StudentLayout />, children: studentRoutes }],
-        }],
+        children: [{ element: <StudentLayout />, children: studentRoutes }],
       },
       {
         path: "/staff",

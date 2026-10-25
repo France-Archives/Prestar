@@ -108,7 +108,7 @@ export default function StudentDashboardPage() {
         </Section>
       )}
 
-      <Section eyebrow="Chosen for you" title="Recommended for you" action={<Link to={S.interests} className="link-btn">Edit interests</Link>}>
+      <Section eyebrow="Chosen for you" title="Recommended for you" action={<Link to={S.profile} className="link-btn">Edit interests</Link>}>
         <RecommendedBooks books={d.recommended} />
       </Section>
 

@@ -1,7 +1,9 @@
 import type {
   AcademicTerm,
+  AdminUserListRow,
   AdminUserListParams,
   AdminUserRow,
+  LiveAdminUserRow,
   AuditLog,
   AuditLogParams,
   CorSummary,
@@ -32,7 +34,7 @@ import { LIBRARIAN_PERMISSIONS } from "@/types";
 import { apiClient } from "@/services/apiClient";
 import type { MockAccount } from "@/data";
 import { POLICY_SETTINGS, USE_MOCKS } from "@/utils/constants";
-import { fail, toApiError } from "@/utils/errors";
+import { fail, toApiError, unsupportedOperation } from "@/utils/errors";
 import { dateKey } from "@/utils/formatDate";
 import { validateDateRange, validateEmail, validateName, validatePassword, validateRequired } from "@/utils/validators";
 import { begin, checkEligibility, corSummaryOf, toCor, toFineSummary, toLoan, toReservation, toStaffFine } from "./mockEngine";
@@ -163,7 +165,80 @@ export async function createAdmin(req: CreateStaffAccountRequest): Promise<Creat
 // ---------- users ----------
 
 /** D5 GET /admin/users */
-export async function listUsers(params: AdminUserListParams = {}): Promise<Paginated<AdminUserRow>> {
+export async function listUsers(params: AdminUserListParams = {}): Promise<Paginated<AdminUserListRow>> {
+  if (!USE_MOCKS) {
+    try {
+      const apiRole = params.role ? ({
+        STUDENT: "Student",
+        LIBRARIAN: "Librarian",
+        ADMIN: "Admin",
+      } as const)[params.role] : undefined;
+      const statusFilters: Partial<Record<AdminUserRow["accountStatus"], string>> = {
+        ACTIVE: "Active",
+        SUSPENDED: "Suspended",
+        DISABLED: "Inactive",
+      };
+      const apiStatus = params.accountStatus ? statusFilters[params.accountStatus] : undefined;
+      const pageSize = params.pageSize ?? 10;
+      const serverPageSize = 100;
+      const rows: AdminUserListRow[] = [];
+      let serverPage = 1;
+
+      while (true) {
+        const response = (await apiClient.get<unknown>("/admin/users", {
+          params: {
+            role: apiRole,
+            status: apiStatus,
+            page: serverPage,
+            limit: serverPageSize,
+          },
+        })).data;
+        if (!response || typeof response !== "object" || Array.isArray(response)) {
+          throw new Error("The Server returned an invalid user list.");
+        }
+        const envelope = response as Record<string, unknown>;
+        const pageRows = Array.isArray(envelope.data) ? envelope.data : envelope.users;
+        if (!Array.isArray(pageRows)) throw new Error("The Server returned an invalid user list.");
+        const mapped = pageRows.map((value): AdminUserListRow => {
+          if (!value || typeof value !== "object" || Array.isArray(value)) {
+            throw new Error("The Server returned an invalid user record.");
+          }
+          const row = value as Record<string, unknown>;
+          if (typeof row.name !== "string" || typeof row.status !== "string" || typeof row.role !== "string") {
+            throw new Error("The Server returned an invalid user record.");
+          }
+          const role = row.role.trim().toUpperCase();
+          const status = row.status.trim().toLowerCase();
+          if (!["STUDENT", "LIBRARIAN", "ADMIN"].includes(role)
+            || !["active", "inactive", "suspended"].includes(status)) {
+            throw new Error("The Server returned an unsupported user role or status.");
+          }
+          return {
+            name: row.name,
+            role: role as LiveAdminUserRow["role"],
+            status: status === "active" ? "Active" : status === "inactive" ? "Inactive" : "Suspended",
+          };
+        });
+        rows.push(...mapped);
+        if (mapped.length < serverPageSize) break;
+        serverPage += 1;
+      }
+
+      const search = params.search?.trim().toLowerCase();
+      const filtered = search
+        ? rows.filter((row) => "name" in row && row.name.toLowerCase().includes(search))
+        : rows;
+      const page = params.page ?? 1;
+      const start = (page - 1) * pageSize;
+      return {
+        data: filtered.slice(start, start + pageSize),
+        meta: { page, pageSize, total: filtered.length },
+      };
+    } catch (error) {
+      throw toApiError(error);
+    }
+  }
+
   await begin();
   requireCapability("ADMIN_AREA");
   const rows = db.accounts
@@ -206,6 +281,7 @@ export async function getStudentDetails(studentId: UUID): Promise<AdminStudentDe
 
 /** D6 PATCH /admin/users/:userId/status. Reason required. Existing loans and due dates are unchanged. */
 export async function updateUserStatus(userId: UUID, req: UpdateUserStatusRequest): Promise<AdminUserRow> {
+  if (!USE_MOCKS) unsupportedOperation("Account status changes");
   await begin();
   const admin = requireCapability("ADMIN_AREA");
   check(validateRequired(req.reason, "A reason"));

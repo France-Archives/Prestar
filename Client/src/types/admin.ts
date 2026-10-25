@@ -15,7 +15,7 @@ export interface UpdateSettingRequest {
   value: Setting["value"];
 }
 
-/** D5 GET /admin/users row. Exact shape not defined in the source. TO CONFIRM. */
+/** Existing detailed account row used by mock mode and account-management tools. */
 export interface AdminUserRow {
   id: UUID;
   email: string;
@@ -28,6 +28,15 @@ export interface AdminUserRow {
   employeeNumber: string | null;
   createdAt: ISODateTime;
 }
+
+/** Exact shape returned by the live GET /admin/users endpoint. */
+export interface LiveAdminUserRow {
+  name: string;
+  role: UserRole;
+  status: "Active" | "Inactive" | "Suspended";
+}
+
+export type AdminUserListRow = AdminUserRow | LiveAdminUserRow;
 
 export interface AdminUserListParams extends PageParams {
   search?: string;

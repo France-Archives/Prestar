@@ -176,13 +176,19 @@ export function BookDetailsContent({ book, reload, onNavigate, large = false, mo
       {borrowDialogOpen && modal && (
         <ConfirmDialog
           title={`Borrow ${book.title}?`}
-          message={`We will submit a ${duration}-day borrowing request for this title.`}
+          message={`We will submit a ${duration}-day borrowing request. Pickup details are provided after approval, and the loan due date is set at handover.`}
           details={[{ label: "Book", value: book.title }, { label: "Loan duration", value: `${duration} days` }]}
           confirmLabel="Confirm Borrow"
           loading={busy}
           onClose={() => setBorrowDialogOpen(false)}
           onConfirm={borrow}
         >
+          <div style={{ display: "flex", alignItems: "center", gap: 14, margin: "12px 0" }}>
+            <BookCover src={book.coverImageUrl} title={book.title} author={authors} />
+            <p className="subtle" style={{ margin: 0 }}>
+              Pickup deadline and instructions will be available once the request is approved. Your loan period begins when the book is handed over.
+            </p>
+          </div>
           <SelectField label="Loan duration" value={duration} onChange={(event) => setDuration(Number(event.target.value) as AllowedDurationDays)}>
             {DURATION_OPTIONS.map((days) => <option key={days} value={days}>{days} days</option>)}
           </SelectField>

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import Alert from "@/components/feedback/Alert";
 import Button from "@/components/common/Button";
 import ConfirmDialog from "@/components/feedback/ConfirmDialog";
-import { TextareaField } from "@/components/forms/FormField";
+import { SelectField, TextareaField } from "@/components/forms/FormField";
 import Modal from "@/components/ui/Modal";
 import StatusBadge from "@/components/data-display/StatusBadge";
 import { useToast } from "@/hooks/useToast";
@@ -17,6 +17,15 @@ interface CORReviewPanelProps {
   onDone: () => void;
 }
 
+const REJECTION_REASONS = [
+  "Blurry or unreadable",
+  "Wrong semester or term",
+  "Incomplete or cropped",
+  "Not a valid COR",
+  "Name mismatch",
+  "Other",
+] as const;
+
 // COR review needs Admin or a Librarian with the COR_REVIEW permission (enforced by the backend).
 export default function CORReviewPanel({ item, onClose, onDone }: CORReviewPanelProps) {
   const toast = useToast();
@@ -24,6 +33,9 @@ export default function CORReviewPanel({ item, onClose, onDone }: CORReviewPanel
   const [rejecting, setRejecting] = useState(false);
   const [reviewConfirmation, setReviewConfirmation] = useState<"approve" | "reject" | null>(null);
   const [reason, setReason] = useState("");
+  const [message, setMessage] = useState("");
+  const [reasonError, setReasonError] = useState<string | null>(null);
+  const [messageError, setMessageError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [docNote, setDocNote] = useState<string | null>(null);
   const [docUrl, setDocUrl] = useState<string | null>(null);
@@ -32,6 +44,16 @@ export default function CORReviewPanel({ item, onClose, onDone }: CORReviewPanel
   const [showDoc, setShowDoc] = useState(false);
   const pending = item.status === "PENDING";
 
+  const confirmRejection = () => {
+    const nextReasonError = reason ? null : "Choose a reason for rejection.";
+    const nextMessageError = reason === "Other" && !message.trim()
+      ? "Add a message when the reason is Other."
+      : null;
+    setReasonError(nextReasonError);
+    setMessageError(nextMessageError);
+    if (!nextReasonError && !nextMessageError) setReviewConfirmation("reject");
+  };
+
   useEffect(() => {
     return () => {
       if (docUrl) URL.revokeObjectURL(docUrl);
@@ -39,12 +61,18 @@ export default function CORReviewPanel({ item, onClose, onDone }: CORReviewPanel
   }, [docUrl]);
 
   const run = async (kind: "approve" | "reject") => {
-    if (kind === "reject" && !reason.trim()) throw new Error("A reason is required to reject a COR.");
+    if (kind === "reject" && (!reason || (reason === "Other" && !message.trim()))) {
+      confirmRejection();
+      throw new Error("Choose a rejection reason and complete the message when required.");
+    }
     setBusy(kind);
     setError(null);
     try {
       if (kind === "approve") await verificationService.approveCor(item.id);
-      else await verificationService.rejectCor(item.id, { reason: reason.trim() });
+      else {
+        const rejectionReason = message.trim() ? `${reason}: ${message.trim()}` : reason;
+        await verificationService.rejectCor(item.id, { reason: rejectionReason });
+      }
       toast.success(kind === "approve" ? "COR approved." : "COR rejected. The student can resubmit.");
       onDone();
       onClose();
@@ -94,7 +122,7 @@ export default function CORReviewPanel({ item, onClose, onDone }: CORReviewPanel
                 Reject…
               </Button>
             ) : (
-              <Button variant="danger" onClick={() => setReviewConfirmation("reject")} loading={busy === "reject"}>
+              <Button variant="danger" onClick={confirmRejection} loading={busy === "reject"}>
                 Confirm rejection
               </Button>
             )}
@@ -186,11 +214,30 @@ export default function CORReviewPanel({ item, onClose, onDone }: CORReviewPanel
 
       {pending && rejecting && (
         <div style={{ marginTop: 12 }}>
-          <TextareaField
-            label="Reason for rejection (shown to the student)"
+          <SelectField
+            label="Reason"
             value={reason}
-            onChange={(e) => setReason(e.target.value)}
+            error={reasonError}
+            onChange={(e) => {
+              setReason(e.target.value);
+              setReasonError(null);
+              setMessageError(null);
+            }}
             required
+          >
+            <option value="">Choose a reason</option>
+            {REJECTION_REASONS.map((option) => <option key={option} value={option}>{option}</option>)}
+          </SelectField>
+          <TextareaField
+            label="Message"
+            hint="Optional, except when the reason is Other."
+            value={message}
+            error={messageError}
+            onChange={(e) => {
+              setMessage(e.target.value);
+              setMessageError(null);
+            }}
+            required={reason === "Other"}
           />
         </div>
       )}

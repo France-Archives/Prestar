@@ -22,8 +22,6 @@ export const ROUTES = {
     dashboard: "/app/dashboard",
     books: "/app/books",
     bookDetails: (id: string) => `/app/books/${id}`,
-    interests: "/app/interests",
-    interestsWelcome: "/app/interests/welcome",
     borrowings: "/app/borrowing",
     borrowList: "/app/borrow-list",
     requests: "/app/requests",
@@ -136,7 +134,6 @@ const STUDENT_SECTIONS: NavSection[] = [
     items: [
       { label: "COR", to: S.cor, capability: "STUDENT_AREA" },
       { label: "Penalties", to: S.penalties, capability: "STUDENT_AREA" },
-      { label: "My interests", to: S.interests, capability: "STUDENT_AREA" },
       { label: "Profile", to: S.profile, capability: "STUDENT_AREA" },
       { label: "Notifications", to: S.notifications, capability: "STUDENT_AREA" },
     ],

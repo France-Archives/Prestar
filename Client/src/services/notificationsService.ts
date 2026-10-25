@@ -1,39 +1,46 @@
-import type { NotificationItem, NotificationType, PageParams, Paginated, RelatedEntityType, UUID } from "@/types";
+import {
+  NOTIFICATION_TYPES,
+  RELATED_ENTITY_TYPES,
+  type NotificationItem,
+  type NotificationType,
+  type PageParams,
+  type Paginated,
+  type RelatedEntityType,
+  type UUID,
+} from "@/types";
 import { apiClient } from "@/services/apiClient";
-import { fail, toApiError } from "@/utils/errors";
+import { ApiError, fail, toApiError } from "@/utils/errors";
 import { USE_MOCKS } from "@/utils/constants";
 import { begin, toNotification } from "./mockEngine";
 import { commit, db, nowIso, out, paginate, requireAccount } from "./mockStore";
 
-interface ServerNotification {
-  id: string | number;
-  type: string;
-  title: string;
-  message: string;
-  relatedEntityType: string | null;
-  relatedEntityId: string | number | null;
-  readAt: string | null;
-  createdAt: string;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-interface ServerNotificationPage {
-  items: ServerNotification[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-}
-
-function mapNotification(notification: ServerNotification): NotificationItem {
+function mapNotification(value: unknown): NotificationItem {
+  if (!isRecord(value)
+    || (typeof value.id !== "string" && typeof value.id !== "number")
+    || typeof value.type !== "string"
+    || !NOTIFICATION_TYPES.includes(value.type as NotificationType)
+    || typeof value.title !== "string" || !value.title.trim()
+    || typeof value.message !== "string" || !value.message.trim()
+    || (value.relatedEntityType !== null && (typeof value.relatedEntityType !== "string"
+      || !RELATED_ENTITY_TYPES.includes(value.relatedEntityType as RelatedEntityType)))
+    || (value.relatedEntityId !== null && typeof value.relatedEntityId !== "string" && typeof value.relatedEntityId !== "number")
+    || (value.readAt !== null && typeof value.readAt !== "string")
+    || typeof value.createdAt !== "string" || !value.createdAt.trim()) {
+    throw new ApiError("UNKNOWN", "The Server returned an invalid notification.");
+  }
   return {
-    id: String(notification.id),
-    type: notification.type as NotificationType,
-    title: notification.title,
-    message: notification.message,
-    relatedEntityType: notification.relatedEntityType as RelatedEntityType | null,
-    relatedEntityId: notification.relatedEntityId === null ? null : String(notification.relatedEntityId),
-    readAt: notification.readAt,
-    createdAt: notification.createdAt,
+    id: String(value.id),
+    type: value.type as NotificationType,
+    title: value.title,
+    message: value.message,
+    relatedEntityType: value.relatedEntityType as RelatedEntityType | null,
+    relatedEntityId: value.relatedEntityId === null ? null : String(value.relatedEntityId),
+    readAt: value.readAt,
+    createdAt: value.createdAt,
   };
 }
 
@@ -43,20 +50,27 @@ const mine = (userId: UUID) => db.notifications.filter((n) => n.userId === userI
 export async function listNotifications(params: PageParams & { unreadOnly?: boolean } = {}): Promise<Paginated<NotificationItem>> {
   if (!USE_MOCKS) {
     try {
-      const response = await apiClient.get<ServerNotificationPage>("/notifications", {
+      const response = await apiClient.get<unknown>("/notifications", {
         params: {
           page: params.page,
           pageSize: params.pageSize,
           unreadOnly: params.unreadOnly,
         },
       });
+      const page = response.data;
+      if (!isRecord(page)
+        || !Array.isArray(page.items)
+        || !Number.isInteger(page.total)
+        || !Number.isInteger(page.page)
+        || !Number.isInteger(page.pageSize)
+        || (page.total as number) < 0
+        || (page.page as number) < 1
+        || (page.pageSize as number) < 1) {
+        throw new ApiError("UNKNOWN", "The Server returned an invalid notification list.");
+      }
       return {
-        data: response.data.items.map(mapNotification),
-        meta: {
-          total: response.data.total,
-          page: response.data.page,
-          pageSize: response.data.pageSize,
-        },
+        data: page.items.map(mapNotification),
+        meta: { total: page.total as number, page: page.page as number, pageSize: page.pageSize as number },
       };
     } catch (error) {
       throw toApiError(error);
@@ -72,8 +86,11 @@ export async function listNotifications(params: PageParams & { unreadOnly?: bool
 export async function getUnreadCount(): Promise<number> {
   if (!USE_MOCKS) {
     try {
-      const response = await apiClient.get<{ unreadCount: number }>("/notifications/unread-count");
-      return response.data.unreadCount;
+      const response = await apiClient.get<unknown>("/notifications/unread-count");
+      if (!isRecord(response.data) || !Number.isInteger(response.data.unreadCount) || (response.data.unreadCount as number) < 0) {
+        throw new ApiError("UNKNOWN", "The Server returned an invalid unread notification count.");
+      }
+      return response.data.unreadCount as number;
     } catch (error) {
       throw toApiError(error);
     }
@@ -87,7 +104,7 @@ export async function getUnreadCount(): Promise<number> {
 export async function markRead(notificationId: UUID): Promise<NotificationItem> {
   if (!USE_MOCKS) {
     try {
-      const response = await apiClient.post<ServerNotification>(`/notifications/${encodeURIComponent(notificationId)}/read`);
+      const response = await apiClient.post<unknown>(`/notifications/${encodeURIComponent(notificationId)}/read`);
       return mapNotification(response.data);
     } catch (error) {
       throw toApiError(error);
@@ -106,7 +123,10 @@ export async function markRead(notificationId: UUID): Promise<NotificationItem> 
 export async function markAllRead(): Promise<void> {
   if (!USE_MOCKS) {
     try {
-      await apiClient.post<{ message: string }>("/notifications/read-all");
+      const response = await apiClient.post<unknown>("/notifications/read-all");
+      if (!isRecord(response.data) || typeof response.data.message !== "string") {
+        throw new ApiError("UNKNOWN", "The Server returned an invalid mark-read response.");
+      }
       return;
     } catch (error) {
       throw toApiError(error);

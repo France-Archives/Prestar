@@ -370,12 +370,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function mapBackendInterest(value: unknown): Interest {
   if (!isRecord(value)) throw new ApiError("UNKNOWN", "The Server returned an invalid interest.");
+  const id = value.id;
   const categoryId = Number(value.categoryId);
-  if (!Number.isSafeInteger(categoryId) || categoryId <= 0 || typeof value.name !== "string") {
+  if ((typeof id !== "string" && typeof id !== "number")
+    || !/^[1-9]\d*$/.test(String(id))
+    || !Number.isSafeInteger(categoryId) || categoryId <= 0
+    || String(id) !== String(categoryId)
+    || typeof value.name !== "string" || !value.name.trim()) {
     throw new ApiError("UNKNOWN", "The Server returned an interest without a valid category ID or name.");
   }
   return {
-    id: String(categoryId),
+    id: String(id),
     categoryId,
     name: value.name,
     ...(value.description === null || typeof value.description === "string"

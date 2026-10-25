@@ -7,6 +7,7 @@ import BackButton from "@/components/navigation/BackButton";
 import Sidebar from "@/components/navigation/Sidebar";
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import StudentInterestsPrompt from "@/features/student/components/StudentInterestsPrompt";
 
 const COLLAPSED_KEY = "prestar:sidebar-rail";
 
@@ -98,6 +99,7 @@ export default function AppShell() {
           </div>
         )}
         <Outlet />
+        <StudentInterestsPrompt />
       </main>
     </div>
   );

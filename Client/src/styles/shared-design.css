@@ -720,3 +720,73 @@
     transform: none;
   }
 }
+.interests-picker {
+  max-height: min(90vh, 760px);
+}
+
+.interests-picker .dialog-body {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.interests-picker--required .dialog-head .link-btn {
+  visibility: hidden;
+}
+
+.interests-picker__count {
+  margin: 0;
+  color: var(--color-forest);
+  font-weight: 700;
+}
+
+.interests-picker__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  width: 100%;
+}
+
+.student-interests-error {
+  position: fixed;
+  z-index: 101;
+  inset: 16px 16px auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--color-line-soft);
+  border-radius: 16px;
+  background: var(--color-paper);
+  box-shadow: 0 16px 40px rgba(7, 53, 44, 0.2);
+}
+
+.student-interests-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 600px) {
+  .interests-picker {
+    max-height: 92dvh;
+  }
+
+  .interests-picker .dialog-foot {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    justify-content: stretch;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+
+  .interests-picker__actions {
+    flex-wrap: wrap;
+  }
+
+  .interests-picker__actions .btn-primary {
+    width: 100%;
+    order: -1;
+  }
+}
