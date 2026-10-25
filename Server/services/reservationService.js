@@ -16,6 +16,18 @@ import {
 } from "../config/libraryRules.js";
 import { checkBorrowEligibility } from "./borrowEligibilityService.js";
 import withActor from "../utils/withActor.js";
+import { createNotification } from "./notificationService.js";
+
+function formatNoticeDate(date) {
+  if (!date) return "";
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return String(date);
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
 
 export class ReservationError extends Error {
   constructor(status, code, message, extra = {}) {
@@ -194,6 +206,20 @@ export async function createReservation({ userId, bookId, requestedDays = 7 }) {
         },
         transaction,
       });
+
+      try {
+        await createNotification({
+          userId,
+          type: "RESERVATION_CONFIRMED",
+          title: "Reservation confirmed",
+          message: `You are in the reservation queue for "${book.title}". We will notify you when a copy is offered.`,
+          relatedEntityType: "RESERVATION",
+          relatedEntityId: reservation.reservation_id,
+          transaction,
+        });
+      } catch (notifErr) {
+        console.warn("[Notification] Error creating RESERVATION_CONFIRMED notification:", notifErr.message);
+      }
 
       return {
         message: "You have joined the reservation queue successfully.",
@@ -522,6 +548,26 @@ export async function processNextInReservationQueue(bookId, options = {}) {
         },
         { transaction },
       );
+
+      try {
+        const book = await Book.findByPk(bookId, {
+          attributes: ["title"],
+          transaction,
+        });
+        const bookTitle = book?.title || "your reserved title";
+        const deadlineStr = formatNoticeDate(pickupDeadline);
+        await createNotification({
+          userId: candidateUserId,
+          type: "RESERVATION_OFFERED",
+          title: "A copy is ready",
+          message: `A copy of "${bookTitle}" is held for you until ${deadlineStr}.`,
+          relatedEntityType: "RESERVATION",
+          relatedEntityId: resRow.reservation_id,
+          transaction,
+        });
+      } catch (notifErr) {
+        console.warn("[Notification] Error creating RESERVATION_OFFERED notification:", notifErr.message);
+      }
 
       console.log(
         `[Reservation Queue] Assigned copy ${lockedCopy.copy_id} to student ${candidateUserId} for book ${bookId}`,

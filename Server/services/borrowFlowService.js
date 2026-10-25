@@ -22,6 +22,18 @@ import {
 import withActor from "../utils/withActor.js";
 import { checkBorrowEligibility } from "./borrowEligibilityService.js";
 import { processNextInReservationQueue } from "./reservationService.js";
+import { createNotification } from "./notificationService.js";
+
+function formatNoticeDate(date) {
+  if (!date) return "";
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return String(date);
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
 
 export class BorrowFlowError extends Error {
   constructor(status, code, message, extra = {}) {
@@ -46,7 +58,7 @@ export async function expireStalePickups() {
         status: "Approved",
         pickup_deadline: { [Op.lt]: new Date() },
       },
-      attributes: ["request_id"],
+      attributes: ["request_id", "user_id", "book_id"],
       transaction,
       lock: transaction.LOCK.UPDATE,
       skipLocked: true,
@@ -73,6 +85,27 @@ export async function expireStalePickups() {
         { status: "Expired" },
         { where: { request_id: reqRow.request_id }, fields: ["status"], transaction },
       );
+
+      if (reqRow.user_id) {
+        try {
+          const book = await Book.findByPk(reqRow.book_id, {
+            attributes: ["title"],
+            transaction,
+          });
+          const bookTitle = book?.title || "your requested book";
+          await createNotification({
+            userId: reqRow.user_id,
+            type: "BORROW_REQUEST_EXPIRED",
+            title: "Request expired",
+            message: `Your pickup reservation for "${bookTitle}" has expired because it was not picked up before the deadline.`,
+            relatedEntityType: "BORROWING_REQUEST",
+            relatedEntityId: reqRow.request_id,
+            transaction,
+          });
+        } catch (notifErr) {
+          console.warn("[Notification] Error creating BORROW_REQUEST_EXPIRED notification:", notifErr.message);
+        }
+      }
     }
 
     return expiredRequests.length;
@@ -290,6 +323,21 @@ export async function createBorrowRequest(arg1, arg2, arg3) {
         { transaction },
       );
 
+      try {
+        const deadlineStr = formatNoticeDate(pickupDeadline);
+        await createNotification({
+          userId,
+          type: "BORROW_REQUEST_APPROVED",
+          title: "Request approved",
+          message: `Your request for "${book.title}" was approved. Pick it up by ${deadlineStr} at the library.`,
+          relatedEntityType: "BORROWING_REQUEST",
+          relatedEntityId: created.request_id,
+          transaction,
+        });
+      } catch (notifErr) {
+        console.warn("[Notification] Error creating BORROW_REQUEST_APPROVED notification:", notifErr.message);
+      }
+
       return {
         id: created.request_id,
         requestId: created.request_id,
@@ -476,6 +524,25 @@ export async function reviewBorrowRequest({
         },
       );
 
+      try {
+        const book = await Book.findByPk(request.book_id, {
+          attributes: ["title"],
+          transaction,
+        });
+        const bookTitle = book?.title || "your requested book";
+        await createNotification({
+          userId: request.user_id,
+          type: "BORROW_REQUEST_REJECTED",
+          title: "Request not approved",
+          message: `Your request for "${bookTitle}" was not approved. Reason: ${remarks.trim()}`,
+          relatedEntityType: "BORROWING_REQUEST",
+          relatedEntityId: requestId,
+          transaction,
+        });
+      } catch (notifErr) {
+        console.warn("[Notification] Error creating BORROW_REQUEST_REJECTED notification:", notifErr.message);
+      }
+
       setImmediate(() => {
         processNextInReservationQueue(request.book_id).catch(console.error);
       });
@@ -509,6 +576,27 @@ export async function reviewBorrowRequest({
           transaction,
         },
       );
+
+      try {
+        const book = await Book.findByPk(request.book_id, {
+          attributes: ["title"],
+          transaction,
+        });
+        const bookTitle = book?.title || "your requested book";
+        const deadlineStr = formatNoticeDate(request.pickup_deadline);
+        await createNotification({
+          userId: request.user_id,
+          type: "BORROW_REQUEST_APPROVED",
+          title: "Request approved",
+          message: `Your request for "${bookTitle}" was approved. Pick it up by ${deadlineStr} at the library.`,
+          relatedEntityType: "BORROWING_REQUEST",
+          relatedEntityId: requestId,
+          transaction,
+        });
+      } catch (notifErr) {
+        console.warn("[Notification] Error creating BORROW_REQUEST_APPROVED notification:", notifErr.message);
+      }
+
       return {
         message: "Request approved and copy reserved.",
         requestId,
@@ -697,6 +785,26 @@ export async function reviewBorrowRequest({
       },
     );
 
+    try {
+      const book = await Book.findByPk(request.book_id, {
+        attributes: ["title"],
+        transaction,
+      });
+      const bookTitle = book?.title || "your requested book";
+      const deadlineStr = formatNoticeDate(pickupDeadline);
+      await createNotification({
+        userId: request.user_id,
+        type: "BORROW_REQUEST_APPROVED",
+        title: "Request approved",
+        message: `Your request for "${bookTitle}" was approved. Pick it up by ${deadlineStr} at the library.`,
+        relatedEntityType: "BORROWING_REQUEST",
+        relatedEntityId: requestId,
+        transaction,
+      });
+    } catch (notifErr) {
+      console.warn("[Notification] Error creating BORROW_REQUEST_APPROVED notification:", notifErr.message);
+    }
+
     return {
       message: "Request approved and copy reserved.",
       requestId,
@@ -848,6 +956,26 @@ export async function pickupBook({ borrowId, requestId, issuerId, copyBarcode })
       },
     );
 
+    try {
+      const book = await Book.findByPk(request.book_id, {
+        attributes: ["title"],
+        transaction,
+      });
+      const bookTitle = book?.title || "your book";
+      const dueFormatted = formatNoticeDate(dueDateStr);
+      await createNotification({
+        userId: request.user_id,
+        type: "LOAN_ISSUED",
+        title: "Book issued",
+        message: `You borrowed "${bookTitle}". It is due on ${dueFormatted}.`,
+        relatedEntityType: "LOAN",
+        relatedEntityId: loan.borrow_id,
+        transaction,
+      });
+    } catch (notifErr) {
+      console.warn("[Notification] Error creating LOAN_ISSUED notification:", notifErr.message);
+    }
+
     return {
       message: "Book pickup confirmed successfully.",
       id: loan.borrow_id,
@@ -959,6 +1087,25 @@ export async function rejectPickupBook({ borrowId, requestId, staffId, remarks, 
         transaction,
       },
     );
+
+    try {
+      const book = await Book.findByPk(request.book_id, {
+        attributes: ["title"],
+        transaction,
+      });
+      const bookTitle = book?.title || "your requested book";
+      await createNotification({
+        userId: request.user_id,
+        type: "HANDOVER_REJECTED",
+        title: "Handover not possible",
+        message: `The library could not release "${bookTitle}": ${cleanRemarks}. Contact the library for next steps.`,
+        relatedEntityType: "BORROWING_REQUEST",
+        relatedEntityId: request.request_id,
+        transaction,
+      });
+    } catch (notifErr) {
+      console.warn("[Notification] Error creating HANDOVER_REJECTED notification:", notifErr.message);
+    }
 
     // Asynchronously dispatch any waiting reservations for this title
     setImmediate(() => {
