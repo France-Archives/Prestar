@@ -89,7 +89,7 @@ export default function AdminDashboardPage() {
             <RankedBars books={d.popularBooks} />
           </ChartPanel>
           <ChartPanel title="Unpaid fines" note="Outstanding balance across unpaid and partially paid fines." className="admin-dashboard__fines-panel">
-            <AdminMoneyFigure amount={d.unpaidFineBalance} to={ROUTES.admin.finesAndPayments} />
+            <AdminMoneyFigure amount={d.unpaidFineBalance} to={ROUTES.admin.fines} />
           </ChartPanel>
           <ChartPanel title="Overdue share" note="Overdue loans compared with active loans." className="admin-dashboard__ratio-panel">
             <RatioRing active={d.activeLoans} overdue={d.overdueLoans} />

@@ -6,7 +6,7 @@ import type { StudentRef } from "./user";
 export interface FinePayment {
   id: UUID;
   fineId: UUID;
-  amount: number; // > 0 and <= balance
+  amount: number; // Live payments must equal the full unpaid fine amount.
   paymentMethod: PaymentMethod;
   referenceNumber: string | null;
   paidAt: ISODateTime;
@@ -16,13 +16,19 @@ export interface FinePayment {
 /** Payment record joined for the staff payment history list. */
 export interface StaffPayment extends FinePayment {
   student: StudentRef;
-  fineType: FineType;
+  fineType: FineType | string;
   recordedByName: string;
+  receiptNo?: string | null;
+  bookTitle?: string | null;
+  fineTypeLabel?: string;
+  remarks?: string | null;
 }
 
-/** F2 POST /staff/fines/:fineId/payments */
+/** POST /api/fines/:id/payments. Live payments are cash-only and full-amount. */
 export interface RecordFinePaymentRequest {
   amount: number;
-  paymentMethod: PaymentMethod;
+  paymentMethod?: PaymentMethod;
   referenceNumber?: string | null;
+  receiptNo?: string;
+  remarks?: string | null;
 }

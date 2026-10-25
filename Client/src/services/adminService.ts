@@ -32,7 +32,7 @@ import { LIBRARIAN_PERMISSIONS } from "@/types";
 import { apiClient } from "@/services/apiClient";
 import type { MockAccount } from "@/data";
 import { POLICY_SETTINGS, USE_MOCKS } from "@/utils/constants";
-import { fail, toApiError } from "@/utils/errors";
+import { ApiError, fail, toApiError } from "@/utils/errors";
 import { dateKey } from "@/utils/formatDate";
 import { validateDateRange, validateEmail, validateName, validatePassword, validateRequired } from "@/utils/validators";
 import { begin, checkEligibility, corSummaryOf, toCor, toFineSummary, toLoan, toReservation, toStaffFine } from "./mockEngine";
@@ -285,8 +285,38 @@ function validateTerm(req: Partial<CreateAcademicTermRequest>, selfId?: UUID): v
   }
 }
 
-/** D9 GET /admin/academic-terms. Oldest term first. */
+/** GET /academic-terms in live mode; list-only endpoint. */
 export async function listAcademicTerms(): Promise<AcademicTerm[]> {
+  if (!USE_MOCKS) {
+    try {
+      const response = (await apiClient.get<unknown>("/academic-terms")).data;
+      if (!Array.isArray(response)) throw new Error("The Server returned an invalid academic-term list.");
+      return response.map((row: unknown) => {
+        if (typeof row !== "object" || row === null || Array.isArray(row)) throw new Error("The Server returned an invalid academic term.");
+        const term = row as Record<string, unknown>;
+        if ((typeof term.id !== "string" && typeof term.id !== "number")
+          || typeof term.name !== "string" || typeof term.startDate !== "string"
+          || typeof term.endDate !== "string" || typeof term.corDeadline !== "string"
+          || typeof term.status !== "string") {
+          throw new Error("The Server returned an incomplete academic term.");
+        }
+        const status = term.status.toUpperCase();
+        if (status !== "ACTIVE" && status !== "UPCOMING" && status !== "COMPLETED") {
+          throw new Error("The Server returned an unknown academic-term status.");
+        }
+        return {
+          id: String(term.id),
+          name: term.name,
+          startDate: term.startDate,
+          endDate: term.endDate,
+          corDeadline: term.corDeadline,
+          status,
+        };
+      });
+    } catch (error) {
+      throw toApiError(error);
+    }
+  }
   await begin();
   requireCapability("ADMIN_AREA");
   return out([...db.terms].sort((a, b) => a.startDate.localeCompare(b.startDate)));
@@ -294,6 +324,7 @@ export async function listAcademicTerms(): Promise<AcademicTerm[]> {
 
 /** D10 POST /admin/academic-terms */
 export async function createAcademicTerm(req: CreateAcademicTermRequest): Promise<AcademicTerm> {
+  if (!USE_MOCKS) throw new ApiError("UNSUPPORTED_OPERATION", "Academic term creation is not available yet.", 501);
   await begin();
   const admin = requireCapability("ADMIN_AREA");
   if (!req.name || !req.startDate || !req.endDate || !req.corDeadline) fail("VALIDATION_ERROR", "Name, start date, end date and COR deadline are required.", 422);
@@ -307,6 +338,7 @@ export async function createAcademicTerm(req: CreateAcademicTermRequest): Promis
 
 /** D11 PATCH /admin/academic-terms/:id */
 export async function updateAcademicTerm(id: UUID, req: UpdateAcademicTermRequest): Promise<AcademicTerm> {
+  if (!USE_MOCKS) throw new ApiError("UNSUPPORTED_OPERATION", "Academic term editing is not available yet.", 501);
   await begin();
   const admin = requireCapability("ADMIN_AREA");
   const term = db.terms.find((t) => t.id === id);
@@ -353,8 +385,70 @@ export async function updateSetting(key: string, req: UpdateSettingRequest): Pro
 
 // ---------- audit logs ----------
 
-/** D12 GET /admin/audit-logs */
+/** GET /admin/audit-logs with server-side filters and pagination. */
 export async function listAuditLogs(params: AuditLogParams = {}): Promise<Paginated<AuditLog>> {
+  if (!USE_MOCKS) {
+    try {
+      const response = (await apiClient.get<unknown>("/admin/audit-logs", {
+        params: {
+          ...(params.from ? { from: params.from } : {}),
+          ...(params.to ? { to: params.to } : {}),
+          ...(params.actorRole ? { actorRole: params.actorRole } : {}),
+          ...(params.action ? { action: params.action } : {}),
+          ...(params.search?.trim() ? { search: params.search.trim() } : {}),
+          page: params.page ?? 1,
+          pageSize: params.pageSize ?? 15,
+        },
+      })).data;
+      if (typeof response !== "object" || response === null || Array.isArray(response)) {
+        throw new Error("The Server returned an invalid audit-log list.");
+      }
+      const body = response as Record<string, unknown>;
+      if (!Array.isArray(body.data) || typeof body.meta !== "object" || body.meta === null || Array.isArray(body.meta)) {
+        throw new Error("The Server returned an invalid audit-log list.");
+      }
+      const meta = body.meta as Record<string, unknown>;
+      if (typeof meta.page !== "number" || !Number.isSafeInteger(meta.page) || meta.page < 1
+        || typeof meta.pageSize !== "number" || !Number.isSafeInteger(meta.pageSize) || meta.pageSize < 1 || meta.pageSize > 100
+        || typeof meta.total !== "number" || !Number.isSafeInteger(meta.total) || meta.total < 0) {
+        throw new Error("The Server returned invalid audit-log pagination.");
+      }
+      const data = body.data.map((row: unknown): AuditLog => {
+        if (typeof row !== "object" || row === null || Array.isArray(row)) throw new Error("The Server returned an invalid audit entry.");
+        const item = row as Record<string, unknown>;
+        if ((typeof item.id !== "string" && typeof item.id !== "number")
+          || (typeof item.auditId !== "string" && typeof item.auditId !== "number")
+          || (typeof item.actorUserId !== "string" && typeof item.actorUserId !== "number")
+          || typeof item.actorName !== "string" || typeof item.actorRole !== "string"
+          || typeof item.action !== "string" || typeof item.entityType !== "string"
+          || (item.entityId !== null && typeof item.entityId !== "string" && typeof item.entityId !== "number")
+          || typeof item.summary !== "string" || typeof item.createdAt !== "string") {
+          throw new Error("The Server returned an incomplete audit entry.");
+        }
+        if (item.actorRole !== "ADMIN" && item.actorRole !== "LIBRARIAN" && item.actorRole !== "STUDENT") {
+          throw new Error("The Server returned an unknown audit actor role.");
+        }
+        return {
+          id: String(item.id),
+          auditId: item.auditId === undefined ? undefined : String(item.auditId),
+          actorUserId: String(item.actorUserId),
+          actorName: item.actorName,
+          actorRole: item.actorRole,
+          action: item.action,
+          entityType: item.entityType,
+          entityId: item.entityId === null || item.entityId === undefined ? null : String(item.entityId),
+          summary: item.summary,
+          createdAt: item.createdAt,
+        };
+      });
+      return {
+        data,
+        meta: { page: meta.page, pageSize: meta.pageSize, total: meta.total },
+      };
+    } catch (error) {
+      throw toApiError(error);
+    }
+  }
   await begin();
   requireCapability("ADMIN_AREA");
   const rows = db.audit

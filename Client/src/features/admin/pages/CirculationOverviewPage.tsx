@@ -19,7 +19,7 @@ const SCREENS = [
   ["Reservations queue", T.reservations, "FIFO queue and offered copies."],
   ["Renewals", T.renewals, "Automatic renewal history."],
   ["Check Penalties", T.penaltyCheck, "Live eligibility lookup."],
-  ["Fines", ROUTES.admin.finesAndPayments, "Assess, record payments, waive."],
+  ["Fines", ROUTES.admin.fines, "Review and waive unpaid penalties."],
   ["Maintenance copies", T.maintenance, "Damaged, lost and withdrawn copies."],
 ] as const;
 

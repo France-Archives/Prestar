@@ -97,9 +97,10 @@ export interface AuditLog {
   actorRole: UserRole;
   action: string; // e.g. HANDOVER_CLAIMED, FINE_WAIVED
   entityType: string;
-  entityId: UUID | null;
+  entityId?: UUID | null;
   summary: string;
   createdAt: ISODateTime;
+  auditId?: UUID;
 }
 
 export interface AuditLogParams extends PageParams {

@@ -55,7 +55,8 @@
     [A.terms]: CalendarDays,
     [A.policies]: Scale,
     [A.settings]: Settings,
-    [A.finesAndPayments]: Banknote,
+    [A.fines]: Banknote,
+    [A.payments]: Banknote,
     [A.notifications]: Megaphone,
     };
 

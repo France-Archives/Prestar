@@ -69,7 +69,8 @@ export const ROUTES = {
     terms: "/admin/terms",
     settings: "/admin/settings",
     policies: "/admin/policies",
-    finesAndPayments: "/admin/fines",
+    fines: "/admin/fines",
+    payments: "/admin/payments",
     reports: "/admin/reports",
     auditLogs: "/admin/audit-logs",
     notifications: "/admin/notifications",
@@ -207,7 +208,8 @@ const ADMIN_SECTIONS: NavSection[] = [
       { label: "Academic terms", to: A.terms, capability: "ADMIN_AREA" },
       { label: "Borrowing policies", to: A.policies, capability: "ADMIN_AREA" },
       { label: "System settings", to: A.settings, capability: "ADMIN_AREA" },
-      { label: "Fines and payments", to: A.finesAndPayments, capability: "ADMIN_AREA" },
+      { label: "Fines", to: A.fines, capability: "ADMIN_AREA" },
+      { label: "Payments", to: A.payments, capability: "ADMIN_AREA" },
       { label: "Notifications management", to: A.notifications, capability: "ADMIN_AREA" },
     ],
   },
@@ -215,7 +217,12 @@ const ADMIN_SECTIONS: NavSection[] = [
 
 /** Navigation for the signed-in user. Admin gets every Librarian section plus the Admin sections. */
 export function getNavSections(user: SessionUser): NavSection[] {
-  const sections = user.role === "STUDENT" ? STUDENT_SECTIONS : [...STAFF_SECTIONS, ...ADMIN_SECTIONS];
+  const staffSections = user.role === "ADMIN"
+    ? STAFF_SECTIONS.map((section) => section.id === "staff-money"
+      ? { ...section, title: "Verification", items: section.items.filter((item) => item.to === T.corReview) }
+      : section)
+    : STAFF_SECTIONS;
+  const sections = user.role === "STUDENT" ? STUDENT_SECTIONS : [...staffSections, ...(user.role === "ADMIN" ? ADMIN_SECTIONS : [])];
   return sections
     .map((s) => ({
       ...s,

@@ -9,6 +9,7 @@ import PageHero from "@/components/layout/PageHero";
 import BackButton from "@/components/navigation/BackButton";
 import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
+import { useDebounce } from "@/hooks/useDebounce";
 import * as adminService from "@/services/adminService";
 import type { UserRole } from "@/types";
 import { statusLabel } from "@/utils/constants";
@@ -16,18 +17,30 @@ import AuditLogTable from "../components/AuditLogTable";
 
 const PAGE_SIZE = 15;
 const ROLES: UserRole[] = ["ADMIN", "LIBRARIAN", "STUDENT"];
+const ACTIONS = [
+  "FINE_WAIVED", "FINE_SETTLED", "FINE_ASSESSED", "FINE_UPDATED", "PAYMENT_RECORDED",
+  "REQUEST_APPROVED", "REQUEST_REJECTED", "REQUEST_CANCELLED", "REQUEST_CREATED", "REQUEST_UPDATED",
+  "LOAN_RETURNED", "LOAN_MARKED_LOST", "LOAN_OVERDUE", "HANDOVER_CLAIMED", "LOAN_UPDATED", "LOAN_RENEWED",
+  "COR_APPROVED", "COR_REJECTED", "COR_SUBMITTED", "COR_UPDATED",
+  "BOOK_CREATED", "BOOK_UPDATED", "BOOK_DELETED", "BOOK_COPY_ADDED", "BOOK_COPY_UPDATED", "BOOK_COPY_DELETED",
+  "CATEGORY_CREATED", "AUTHOR_CREATED",
+  "LIBRARIAN_CREATED", "ADMIN_CREATED", "USER_STATUS_CHANGED", "USER_UPDATED", "USER_REGISTERED",
+  "TERM_CREATED", "TERM_UPDATED", "RESERVATION_PLACED", "RESERVATION_UPDATED",
+] as const;
 const USING_MOCKS = import.meta.env.VITE_USE_MOCKS !== "false";
 
 // D12 GET /admin/audit-logs. Audit entries are append-only in the real system; staff and Admin mutations write them.
 export default function AuditLogsPage() {
   const [search, setSearch] = useState("");
+  const deferredSearch = useDebounce(search);
   const [role, setRole] = useState<"" | UserRole>("");
+  const [action, setAction] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [page, setPage] = useState(1);
   const list = useAsync(
-    () => adminService.listAuditLogs({ search: search || undefined, actorRole: role || undefined, from: from || undefined, to: to || undefined, page, pageSize: PAGE_SIZE }),
-    [search, role, from, to, page],
+    () => adminService.listAuditLogs({ search: deferredSearch || undefined, actorRole: role || undefined, action: action || undefined, from: from || undefined, to: to || undefined, page, pageSize: PAGE_SIZE }),
+    [deferredSearch, role, action, from, to, page],
   );
   const meta = list.data?.meta;
   const totalPages = meta ? Math.max(1, Math.ceil(meta.total / meta.pageSize)) : 1;
@@ -48,6 +61,10 @@ export default function AuditLogsPage() {
         <select className="select" style={{ width: "auto" }} aria-label="Actor role" value={role} onChange={(e) => { setRole(e.target.value as "" | UserRole); reset(); }}>
           <option value="">All roles</option>
           {ROLES.map((r) => <option key={r} value={r}>{statusLabel(r)}</option>)}
+        </select>
+        <select className="select" style={{ width: "auto" }} aria-label="Action" value={action} onChange={(e) => { setAction(e.target.value); reset(); }}>
+          <option value="">All actions</option>
+          {ACTIONS.map((value) => <option key={value} value={value}>{value.replace(/_/g, " ")}</option>)}
         </select>
         <InputField label="From" type="date" value={from} onChange={(e) => { setFrom(e.target.value); reset(); }} />
         <InputField label="To" type="date" value={to} onChange={(e) => { setTo(e.target.value); reset(); }} />
