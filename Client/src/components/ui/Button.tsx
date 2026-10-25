@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes } from "react";
 import Spinner from "./Spinner";
 
-export type ButtonVariant = "primary" | "accent" | "ghost" | "danger";
+export type ButtonVariant = "primary" | "secondary" | "accent" | "ghost" | "danger" | "danger-outline" | "danger-solid";
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;

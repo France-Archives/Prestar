@@ -81,6 +81,7 @@ export default function Sidebar({ collapsed, drawerOpen, isDesktop, onCloseDrawe
                     <li key={item.to}>
                       <NavLink
                         to={item.to}
+                        aria-label={collapsed && isDesktop ? item.label : undefined}
                         className={({ isActive }) => `app-nav-item${isActive ? " is-active" : ""}`}
                         {...tipHandlers(item.label)}
                       >

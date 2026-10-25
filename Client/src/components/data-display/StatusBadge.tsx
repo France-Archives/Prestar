@@ -12,7 +12,7 @@ const TONES: Record<string, Tone> = {
   NOT_YET_EFFECTIVE: "warn", SUSPENDED: "warn", MISSING: "warn",
   REJECTED: "danger", RELEASE_REJECTED: "danger", LOST: "danger", OVERDUE: "danger", UNPAID: "danger",
   EXPIRED: "danger", DISABLED: "danger", UNUSABLE: "danger",
-  CANCELLED: "neutral", WAIVED: "neutral", WITHDRAWN: "neutral",
+  CLAIMED: "info", CANCELLED: "neutral", WAIVED: "neutral", WITHDRAWN: "neutral",
 };
 
 export default function StatusBadge({ status, label }: { status: string; label?: string }) {

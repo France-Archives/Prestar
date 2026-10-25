@@ -17,6 +17,9 @@
   }
 }
 @media (max-width: 767.98px) {
+  :root {
+    --header-h: 60px;
+  }
   .app-shell {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -144,7 +147,7 @@
   place-items: center;
   flex: none;
   width: 2.5rem;
-  height: 2.5rem;
+  height: 2.75rem;
   border-radius: var(--radius-control);
   color: var(--color-forest);
   transition:

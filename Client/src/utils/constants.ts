@@ -213,7 +213,7 @@ const STATUS_TONE: Record<string, Tone> = {
   // requests / loans / reservations
   ON_HOLD: "warn",
   RELEASE_REJECTED: "danger",
-  CLAIMED: "ok",
+  CLAIMED: "info",
   CANCELLED: "neutral",
   RETURNED: "ok",
   WAITING: "info",

@@ -266,6 +266,17 @@ div.card:has(> .table-wrap) {
   color: var(--color-forest);
   box-shadow: 0 8px 18px -12px rgba(7, 53, 44, 0.35);
 }
+.btn-secondary {
+  background: var(--color-paper);
+  border-color: var(--color-line);
+  color: var(--color-forest);
+  box-shadow: 0 1px 2px rgba(7, 53, 44, 0.05);
+}
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--color-sage);
+  background: var(--color-mist);
+  color: var(--color-forest-deep);
+}
 .btn-danger {
   background: var(--color-brick);
   color: #fff;
@@ -273,6 +284,24 @@ div.card:has(> .table-wrap) {
 .btn-danger:hover:not(:disabled) {
   filter: brightness(0.92);
   color: #fff;
+}
+.btn-danger-solid {
+  background: var(--color-brick);
+  color: #fff;
+}
+.btn-danger-solid:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-brick) 88%, #000);
+  color: #fff;
+}
+.btn-danger-outline {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--color-brick) 50%, var(--color-line));
+  color: var(--color-brick);
+}
+.btn-danger-outline:hover:not(:disabled) {
+  background: var(--color-brick-soft);
+  border-color: var(--color-brick);
+  color: var(--color-brick);
 }
 .btn-sm {
   height: var(--control-h-sm);
