@@ -16,7 +16,6 @@
     scrollbar-gutter: stable;
   }
   body {
-    min-width: 320px;
     font-family: var(--font-sans);
     font-size: 0.9375rem;
     background: var(--color-canvas);
