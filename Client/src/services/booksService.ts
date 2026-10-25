@@ -28,6 +28,335 @@ import { commit, db, generateCopyBarcode, matches, newId, out, paginate, require
 
 // Mock implementations remain for demo mode; supported catalog reads and book writes use live endpoints when mocks are off.
 
+export interface ShelfCopy {
+  id: UUID;
+  bookId: UUID;
+  accessionNo: string;
+  barcode: string;
+  shelfLocation: string | null;
+  conditionStatus: string;
+  status: string;
+  book: {
+    title: string;
+    isbn: string | null;
+    coverImageUrl: string | null;
+    publisher: string | null;
+    category: string | null;
+    author: string;
+  };
+  activeLoan: { borrowerName: string | null; dueDate: string | null } | null;
+}
+
+export interface ShelfSummary {
+  shelfLocation: string | null;
+  name: string;
+  totalCopies: number;
+  availableCopies: number;
+  distinctTitles: number;
+}
+
+export interface ShelfListResult {
+  data: ShelfCopy[];
+  pagination: { total: number; page: number; limit: number; totalPages: number };
+}
+
+export interface ShelfOverview {
+  shelves: ShelfSummary[];
+  totalShelves: number;
+  unassigned: ShelfSummary;
+}
+
+function unwrapLive<T>(value: unknown): T {
+  if (isRecord(value) && "data" in value
+    && !["copies", "books", "shelves", "copy", "updatedCount", "totalCopies"].some((key) => key in value)) {
+    return value.data as T;
+  }
+  return value as T;
+}
+
+function mapShelfCopy(value: unknown): ShelfCopy {
+  if (!isRecord(value) || !positiveId(value.id ?? value.copyId)
+    || !positiveId(value.bookId) || typeof value.accessionNo !== "string"
+    || typeof value.status !== "string" || typeof value.conditionStatus !== "string"
+    || !isRecord(value.book) || typeof value.book.title !== "string") {
+    throw new ApiError("UNKNOWN", "The Server returned an invalid shelf copy.");
+  }
+  const book = value.book;
+  const author = typeof book.author === "string"
+    ? book.author
+    : isRecord(book.authorDetails) && typeof book.authorDetails.name === "string"
+      ? book.authorDetails.name
+      : "";
+  let activeLoan: ShelfCopy["activeLoan"] = null;
+  if (value.activeLoan !== null && value.activeLoan !== undefined) {
+    if (!isRecord(value.activeLoan)) throw new ApiError("UNKNOWN", "The Server returned an invalid active loan.");
+    const borrower = value.activeLoan.borrowerName ?? value.activeLoan.studentName ?? value.activeLoan.borrower;
+    const dueDate = value.activeLoan.dueDate ?? value.activeLoan.dueAt;
+    activeLoan = {
+      borrowerName: typeof borrower === "string"
+        ? borrower
+        : isRecord(borrower) && typeof borrower.name === "string"
+          ? borrower.name
+          : isRecord(value.activeLoan.student) && typeof value.activeLoan.student.name === "string"
+            ? value.activeLoan.student.name
+            : null,
+      dueDate: typeof dueDate === "string" ? dueDate : null,
+    };
+  }
+  return {
+    id: String(value.id ?? value.copyId),
+    bookId: String(value.bookId),
+    accessionNo: String(value.accessionNo),
+    barcode: typeof value.barcode === "string" ? value.barcode : String(value.accessionNo),
+    shelfLocation: typeof value.shelfLocation === "string" && value.shelfLocation ? value.shelfLocation : null,
+    conditionStatus: String(value.conditionStatus),
+    status: String(value.status),
+    book: {
+      title: String(book.title),
+      isbn: typeof book.isbn === "string" ? book.isbn : null,
+      coverImageUrl: typeof book.coverImageUrl === "string" ? book.coverImageUrl : null,
+      publisher: typeof book.publisher === "string" ? book.publisher : null,
+      category: isRecord(book.category) && typeof book.category.name === "string" ? book.category.name : null,
+      author,
+    },
+    activeLoan,
+  };
+}
+
+function mapShelfSummary(value: unknown): ShelfSummary {
+  if (!isRecord(value)
+    || !(typeof value.shelfLocation === "string" || value.shelfLocation === null)
+    || typeof value.name !== "string"
+    || !["totalCopies", "availableCopies", "distinctTitles"].every((key) => Number.isSafeInteger(value[key]) && Number(value[key]) >= 0)) {
+    throw new ApiError("UNKNOWN", "The Server returned an invalid shelf summary.");
+  }
+  return {
+    shelfLocation: typeof value.shelfLocation === "string" ? value.shelfLocation : null,
+    name: value.name,
+    totalCopies: Number(value.totalCopies),
+    availableCopies: Number(value.availableCopies),
+    distinctTitles: Number(value.distinctTitles),
+  };
+}
+
+function mapShelfPagination(value: unknown): ShelfListResult["pagination"] {
+  if (!isRecord(value)
+    || !["total", "page", "limit", "totalPages"].every((key) => Number.isSafeInteger(value[key]) && Number(value[key]) >= 0)
+    || Number(value.page) < 1 || Number(value.limit) < 1) {
+    throw new ApiError("UNKNOWN", "The Server returned invalid shelf pagination.");
+  }
+  return {
+    total: Number(value.total),
+    page: Number(value.page),
+    limit: Number(value.limit),
+    totalPages: Number(value.totalPages),
+  };
+}
+
+export async function listShelfLocator(params: {
+  search?: string;
+  shelfLocation?: string;
+  status?: string;
+  conditionStatus?: string;
+  page?: number;
+  limit?: number;
+} = {}): Promise<ShelfListResult> {
+  const page = params.page ?? 1;
+  const limit = params.limit ?? 20;
+  if (!Number.isSafeInteger(page) || page < 1 || !Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
+    fail("VALIDATION_ERROR", "Page must be positive and shelf page size must be from 1 to 100.", 400);
+  }
+  if (USE_MOCKS) {
+    const rows = await listAllCopies({ search: params.search });
+    const filtered = rows
+      .filter((copy) => !params.shelfLocation || (params.shelfLocation === "unassigned" ? !copy.shelfLocation : copy.shelfLocation === params.shelfLocation))
+      .filter((copy) => !params.status || copy.status.toLowerCase() === params.status.toLowerCase())
+      .filter((copy) => !params.conditionStatus || copy.condition.toLowerCase() === params.conditionStatus.toLowerCase());
+    return {
+      data: filtered.slice((page - 1) * limit, page * limit).map((copy) => ({
+        id: copy.id,
+        bookId: copy.bookId,
+        accessionNo: copy.barcode,
+        barcode: copy.barcode,
+        shelfLocation: copy.shelfLocation,
+        conditionStatus: copy.condition,
+        status: copy.status,
+        book: {
+          title: copy.bookTitle,
+          isbn: null,
+          coverImageUrl: null,
+          publisher: null,
+          category: null,
+          author: "",
+        },
+        activeLoan: null,
+      })),
+      pagination: { total: filtered.length, page, limit, totalPages: Math.ceil(filtered.length / limit) },
+    };
+  }
+  try {
+    const response = (await apiClient.get<unknown>("/shelf-locator", {
+      params: {
+        search: params.search || undefined,
+        shelfLocation: params.shelfLocation || undefined,
+        status: params.status || undefined,
+        conditionStatus: params.conditionStatus || undefined,
+        page,
+        limit,
+      },
+    })).data;
+    const body = unwrapLive<unknown>(response);
+    if (!isRecord(body) || !Array.isArray(body.copies)) throw new ApiError("UNKNOWN", "The Server returned an invalid shelf-copy list.");
+    return {
+      data: body.copies.map(mapShelfCopy),
+      pagination: mapShelfPagination(body.pagination),
+    };
+  } catch (error) {
+    throw toApiError(error);
+  }
+}
+
+export async function listShelfOverview(): Promise<ShelfOverview> {
+  if (USE_MOCKS) {
+    const copies = await listShelfLocator();
+    const grouped = new Map<string, ShelfCopy[]>();
+    copies.data.forEach((copy) => {
+      const key = copy.shelfLocation ?? "";
+      grouped.set(key, [...(grouped.get(key) ?? []), copy]);
+    });
+    const summaries = [...grouped.entries()].map(([location, rows]) => ({
+      shelfLocation: location || null,
+      name: location || "Unassigned",
+      totalCopies: rows.length,
+      availableCopies: rows.filter((copy) => copy.status.toUpperCase() === "AVAILABLE").length,
+      distinctTitles: new Set(rows.map((copy) => copy.bookId)).size,
+    }));
+    const unassigned = summaries.find((shelf) => shelf.shelfLocation === null)
+      ?? { shelfLocation: null, name: "Unassigned", totalCopies: 0, availableCopies: 0, distinctTitles: 0 };
+    return { shelves: summaries.filter((shelf) => shelf.shelfLocation !== null), totalShelves: summaries.filter((shelf) => shelf.shelfLocation !== null).length, unassigned };
+  }
+  try {
+    const response = (await apiClient.get<unknown>("/shelf-locator/shelves")).data;
+    const body = unwrapLive<unknown>(response);
+    if (!isRecord(body) || !Array.isArray(body.shelves) || !Number.isSafeInteger(body.totalShelves)) {
+      throw new ApiError("UNKNOWN", "The Server returned an invalid shelf overview.");
+    }
+    return {
+      shelves: body.shelves.map(mapShelfSummary),
+      totalShelves: Number(body.totalShelves),
+      unassigned: mapShelfSummary(body.unassigned),
+    };
+  } catch (error) {
+    throw toApiError(error);
+  }
+}
+
+export async function getBookCopies(bookId: UUID): Promise<{ bookTitle: string; copies: ShelfCopy[]; totalCopies: number; availableCopies: number }> {
+  if (USE_MOCKS) {
+    const copies = await listBookCopies(bookId);
+    const book = await getBook(bookId);
+    return {
+      bookTitle: book.title,
+      copies: copies.map((copy) => ({
+        id: copy.id,
+        bookId: copy.bookId,
+        accessionNo: copy.barcode,
+        barcode: copy.barcode,
+        shelfLocation: copy.shelfLocation,
+        conditionStatus: copy.condition,
+        status: copy.status,
+        book: { title: book.title, isbn: book.isbn, coverImageUrl: book.coverImageUrl, publisher: book.publisher, category: book.category?.name ?? null, author: book.authors.map((author) => author.name).join(", ") },
+        activeLoan: null,
+      })),
+      totalCopies: copies.length,
+      availableCopies: copies.filter((copy) => copy.status === "AVAILABLE").length,
+    };
+  }
+  try {
+    const response = (await apiClient.get<unknown>(`/books/${apiId(bookId, "Book id")}/copies`)).data;
+    const body = unwrapLive<unknown>(response);
+    const liveBook = isRecord(body) ? body.book : undefined;
+    if (!isRecord(body) || !isRecord(liveBook) || typeof liveBook.title !== "string" || !Array.isArray(body.copies)
+      || !Number.isSafeInteger(body.totalCopies) || !Number.isSafeInteger(body.availableCopies)) {
+      throw new ApiError("UNKNOWN", "The Server returned an invalid book-copy list.");
+    }
+    return {
+      bookTitle: liveBook.title,
+      copies: body.copies.map((copy) => mapShelfCopy({
+        ...(isRecord(copy) ? copy : {}),
+        bookId,
+        book: {
+          title: liveBook.title,
+          isbn: liveBook.isbn,
+          coverImageUrl: liveBook.coverImageUrl,
+          publisher: liveBook.publisher,
+          category: typeof liveBook.category === "string" ? { name: liveBook.category } : liveBook.category,
+          author: liveBook.author,
+        },
+      })),
+      totalCopies: Number(body.totalCopies),
+      availableCopies: Number(body.availableCopies),
+    };
+  } catch (error) {
+    throw toApiError(error);
+  }
+}
+
+export async function updateCopyShelf(copyId: UUID, shelfLocation: string): Promise<void> {
+  if (!shelfLocation.trim()) fail("VALIDATION_ERROR", "Choose a shelf location. To unassign a copy, use the Unassigned option if supported by your Server.", 422);
+  if (!USE_MOCKS) {
+    try {
+      const id = apiId(copyId, "Copy id");
+      const response = (await apiClient.patch<unknown>(`/shelf-locator/copies/${id}`, { shelfLocation: shelfLocation.trim() })).data;
+      const body = unwrapLive<unknown>(response);
+      const updated = isRecord(body) ? body.copy : undefined;
+      if (!isRecord(updated) || !positiveId(updated.id ?? updated.copyId)
+        || typeof updated.accessionNo !== "string"
+        || updated.shelfLocation !== shelfLocation.trim()
+        || typeof updated.status !== "string"
+        || typeof (updated.conditionStatus ?? updated.condition) !== "string") {
+        throw new ApiError("UNKNOWN", "The Server returned an invalid copy update.");
+      }
+      return;
+    } catch (error) {
+      throw toApiError(error);
+    }
+  }
+  await updateCopy(copyId, { shelfLocation });
+}
+
+export async function updateCopiesShelf(input: { copyIds?: UUID[]; bookId?: UUID; shelfLocation: string }): Promise<number> {
+  if (!input.shelfLocation.trim()) fail("VALIDATION_ERROR", "Choose a shelf location.", 422);
+  const hasCopyIds = Boolean(input.copyIds?.length);
+  const hasBookId = input.bookId !== undefined;
+  if (hasCopyIds === hasBookId) {
+    fail("VALIDATION_ERROR", "Choose copies or a book to move.", 422);
+  }
+  if (!USE_MOCKS) {
+    try {
+      const payload = {
+        ...(input.copyIds ? { copyIds: input.copyIds.map((id) => apiId(id, "Copy id")) } : { bookId: apiId(input.bookId!, "Book id") }),
+        shelfLocation: input.shelfLocation.trim(),
+      };
+      const response = (await apiClient.patch<unknown>("/shelf-locator/bulk", payload)).data;
+      const body = unwrapLive<unknown>(response);
+      if (!isRecord(body) || !Number.isSafeInteger(body.updatedCount) || Number(body.updatedCount) < 0) {
+        throw new ApiError("UNKNOWN", "The Server returned an invalid bulk copy update.");
+      }
+      return Number(body.updatedCount);
+    } catch (error) {
+      throw toApiError(error);
+    }
+  }
+  if (input.bookId) {
+    const copies = await listBookCopies(input.bookId);
+    await Promise.all(copies.map((copy) => updateCopy(copy.id, { shelfLocation: input.shelfLocation })));
+    return copies.length;
+  }
+  await Promise.all((input.copyIds ?? []).map((id) => updateCopy(id, { shelfLocation: input.shelfLocation })));
+  return input.copyIds?.length ?? 0;
+}
+
 const check = (message: string | null): void => {
   if (message) fail("VALIDATION_ERROR", message, 422);
 };

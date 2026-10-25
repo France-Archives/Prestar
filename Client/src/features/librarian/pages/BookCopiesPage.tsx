@@ -13,8 +13,11 @@ import * as booksService from "@/services/booksService";
 import type { BookCopy } from "@/types";
 import CopyForm from "../components/CopyForm";
 import CopyStatusTable from "../components/CopyStatusTable";
+import BookCopiesPanel from "../components/BookCopiesPanel";
+import { USE_MOCKS } from "@/utils/constants";
 
 export default function BookCopiesPage() {
+  if (!USE_MOCKS) return <LiveBookCopiesPage />;
   const { bookId = "" } = useParams();
   const book = useAsync(() => booksService.getBook(bookId), [bookId]);
   const copies = useAsync(() => booksService.listBookCopies(bookId), [bookId]);
@@ -47,6 +50,26 @@ export default function BookCopiesPage() {
       </div>
       {dialog?.kind === "add" && <CopyForm bookId={bookId} bookTitle={book.data.title} onClose={() => setDialog(null)} onDone={reload} />}
       {dialog?.kind === "edit" && <CopyForm copy={dialog.copy} bookTitle={book.data.title} onClose={() => setDialog(null)} onDone={reload} />}
+    </div>
+  );
+}
+
+function LiveBookCopiesPage() {
+  const { bookId = "" } = useParams();
+  const book = useAsync(() => booksService.getBook(bookId), [bookId]);
+  if (book.loading && !book.data) return <div className="page"><LoadingState rows={4} /></div>;
+  if (book.error || !book.data) return <div className="page"><ErrorState message={book.error ?? "Book not found."} onRetry={() => void book.reload()} /></div>;
+  return (
+    <div className="page">
+      <Breadcrumbs items={[{ label: "Books", to: ROUTES.staff.books }, { label: book.data.title }]} />
+      <PageHero
+        eyebrow="Catalog"
+        title={`Copies of ${book.data.title}`}
+        description="Review each physical copy and update its shelf location."
+        leading={<BackButton fallback={ROUTES.staff.dashboard} />}
+        compact
+      />
+      <BookCopiesPanel bookId={bookId} />
     </div>
   );
 }

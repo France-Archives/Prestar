@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Button from "@/components/common/Button";
 import ConfirmDialog from "@/components/feedback/ConfirmDialog";
+import Alert from "@/components/feedback/Alert";
 import DataTable, { type Column } from "@/components/data-display/DataTable";
 import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
 import Pagination from "@/components/data-display/Pagination";
 import SearchInput from "@/components/forms/SearchInput";
 import PageHero from "@/components/layout/PageHero";
+import Modal from "@/components/ui/Modal";
 import BackButton from "@/components/navigation/BackButton";
 import { ROUTES } from "@/app/routeConfig";
 import AvailabilityBadge from "@/features/books/components/AvailabilityBadge";
@@ -20,9 +22,10 @@ import { USE_MOCKS } from "@/utils/constants";
 import { formatPeso } from "@/utils/formatCurrency";
 import { can } from "@/utils/permissions";
 import BookForm from "../components/BookForm";
+import BookCopiesPanel from "../components/BookCopiesPanel";
 
 const PAGE_SIZE = 10;
-type Dialog = { kind: "form"; book: BookDetail | null } | { kind: "archive"; book: BookDetail } | null;
+type Dialog = { kind: "form"; book: BookDetail | null } | { kind: "archive"; book: BookDetail } | { kind: "copies"; book: BookDetail } | null;
 
 export default function ManageBooksPage() {
   const toast = useToast();
@@ -76,7 +79,7 @@ export default function ManageBooksPage() {
           Copies
         </Link>
       ) : (
-        <Button variant="ghost" size="sm" disabled title="Not available yet">Copies</Button>
+        <Button variant="ghost" size="sm" onClick={() => setDialog({ kind: "copies", book })}>Copies</Button>
       )}
       {canManage && (
         <Button variant="ghost" size="sm" onClick={() => setDialog({ kind: "archive", book })}>
@@ -148,9 +151,7 @@ export default function ManageBooksPage() {
           </select>
         </label>
       </div>
-      <p className="manage-books-note">
-        The API does not support a status filter, and the current list endpoint returns active titles only. Existing archived titles cannot be fetched after a page reload; titles archived during this session remain available to restore. {canManage ? "Copies management is not available yet." : "You have read-only catalog access."}
-      </p>
+      <Alert kind="info">Archived titles changed during this session remain available to restore. Copy status and condition are managed by circulation workflows.</Alert>
       {categories.error && <p className="subtle" role="status">Category filtering is unavailable: {categories.error}</p>}
 
       {books.loading ? (
@@ -223,6 +224,9 @@ export default function ManageBooksPage() {
           onDone={() => void books.reload()}
         />
       )}
+      {dialog?.kind === "copies" && <Modal title={`Copies of ${dialog.book.title}`} onClose={() => setDialog(null)} className="book-copies-modal">
+        <BookCopiesPanel bookId={dialog.book.id} />
+      </Modal>}
       {dialog?.kind === "archive" && (
         <ConfirmDialog
           title={`${dialog.book.isArchived ? "Restore" : "Archive"} ${dialog.book.title}?`}

@@ -6,6 +6,7 @@ vi.mock("@/utils/constants", async (importOriginal) => {
 });
 vi.mock("./apiClient", () => ({
   apiClient: {
+    get: vi.fn(),
     post: vi.fn(),
     patch: vi.fn(),
   },
@@ -25,6 +26,11 @@ import {
   listBooksForStaff,
   listCategories,
   listAuthors,
+  listShelfLocator,
+  listShelfOverview,
+  getBookCopies,
+  updateCopyShelf,
+  updateCopiesShelf,
   mapRecommendedBook,
   updateBook,
 } from "./booksService";
@@ -52,6 +58,53 @@ describe("live books service", () => {
     createdAt: "2026-01-10T12:00:00.000Z",
     updatedAt: "2026-02-15T08:30:00.000Z",
   };
+
+  it("maps shelf locator copies and forwards search and filter params", async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ data: {
+      copies: [{
+        id: "101", copyId: 101, bookId: "42", accessionNo: "ACC-101", barcode: "ACC-101",
+        shelfLocation: "Shelf-1", conditionStatus: "Good", status: "Available",
+        book: { title: "Systems Thinking", author: "A. Writer", coverImageUrl: null, category: { name: "Science" } },
+        activeLoan: { borrowerName: "Student One", dueDate: "2026-11-01" },
+      }],
+      pagination: { total: 1, page: 2, limit: 10, totalPages: 1 },
+    } });
+
+    await expect(listShelfLocator({
+      search: "systems", shelfLocation: "Shelf-1", status: "Available",
+      conditionStatus: "Good", page: 2, limit: 10,
+    })).resolves.toMatchObject({
+      data: [{ id: "101", bookId: "42", accessionNo: "ACC-101", book: { title: "Systems Thinking" }, activeLoan: { borrowerName: "Student One" } }],
+      pagination: { total: 1, page: 2, limit: 10, totalPages: 1 },
+    });
+    expect(apiClient.get).toHaveBeenCalledWith("/shelf-locator", {
+      params: { search: "systems", shelfLocation: "Shelf-1", status: "Available", conditionStatus: "Good", page: 2, limit: 10 },
+    });
+  });
+
+  it("maps shelf summaries, book-copy details, and submits single and bulk shelf updates", async () => {
+    vi.mocked(apiClient.get)
+      .mockResolvedValueOnce({ data: {
+        shelves: [{ shelfLocation: "Shelf-1", name: "Shelf-1", totalCopies: 3, availableCopies: 2, distinctTitles: 2 }],
+        totalShelves: 1,
+        unassigned: { shelfLocation: null, name: "Unassigned", totalCopies: 1, availableCopies: 1, distinctTitles: 1 },
+      } })
+      .mockResolvedValueOnce({ data: {
+        book: { id: "42", title: "Systems Thinking", author: "A. Writer" },
+        copies: [{ id: "101", copyId: 101, bookId: "42", accessionNo: "ACC-101", barcode: "ACC-101", shelfLocation: "Shelf-1", conditionStatus: "Good", status: "Available", activeLoan: null }],
+        totalCopies: 1, availableCopies: 1,
+      } });
+    vi.mocked(apiClient.patch)
+      .mockResolvedValueOnce({ data: { message: "Updated", copy: { id: "101", copyId: 101, accessionNo: "ACC-101", shelfLocation: "Shelf-2", conditionStatus: "Good", status: "Available" } } })
+      .mockResolvedValueOnce({ data: { message: "Updated", updatedCount: 2, shelfLocation: "Shelf-2" } });
+
+    await expect(listShelfOverview()).resolves.toMatchObject({ totalShelves: 1, shelves: [{ totalCopies: 3 }], unassigned: { totalCopies: 1 } });
+    await expect(getBookCopies("42")).resolves.toMatchObject({ bookTitle: "Systems Thinking", totalCopies: 1, copies: [{ accessionNo: "ACC-101" }] });
+    await expect(updateCopyShelf("101", "Shelf-2")).resolves.toBeUndefined();
+    await expect(updateCopiesShelf({ copyIds: ["101", "102"], shelfLocation: "Shelf-2" })).resolves.toBe(2);
+    expect(apiClient.patch).toHaveBeenNthCalledWith(1, "/shelf-locator/copies/101", { shelfLocation: "Shelf-2" });
+    expect(apiClient.patch).toHaveBeenNthCalledWith(2, "/shelf-locator/bulk", { copyIds: [101, 102], shelfLocation: "Shelf-2" });
+  });
 
   it("loads the staff book list with server pagination and maps full book fields", async () => {
     vi.mocked(apiGetPage).mockResolvedValue({

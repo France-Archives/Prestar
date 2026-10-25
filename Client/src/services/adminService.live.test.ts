@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { get } = vi.hoisted(() => ({ get: vi.fn() }));
+const { get, post, patch } = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), patch: vi.fn() }));
 
 vi.mock("@/services/apiClient", () => ({
-  apiClient: { get },
+  apiClient: { get, post, patch },
 }));
 
 describe("adminService live read-only endpoints", () => {
@@ -13,6 +13,8 @@ describe("adminService live read-only endpoints", () => {
     vi.resetModules();
     vi.stubEnv("VITE_USE_MOCKS", "false");
     get.mockReset();
+    post.mockReset();
+    patch.mockReset();
     service = await import("./adminService");
   });
 
@@ -61,11 +63,33 @@ describe("adminService live read-only endpoints", () => {
     expect(result.meta).toEqual({ page: 2, pageSize: 15, total: 21 });
   });
 
-  it("rejects unavailable term writes without making a request", async () => {
+  it("creates and updates terms through the admin endpoints", async () => {
+    const term = {
+      id: "35", name: "First Semester", startDate: "2027-08-01",
+      endDate: "2027-12-31", corDeadline: "2027-08-31", status: "UPCOMING",
+    };
+    post.mockResolvedValue({ data: { message: "Created", term } });
+    patch.mockResolvedValue({ data: { message: "Updated", term: { ...term, status: "ACTIVE" } } });
     await expect(service.createAcademicTerm({
       name: "Term", startDate: "2026-01-01", endDate: "2026-05-31", corDeadline: "2026-01-15",
-    })).rejects.toMatchObject({ code: "UNSUPPORTED_OPERATION" });
-    expect(get).not.toHaveBeenCalled();
+    })).resolves.toMatchObject({ id: "35", status: "UPCOMING" });
+    await expect(service.updateAcademicTerm("35", { status: "ACTIVE" })).resolves.toMatchObject({ id: "35", status: "ACTIVE" });
+    expect(post).toHaveBeenCalledWith("/admin/academic-terms", expect.objectContaining({ name: "Term" }));
+    expect(patch).toHaveBeenCalledWith("/admin/academic-terms/35", { status: "ACTIVE" });
+  });
+
+  it.each([
+    [409, "Term already exists", "CONFLICT"],
+    [422, "End date is invalid", "VALIDATION_ERROR"],
+  ])("preserves term write errors with status %s", async (status, message, code) => {
+    post.mockRejectedValue({
+      isAxiosError: true,
+      message,
+      response: { status, data: { message } },
+    });
+    await expect(service.createAcademicTerm({
+      name: "Term", startDate: "2026-01-01", endDate: "2026-05-31", corDeadline: "2026-01-15",
+    })).rejects.toMatchObject({ status, code, message });
   });
 
   it("rejects malformed live term data", async () => {

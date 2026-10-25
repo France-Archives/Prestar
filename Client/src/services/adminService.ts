@@ -32,7 +32,7 @@ import { LIBRARIAN_PERMISSIONS } from "@/types";
 import { apiClient } from "@/services/apiClient";
 import type { MockAccount } from "@/data";
 import { POLICY_SETTINGS, USE_MOCKS } from "@/utils/constants";
-import { ApiError, fail, toApiError } from "@/utils/errors";
+import { fail, toApiError } from "@/utils/errors";
 import { dateKey } from "@/utils/formatDate";
 import { validateDateRange, validateEmail, validateName, validatePassword, validateRequired } from "@/utils/validators";
 import { begin, checkEligibility, corSummaryOf, toCor, toFineSummary, toLoan, toReservation, toStaffFine } from "./mockEngine";
@@ -291,28 +291,7 @@ export async function listAcademicTerms(): Promise<AcademicTerm[]> {
     try {
       const response = (await apiClient.get<unknown>("/academic-terms")).data;
       if (!Array.isArray(response)) throw new Error("The Server returned an invalid academic-term list.");
-      return response.map((row: unknown) => {
-        if (typeof row !== "object" || row === null || Array.isArray(row)) throw new Error("The Server returned an invalid academic term.");
-        const term = row as Record<string, unknown>;
-        if ((typeof term.id !== "string" && typeof term.id !== "number")
-          || typeof term.name !== "string" || typeof term.startDate !== "string"
-          || typeof term.endDate !== "string" || typeof term.corDeadline !== "string"
-          || typeof term.status !== "string") {
-          throw new Error("The Server returned an incomplete academic term.");
-        }
-        const status = term.status.toUpperCase();
-        if (status !== "ACTIVE" && status !== "UPCOMING" && status !== "COMPLETED") {
-          throw new Error("The Server returned an unknown academic-term status.");
-        }
-        return {
-          id: String(term.id),
-          name: term.name,
-          startDate: term.startDate,
-          endDate: term.endDate,
-          corDeadline: term.corDeadline,
-          status,
-        };
-      });
+      return response.map(mapLiveAcademicTerm);
     } catch (error) {
       throw toApiError(error);
     }
@@ -322,9 +301,81 @@ export async function listAcademicTerms(): Promise<AcademicTerm[]> {
   return out([...db.terms].sort((a, b) => a.startDate.localeCompare(b.startDate)));
 }
 
+function mapLiveAcademicTerm(value: unknown): AcademicTerm {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("The Server returned an invalid academic term.");
+  }
+  const term = value as Record<string, unknown>;
+  if ((typeof term.id !== "string" && typeof term.id !== "number")
+    || typeof term.name !== "string" || typeof term.startDate !== "string"
+    || typeof term.endDate !== "string" || typeof term.corDeadline !== "string"
+    || typeof term.status !== "string") {
+    throw new Error("The Server returned an incomplete academic term.");
+  }
+  const id = String(term.id);
+  const isDate = (date: string) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+    const parsed = new Date(`${date}T00:00:00Z`);
+    return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date;
+  };
+  if (!/^[1-9]\d*$/.test(id) || !term.name.trim()
+    || !isDate(term.startDate) || !isDate(term.endDate) || !isDate(term.corDeadline)
+    || term.endDate < term.startDate || term.corDeadline < term.startDate || term.corDeadline > term.endDate) {
+    throw new Error("The Server returned invalid academic-term fields.");
+  }
+  const status = term.status.toUpperCase();
+  if (status !== "ACTIVE" && status !== "UPCOMING" && status !== "COMPLETED") {
+    throw new Error("The Server returned an unknown academic-term status.");
+  }
+  return {
+    id,
+    name: term.name,
+    startDate: term.startDate,
+    endDate: term.endDate,
+    corDeadline: term.corDeadline,
+    status,
+  };
+}
+
+export async function getAcademicTerm(id: UUID): Promise<AcademicTerm> {
+  if (!USE_MOCKS) {
+    const numericId = Number(id);
+    if (!/^[1-9]\d*$/.test(id) || !Number.isSafeInteger(numericId)) {
+      fail("VALIDATION_ERROR", "Academic term id must be a positive integer.", 400);
+    }
+    try {
+      const response = (await apiClient.get<unknown>(`/admin/academic-terms/${numericId}`)).data;
+      const body = typeof response === "object" && response !== null && "data" in response
+        ? (response as { data: unknown }).data
+        : response;
+      return mapLiveAcademicTerm(body);
+    } catch (error) {
+      throw toApiError(error);
+    }
+  }
+  await begin();
+  requireCapability("ADMIN_AREA");
+  const term = db.terms.find((item) => item.id === id);
+  if (!term) fail("NOT_FOUND", "We could not find that academic term.");
+  return out(term);
+}
+
 /** D10 POST /admin/academic-terms */
 export async function createAcademicTerm(req: CreateAcademicTermRequest): Promise<AcademicTerm> {
-  if (!USE_MOCKS) throw new ApiError("UNSUPPORTED_OPERATION", "Academic term creation is not available yet.", 501);
+  if (!USE_MOCKS) {
+    try {
+      const response = (await apiClient.post<unknown>("/admin/academic-terms", req)).data;
+      const body = typeof response === "object" && response !== null && "data" in response && !("term" in response)
+        ? (response as { data: unknown }).data
+        : response;
+      if (typeof body !== "object" || body === null || !("term" in body)) {
+        throw new Error("The Server returned an invalid created academic term.");
+      }
+      return mapLiveAcademicTerm((body as { term: unknown }).term);
+    } catch (error) {
+      throw toApiError(error);
+    }
+  }
   await begin();
   const admin = requireCapability("ADMIN_AREA");
   if (!req.name || !req.startDate || !req.endDate || !req.corDeadline) fail("VALIDATION_ERROR", "Name, start date, end date and COR deadline are required.", 422);
@@ -338,7 +389,24 @@ export async function createAcademicTerm(req: CreateAcademicTermRequest): Promis
 
 /** D11 PATCH /admin/academic-terms/:id */
 export async function updateAcademicTerm(id: UUID, req: UpdateAcademicTermRequest): Promise<AcademicTerm> {
-  if (!USE_MOCKS) throw new ApiError("UNSUPPORTED_OPERATION", "Academic term editing is not available yet.", 501);
+  if (!USE_MOCKS) {
+    const numericId = Number(id);
+    if (!/^[1-9]\d*$/.test(id) || !Number.isSafeInteger(numericId)) {
+      fail("VALIDATION_ERROR", "Academic term id must be a positive integer.", 400);
+    }
+    try {
+      const response = (await apiClient.patch<unknown>(`/admin/academic-terms/${numericId}`, req)).data;
+      const body = typeof response === "object" && response !== null && "data" in response && !("term" in response)
+        ? (response as { data: unknown }).data
+        : response;
+      if (typeof body !== "object" || body === null || !("term" in body)) {
+        throw new Error("The Server returned an invalid updated academic term.");
+      }
+      return mapLiveAcademicTerm((body as { term: unknown }).term);
+    } catch (error) {
+      throw toApiError(error);
+    }
+  }
   await begin();
   const admin = requireCapability("ADMIN_AREA");
   const term = db.terms.find((t) => t.id === id);
