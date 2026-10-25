@@ -25,6 +25,7 @@ export default function InterestSelector({ interests, selected, onChange, max }:
             aria-pressed={on}
             disabled={locked}
             className={`interest-chip${on ? " is-selected" : ""}`}
+            title={i.name}
             onClick={() => toggle(i.id)}
           >
             <span>{i.name}</span>

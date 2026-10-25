@@ -80,9 +80,10 @@ export default function BookCopiesPanel({ bookId }: Props) {
     ...(canMove ? [{
       key: "select",
       header: "",
+      className: "shelf-select-cell",
       render: (copy: ShelfCopy) => <input type="checkbox" aria-label={`Select ${copy.accessionNo}`} checked={selected.includes(copy.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, copy.id] : current.filter((id) => id !== copy.id))} />,
     }] : []),
-    { key: "accessionNo", header: "Accession no.", render: (copy) => <b>{copy.accessionNo}</b> },
+    { key: "accessionNo", header: "Accession no.", mobilePrimary: true, render: (copy) => <b>{copy.accessionNo}</b> },
     { key: "shelfLocation", header: "Shelf", render: (copy) => copy.shelfLocation ?? "Unassigned" },
     { key: "status", header: "Status", render: (copy) => <StatusBadge status={copy.status} /> },
     { key: "conditionStatus", header: "Condition", render: (copy) => <StatusBadge status={copy.conditionStatus} /> },

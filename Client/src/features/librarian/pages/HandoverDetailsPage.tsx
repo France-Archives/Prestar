@@ -29,21 +29,23 @@ export default function HandoverDetailsPage() {
       <PageHero eyebrow="Circulation" title={request.bookTitle} description={`Requested by ${request.student.firstName} ${request.student.lastName} (${request.student.studentNumber})`} leading={<BackButton fallback={ROUTES.staff.booksToRelease} />} compact />
       <div className="stack">
         <Alert kind="info">Please ask the student to present their school ID before handover.</Alert>
-        <Card title="Request">
-          <dl className="kv">
-            <div><dt>Status</dt><dd><StatusBadge status={request.status} /></dd></div>
-            <div><dt>Loan duration</dt><dd>{request.requestedDurationDays ? `${request.requestedDurationDays} days` : "Not provided yet"}</dd></div>
-            <div><dt>Assigned copy</dt><dd>{request.copy?.barcode ?? "—"}</dd></div>
-            <div><dt>Requested</dt><dd>{formatDate(request.requestedAt)}</dd></div>
-            <div><dt>Pickup deadline</dt><dd>{request.pickupDeadline ? formatDate(request.pickupDeadline) : "—"}</dd></div>
-            {request.decisionReason && <div><dt>Note</dt><dd>{request.decisionReason}</dd></div>}
-          </dl>
-        </Card>
-        {item ? (
-          <HandoverChecklist item={item} onChanged={() => void details.reload()} />
-        ) : (
-          <Alert kind="info">This request is {statusLabel(request.status).toLowerCase()} and is no longer awaiting release.</Alert>
-        )}
+        <div className="handover-grid">
+          <Card title="Request summary" className="handover-request-card">
+            <dl className="kv">
+              <div><dt>Status</dt><dd><StatusBadge status={request.status} /></dd></div>
+              <div><dt>Loan duration</dt><dd>{request.requestedDurationDays ? `${request.requestedDurationDays} days` : "Not provided yet"}</dd></div>
+              <div><dt>Assigned copy</dt><dd>{request.copy?.barcode ?? "Not assigned yet"}</dd></div>
+              <div><dt>Requested</dt><dd>{formatDate(request.requestedAt)}</dd></div>
+              <div><dt>Pickup deadline</dt><dd>{request.pickupDeadline ? formatDate(request.pickupDeadline) : "—"}</dd></div>
+              {request.decisionReason && <div><dt>Note</dt><dd>{request.decisionReason}</dd></div>}
+            </dl>
+          </Card>
+          {item ? (
+            <HandoverChecklist item={item} onChanged={() => void details.reload()} />
+          ) : (
+            <Alert kind="info">This request is {statusLabel(request.status).toLowerCase()} and is no longer awaiting release.</Alert>
+          )}
+        </div>
         {details.data.attemptsAvailable ? (
           <Card title="Handover history" note="Every check, hold, rejection and claim is recorded.">
             <Timeline

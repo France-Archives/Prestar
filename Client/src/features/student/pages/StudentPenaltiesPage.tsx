@@ -5,12 +5,16 @@ import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
 import BackButton from "@/components/navigation/BackButton";
 import PageHero from "@/components/layout/PageHero";
+import EmptyState from "@/components/feedback/EmptyState";
+import InfoBanner from "@/components/feedback/InfoBanner";
+import StatStrip from "@/components/layout/StatStrip";
 import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import * as finesService from "@/services/finesService";
 import type { StaffFine } from "@/types";
 import { statusLabel } from "@/utils/constants";
 import { formatDate } from "@/utils/formatDate";
+import { WalletCards } from "lucide-react";
 
 const COLUMNS: Column<StaffFine>[] = [
   { key: "fineType", header: "Type", render: (fine) => fine.fineTypeLabel ?? statusLabel(fine.fineType) },
@@ -36,10 +40,18 @@ export default function StudentPenaltiesPage() {
       ) : penalties.error ? (
         <ErrorState message={penalties.error} onRetry={() => void penalties.reload()} />
       ) : penalties.data ? (
-        <div className="card">
-          <p>{penalties.data.message}</p>
-          <p><strong>Outstanding balance: <Money value={penalties.data.totalBalance} /></strong></p>
-          <DataTable columns={COLUMNS} rows={penalties.data.fines} rowKey={(fine) => fine.id} empty="No current penalties." />
+        <div className="stack student-penalties-content">
+          <InfoBanner lead="Cash payments only">{penalties.data.message}</InfoBanner>
+          <StatStrip label="Penalty balance" items={[
+            { label: "Outstanding balance", value: <Money value={penalties.data.totalBalance} />, hint: "Pay at the library counter", icon: WalletCards, tone: "amber" },
+          ]} />
+          {penalties.data.fines.length === 0 ? (
+            <EmptyState title="No current penalties." />
+          ) : (
+            <div className="card card-pad student-penalties-table">
+              <DataTable columns={COLUMNS} rows={penalties.data.fines} rowKey={(fine) => fine.id} empty="No current penalties." />
+            </div>
+          )}
         </div>
       ) : null}
     </div>

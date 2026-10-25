@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ChevronDown } from "lucide-react";
 import Button from "@/components/common/Button";
 import ConfirmDialog from "@/components/feedback/ConfirmDialog";
 import ErrorState from "@/components/feedback/ErrorState";
@@ -12,6 +13,7 @@ import { useAsync } from "@/hooks/useAsync";
 import { useToast } from "@/hooks/useToast";
 import * as librarianService from "@/services/librarianService";
 import type { ReturnResult, StaffLoan } from "@/types";
+import StatusBadge from "@/components/data-display/StatusBadge";
 import { formatDate } from "@/utils/formatDate";
 import { USE_MOCKS } from "@/utils/constants";
 import ReturnConditionForm from "../components/ReturnConditionForm";
@@ -82,32 +84,38 @@ export default function ReturnsPage() {
             const student = loans[0].student;
             const expanded = expandedStudent === studentKey;
             return (
-              <section className="card" key={studentKey}>
+              <section className="card return-student-card" key={studentKey}>
                 <button
                   type="button"
-                  className="card-pad"
+                  className="card-pad return-student-toggle"
                   aria-expanded={expanded}
                   onClick={() => setExpandedStudent(expanded ? null : studentKey)}
-                  style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, textAlign: "left", background: "transparent", border: 0, cursor: "pointer" }}
                 >
                   <span>
-                    <strong>{student.firstName} {student.lastName}</strong>
-                    <span className="subtle" style={{ display: "block" }}>Student number: {student.studentNumber}</span>
+                    <strong className="return-student-name">{student.firstName} {student.lastName}</strong>
+                    <span className="subtle return-student-number">{student.studentNumber}</span>
                   </span>
-                  <span className="badge badge-neutral">{loans.length} loan{loans.length === 1 ? "" : "s"}</span>
+                  <span className="return-student-toggle__meta">
+                    <span className="badge badge-neutral">{loans.length} loan{loans.length === 1 ? "" : "s"}</span>
+                    <ChevronDown className={`return-student-chevron${expanded ? " is-expanded" : ""}`} size={18} aria-hidden="true" />
+                  </span>
                 </button>
                 {expanded && (
                   <div className="stack card-pad" style={{ paddingTop: 0 }}>
                     {loans.map((loan) => (
-                      <article className="card card-pad stack" key={loan.id}>
-                        <div>
+                      <article className="card card-pad return-loan-card" key={loan.id}>
+                        <div className="return-loan-card__head">
                           <strong>{loan.bookTitle}</strong>
-                          <p className="subtle">Copy {loan.copyBarcode} · Borrowed {formatDate(loan.borrowedAt)} · Due {formatDate(loan.dueAt)}</p>
-                          <p className="subtle">{loan.status === "ACTIVE" ? loan.overdueDays > 0 ? `${loan.overdueDays} days overdue` : "Active loan" : `${loan.status.toLowerCase()} loan`}</p>
+                          <StatusBadge status={loan.status} label={loan.status === "ACTIVE" ? loan.overdueDays > 0 ? `${loan.overdueDays} days overdue` : "Active loan" : `${loan.status.toLowerCase()} loan`} />
                         </div>
+                        <dl className="return-loan-meta">
+                          <div><dt>Copy</dt><dd>{loan.copyBarcode}</dd></div>
+                          <div><dt>Borrowed</dt><dd>{formatDate(loan.borrowedAt)}</dd></div>
+                          <div className={loan.overdueDays > 0 ? "is-overdue" : undefined}><dt>Due</dt><dd>{formatDate(loan.dueAt)}</dd></div>
+                        </dl>
                         {loan.status === "ACTIVE" && (
                           <div className="row-actions">
-                            <Button size="sm" onClick={() => setDialog({ kind: "return", loan })}>Return</Button>
+                            <Button variant="secondary" size="sm" onClick={() => setDialog({ kind: "return", loan })}>Return</Button>
                             {USE_MOCKS && <Button variant="ghost" size="sm" onClick={() => setDialog({ kind: "lost", loan })}>Mark lost</Button>}
                           </div>
                         )}

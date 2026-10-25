@@ -179,7 +179,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 };
 
 // ---------- Status display (labels and badge tones) ----------
-export type Tone = "ok" | "info" | "warn" | "danger" | "neutral";
+export type Tone = "ok" | "info" | "warn" | "danger" | "neutral" | "teal";
 
 const STATUS_TONE: Record<string, Tone> = {
   // account / term
@@ -199,7 +199,7 @@ const STATUS_TONE: Record<string, Tone> = {
   NOT_YET_EFFECTIVE: "info",
   // copies
   AVAILABLE: "ok",
-  RESERVED: "info",
+  RESERVED: "teal",
   ON_LOAN: "info",
   MAINTENANCE: "warn",
   LOST: "danger",

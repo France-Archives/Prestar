@@ -49,11 +49,13 @@ export default function InterestsPicker({ mode, initialSelection = [], onClose }
   const title = required ? "What do you like to read?" : "Edit your interests";
   const footer = (
     <div className="interests-picker__actions">
-      {!required && <Button variant="ghost" onClick={onClose} disabled={saving}>Cancel</Button>}
-      <Button data-modal-focus="confirm" onClick={() => void save()} loading={saving} disabled={saving || selected.length === 0 || options.loading || !options.data?.length}>
-        {required ? "Continue" : "Save interests"}
-      </Button>
-      {selected.length === 0 && <span className="subtle">Choose at least one interest.</span>}
+      <span className="interests-picker__footer-count">{selected.length} selected</span>
+      <div className="interests-picker__footer-actions">
+        {!required && <Button variant="ghost" onClick={onClose} disabled={saving}>Cancel</Button>}
+        <Button data-modal-focus="confirm" onClick={() => void save()} loading={saving} disabled={saving || selected.length === 0 || options.loading || !options.data?.length}>
+          {required ? "Continue" : "Save interests"}
+        </Button>
+      </div>
     </div>
   );
 
@@ -83,7 +85,7 @@ export default function InterestsPicker({ mode, initialSelection = [], onClose }
       ) : (
         <>
           <InterestSelector interests={options.data} selected={selected} onChange={setSelected} />
-          <p className="interests-picker__count" aria-live="polite">{selected.length} selected</p>
+          {selected.length === 0 && <p className="interests-picker__count" aria-live="polite">Choose at least one interest.</p>}
         </>
       )}
       {saveError && <Alert kind="error">{saveError}</Alert>}

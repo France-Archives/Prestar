@@ -58,25 +58,46 @@ export default function HandoverChecklist({ item, onChanged }: HandoverChecklist
   };
 
   const canConfirm = Boolean(check?.eligible) && idOk && copyOk;
+  const copyCode = item.copy.barcode.trim();
+  const checkSteps = [
+    { label: "Check penalties", state: !check ? "current" : check.eligible ? "done" : "blocked" },
+    { label: "Verify student and copy", state: !check ? "pending" : !check.eligible ? "blocked" : idOk && copyOk ? "done" : "current" },
+    { label: "Confirm handover", state: !check ? "pending" : !check.eligible ? "blocked" : canConfirm ? "current" : "pending" },
+  ] as const;
 
   return (
-    <Card title="Handover" note="Step 1: Check Penalties. Step 2: verify the student and the copy. Step 3: Confirm Handover.">
+    <Card title="Handover checklist" className="handover-checklist-card">
       <div className="stack">
         <div>
-          <Button variant="ghost" onClick={runCheck} loading={busy === "check"}>
+          <Button variant={check ? "secondary" : "primary"} onClick={runCheck} loading={busy === "check"}>
             Review / Check
           </Button>
         </div>
         {check && <PenaltySummary check={check} />}
 
+        <ol className="handover-stepper" aria-label="Handover steps">
+          {checkSteps.map((step, index) => (
+            <li key={step.label} className={`handover-stepper__item is-${step.state}`} aria-current={step.state === "current" ? "step" : undefined}>
+              <span className="handover-stepper__number">{index + 1}</span>
+              <span>{step.label}</span>
+            </li>
+          ))}
+        </ol>
+
         <hr style={{ border: 0, borderTop: "1px solid var(--color-line)" }} />
 
-        <CheckboxField label="I checked the student's school ID against the name and student number on this request." checked={idOk} onChange={(e) => setIdOk(e.target.checked)} />
-        <CheckboxField label={`I checked that the assigned copy (${item.copy.barcode}) is in my hand and in usable condition.`} checked={copyOk} onChange={(e) => setCopyOk(e.target.checked)} />
+        <div className="handover-check-row">
+          <CheckboxField label="I checked the student's school ID against the name and student number on this request." checked={idOk} onChange={(e) => setIdOk(e.target.checked)} />
+        </div>
+        <div className="handover-check-row">
+          <CheckboxField label={copyCode
+            ? `I checked that the assigned copy (${copyCode}) is in my hand and in usable condition.`
+            : "I checked that the assigned copy is in my hand and in usable condition."} checked={copyOk} onChange={(e) => setCopyOk(e.target.checked)} />
+        </div>
 
         {error && <Alert kind="error">{error}</Alert>}
 
-        <div className="row-actions">
+        <div className="row-actions handover-actions">
           <Button onClick={() => setConfirmClaim(true)} disabled={!canConfirm || busy !== null}>
             Confirm Handover
           </Button>
@@ -85,11 +106,11 @@ export default function HandoverChecklist({ item, onChanged }: HandoverChecklist
               Place on Hold
             </Button>
           )}
-          <Button variant="danger" onClick={() => setDialog("reject")}>
+          <Button variant="danger-outline" onClick={() => setDialog("reject")}>
             Reject Handover
           </Button>
         </div>
-        {!check && <p className="subtle">Confirm Handover unlocks after Review / Check finds the student eligible.</p>}
+        <p className="subtle handover-actions__helper">Confirm Handover unlocks after Review / Check finds the student eligible.</p>
       </div>
 
       {confirmClaim && (

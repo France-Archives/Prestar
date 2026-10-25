@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Image } from "lucide-react";
 import Alert from "@/components/feedback/Alert";
 import Button from "@/components/common/Button";
 import ConfirmDialog from "@/components/feedback/ConfirmDialog";
@@ -109,7 +110,7 @@ export default function CORReviewPanel({ item, onClose, onDone }: CORReviewPanel
   return (
     <Modal
       title="Review COR"
-      wide
+      size="data"
       onClose={busy ? () => undefined : onClose}
       footer={
         pending ? (
@@ -118,11 +119,11 @@ export default function CORReviewPanel({ item, onClose, onDone }: CORReviewPanel
               Close
             </Button>
             {!rejecting ? (
-              <Button variant="danger" onClick={() => setRejecting(true)} disabled={busy !== null}>
+              <Button variant="danger-outline" onClick={() => setRejecting(true)} disabled={busy !== null}>
                 Reject…
               </Button>
             ) : (
-              <Button variant="danger" onClick={confirmRejection} loading={busy === "reject"}>
+              <Button variant="danger-solid" onClick={confirmRejection} loading={busy === "reject"}>
                 Confirm rejection
               </Button>
             )}
@@ -137,10 +138,11 @@ export default function CORReviewPanel({ item, onClose, onDone }: CORReviewPanel
         )
       }
     >
-      <dl className="kv">
+      <div className="cor-review-grid">
+      <dl className="kv cor-review-details">
         <div><dt>Student</dt><dd>{item.student.name}</dd></div>
         <div><dt>Student number</dt><dd>{item.student.studentNumber || "—"}</dd></div>
-        {item.student.email && <div><dt>Email</dt><dd>{item.student.email}</dd></div>}
+        {item.student.email && <div><dt>Email</dt><dd className="cor-review-email">{item.student.email}</dd></div>}
         {(item.student.college || item.student.course) && (
           <div>
             <dt>College / Course</dt>
@@ -156,7 +158,6 @@ export default function CORReviewPanel({ item, onClose, onDone }: CORReviewPanel
         <div><dt>Term</dt><dd>{item.termName}</dd></div>
         <div><dt>Status</dt><dd><StatusBadge status={item.status} /></dd></div>
         <div><dt>Submitted</dt><dd>{formatDate(item.submittedAt)}</dd></div>
-        <div><dt>File name</dt><dd>{item.originalFileName || "cor_proof.jpg"}</dd></div>
         {item.effectiveFrom && item.validUntil && (
           <div><dt>Valid</dt><dd>{formatDate(item.effectiveFrom)} – {formatDate(item.validUntil)}</dd></div>
         )}
@@ -170,9 +171,12 @@ export default function CORReviewPanel({ item, onClose, onDone }: CORReviewPanel
         {item.rejectionReason && <div><dt>Rejection reason</dt><dd>{item.rejectionReason}</dd></div>}
       </dl>
 
-      <div style={{ marginTop: 14 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Button variant="ghost" size="sm" onClick={openDocument} loading={docLoading}>
+      <div className="cor-review-photo">
+        <span className="cor-review-filename" title={item.originalFileName || "cor_proof.jpg"}>{item.originalFileName || "cor_proof.jpg"}</span>
+        <div className="cor-review-photo__frame">
+        <div className="cor-review-photo__actions">
+          <Button variant="secondary" onClick={openDocument} loading={docLoading}>
+            <Image size={18} aria-hidden="true" />
             {docUrl ? (showDoc ? "Hide document photo" : "Show document photo") : "View captured COR photo"}
           </Button>
           {docUrl && (
@@ -190,26 +194,16 @@ export default function CORReviewPanel({ item, onClose, onDone }: CORReviewPanel
         {docNote && <div style={{ marginTop: 8 }}><Alert kind="info">{docNote}</Alert></div>}
         {docError && <div style={{ marginTop: 8 }}><Alert kind="error">{docError}</Alert></div>}
         {showDoc && docUrl && (
-          <div
-            style={{
-              marginTop: 10,
-              borderRadius: 8,
-              overflow: "hidden",
-              border: "1px solid var(--color-line, #e2e8f0)",
-              backgroundColor: "#000",
-              maxHeight: 480,
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
+          <div className="cor-review-photo__image">
             <img
               src={docUrl}
               alt={`COR document for ${item.student.name}`}
-              style={{ maxWidth: "100%", maxHeight: 480, objectFit: "contain" }}
+              className="cor-review-photo__img"
             />
           </div>
         )}
+        </div>
+      </div>
       </div>
 
       {pending && rejecting && (

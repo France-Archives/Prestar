@@ -71,23 +71,46 @@ export default function ManageBooksPage() {
   const visibleBooks = [...localArchived, ...loadedBooks];
 
   const openForm = (book: BookDetail | null) => setDialog({ kind: "form", book });
-  const renderActions = (book: BookDetail) => (
-    <div className="row-actions">
-      {canManage && <Button variant="ghost" size="sm" onClick={() => openForm(book)}>Edit</Button>}
-      {USE_MOCKS ? (
-        <Link to={ROUTES.staff.bookCopies(book.id)} className="btn btn-ghost btn-sm" style={{ textDecoration: "none" }}>
-          Copies
-        </Link>
-      ) : (
-        <Button variant="ghost" size="sm" onClick={() => setDialog({ kind: "copies", book })}>Copies</Button>
-      )}
-      {canManage && (
-        <Button variant="ghost" size="sm" onClick={() => setDialog({ kind: "archive", book })}>
-          {book.isArchived ? "Restore" : "Archive"}
-        </Button>
-      )}
-    </div>
-  );
+  const renderActions = (book: BookDetail) => {
+    const edit = () => openForm(book);
+    const copies = () => setDialog({ kind: "copies", book });
+    const archive = () => setDialog({ kind: "archive", book });
+    return (
+      <div className="manage-books-actions">
+        <div className="row-actions manage-books-actions__desktop">
+          {canManage && <Button variant="secondary" size="sm" onClick={edit}>Edit</Button>}
+          {USE_MOCKS ? (
+            <Link to={ROUTES.staff.bookCopies(book.id)} className="btn btn-secondary btn-sm" style={{ textDecoration: "none" }}>Copies</Link>
+          ) : (
+            <Button variant="secondary" size="sm" onClick={copies}>Copies</Button>
+          )}
+          {canManage && <Button variant={book.isArchived ? "secondary" : "danger-outline"} size="sm" onClick={archive}>{book.isArchived ? "Restore" : "Archive"}</Button>}
+        </div>
+        <details
+          className="book-actions-menu"
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.preventDefault();
+              event.currentTarget.open = false;
+              event.currentTarget.querySelector("summary")?.focus();
+            }
+          }}
+          onClick={(event) => {
+            if ((event.target as HTMLElement).closest('[role="menuitem"]')) event.currentTarget.open = false;
+          }}
+        >
+          <summary className="btn btn-secondary book-actions-menu__trigger" aria-haspopup="menu" aria-label={`Actions for ${book.title}`}>⋯</summary>
+          <div className="book-actions-menu__items" role="menu" aria-label={`Actions for ${book.title}`}>
+            {canManage && <button type="button" role="menuitem" onClick={edit}>Edit</button>}
+            {USE_MOCKS
+              ? <Link role="menuitem" to={ROUTES.staff.bookCopies(book.id)}>Copies</Link>
+              : <button type="button" role="menuitem" onClick={copies}>Copies</button>}
+            {canManage && <button type="button" role="menuitem" className={!book.isArchived ? "book-actions-menu__archive" : undefined} onClick={archive}>{book.isArchived ? "Restore" : "Archive"}</button>}
+          </div>
+        </details>
+      </div>
+    );
+  };
 
   const columns: Column<BookDetail>[] = [
     {
@@ -100,6 +123,7 @@ export default function ManageBooksPage() {
     {
       key: "title",
       header: "Title",
+      mobilePrimary: true,
       render: (book) => <><b>{book.title}</b>{book.price && <small className="book-list-price">{formatPeso(Number(book.price))}</small>}</>,
     },
     { key: "authors", header: "Author", render: (book) => book.authors.map((author) => author.name).join(", ") || "—" },

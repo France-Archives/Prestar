@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useReducedMotion } from "motion/react";
 
 /** Counts up once when visible, and animates later target updates from the current value. */
-export function useCountUp<T extends HTMLElement = HTMLSpanElement>(target: number, duration = 1100) {
+export function useCountUp<T extends Element = HTMLSpanElement>(target: number, duration = 1100) {
   const [value, setValue] = useState(0);
   const ref = useRef<T | null>(null);
   const started = useRef(false);

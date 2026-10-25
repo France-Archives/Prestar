@@ -56,12 +56,13 @@ export default function ReturnConditionForm({ loan, onClose, onDone }: ReturnCon
           <Button variant="ghost" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
-          <Button onClick={() => setConfirming(true)} disabled={!canSubmit}>
+          <Button className="return-confirm-action" onClick={() => setConfirming(true)} disabled={!canSubmit}>
             Confirm return
           </Button>
         </>
       }
     >
+      {!USE_MOCKS && <Alert kind="info">Returns can't be confirmed yet. Nothing will be saved if you continue.</Alert>}
       <div>
         <strong>{loan.bookTitle}</strong>
         <p className="subtle">
@@ -100,7 +101,6 @@ export default function ReturnConditionForm({ loan, onClose, onDone }: ReturnCon
             : "An unusable copy is withdrawn. Record a damage fine afterwards from the Fines page if needed."}
       </p>
       {error && <Alert kind="error">{error}</Alert>}
-      {!USE_MOCKS && <Alert kind="info">Returns can't be confirmed yet. Nothing will be saved if you continue.</Alert>}
       {condition === "DAMAGED" && (!damageType || !photo) && <p className="subtle">A damage type and captured photo are required.</p>}
     </Modal>
       {confirming && (

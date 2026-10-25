@@ -85,7 +85,7 @@ export default function NotificationsPage() {
       {user.role === "STUDENT"
         ? <PageHero eyebrow="Library" title="Notifications" leading={<BackButton fallback={ROUTES.student.dashboard} />} actions={actions} />
         : <PageHero eyebrow={user.role === "ADMIN" ? "Admin · notifications" : "Librarian"} title="Notifications" leading={<BackButton fallback={user.role === "ADMIN" ? ROUTES.admin.dashboard : ROUTES.staff.dashboard} />} compact actions={actions} />}
-      <p className="subtle" style={{ marginBottom: 12 }}>{unreadCount} unread</p>
+      <p className="subtle notification-unread-count">{unreadCount} unread</p>
       {list.loading ? (
         <LoadingState rows={4} />
       ) : list.error ? (

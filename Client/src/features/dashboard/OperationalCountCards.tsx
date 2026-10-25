@@ -12,11 +12,11 @@ import { Link } from "react-router-dom";
 import type { CSSProperties } from "react";
 
 const CARDS = [
-  { key: "pendingRequests", label: "Pending requests", to: ROUTES.staff.requests, tone: "amber" },
-  { key: "booksToRelease", label: "Books to release", to: ROUTES.staff.booksToRelease, tone: "forest" },
-  { key: "activeLoans", label: "Active loans", to: ROUTES.staff.returns, tone: "green" },
+  { key: "pendingRequests", label: "Pending requests", to: ROUTES.staff.requests, tone: "amber", focal: false },
+  { key: "booksToRelease", label: "Books to release", to: ROUTES.staff.booksToRelease, tone: "forest", focal: false },
+  { key: "activeLoans", label: "Active loans", to: ROUTES.staff.returns, tone: "green", focal: false },
   { key: "pendingCor", label: "Pending COR", to: ROUTES.staff.corReview, tone: "brick", focal: true },
-  { key: "waitingReservations", label: "Waiting reservations", to: ROUTES.staff.reservations, tone: "amber" },
+  { key: "waitingReservations", label: "Waiting reservations", to: ROUTES.staff.reservations, tone: "amber", focal: false },
 ] as const;
 
 const ICONS = {
