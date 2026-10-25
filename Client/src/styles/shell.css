@@ -223,6 +223,9 @@
       transform var(--dur-slow) var(--ease-out-expo),
       visibility 0s;
   }
+  .app-nav-item {
+    min-height: 2.75rem;
+  }
 }
 
 .app-sidebar__nav {

@@ -13,8 +13,11 @@
   html {
     -webkit-text-size-adjust: 100%;
     scroll-behavior: smooth;
+    scrollbar-gutter: stable;
   }
   body {
+    min-width: 320px;
+    overflow-x: clip;
     font-family: var(--font-sans);
     font-size: 0.9375rem;
     background: var(--color-canvas);
@@ -98,8 +101,8 @@
     font-size: 1.05rem;
   }
   :focus-visible {
-    outline: 2px solid var(--color-green);
-    outline-offset: 2px;
+    outline: 3px solid var(--focus, var(--color-green));
+    outline-offset: 3px;
   }
   ::selection {
     background: var(--color-amber);
@@ -112,6 +115,7 @@
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
