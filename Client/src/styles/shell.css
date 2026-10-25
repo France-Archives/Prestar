@@ -281,10 +281,20 @@
   text-align: left;
   white-space: nowrap;
   text-decoration: none;
-  transition:
-    background 200ms var(--ease),
-    box-shadow 200ms var(--ease),
-    color 200ms var(--ease);
+  transition: transform 200ms var(--ease-out-expo), opacity 180ms ease;
+}
+.app-nav-item::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 3px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--color-amber);
+  content: "";
+  opacity: 0;
+  transform: translateY(-50%) scaleY(0.35);
+  transition: transform 220ms var(--ease-out-expo), opacity 180ms ease;
 }
 .app-nav-item:hover {
   background: rgba(255, 255, 255, 0.06);
@@ -302,12 +312,16 @@
   color: #fff;
   font-weight: 500;
 }
+.app-nav-item.is-active::before {
+  opacity: 1;
+  transform: translateY(-50%) scaleY(1);
+}
 .app-nav-icon {
   flex: none;
   width: 1.25rem;
   height: 1.25rem;
   color: var(--color-cream);
-  transition: color var(--dur-fast);
+  transition: transform var(--dur-fast) var(--ease-out-expo), opacity var(--dur-fast);
 }
 .app-nav-item:hover .app-nav-icon {
   color: #9fe0c2;
@@ -375,6 +389,9 @@
       animation: none;
     }
     .app-nav-item {
+      transition: none;
+    }
+    .app-nav-item::before {
       transition: none;
     }
     .app-nav-item:hover .app-nav-icon {

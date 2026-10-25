@@ -9,7 +9,7 @@ import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import * as reportsService from "@/services/reportsService";
 import OperationalCountCards from "@/features/dashboard/OperationalCountCards";
-import { AdminKpiStrip, AdminMoneyFigure, ActivityHeatStrip, ChartPanel, RankedBars, RatioRing } from "@/features/dashboard/DashboardVisuals";
+import { AdminKpiStrip, AdminMoneyFigure, ActivityHeatStrip, ChartPanel, DashboardLiveStatus, RankedBars, RatioRing } from "@/features/dashboard/DashboardVisuals";
 import { ActivityChart, CopyStatusDonut } from "@/features/admin/components/SystemActivityChart";
 
 const QUICK = [
@@ -26,7 +26,7 @@ export default function AdminDashboardPage() {
 
   if (dash.loading && !dash.data) {
     return (
-      <div className="page">
+      <div className="page admin-dashboard">
         <PageHero
           eyebrow="Admin"
           title="Dashboard"
@@ -40,7 +40,7 @@ export default function AdminDashboardPage() {
 
   if (dash.error || !dash.data) {
     return (
-      <div className="page">
+      <div className="page admin-dashboard">
         <PageHero
           eyebrow="Admin"
           title="Dashboard"
@@ -56,13 +56,13 @@ export default function AdminDashboardPage() {
   const activeSelectedDay = selectedDay ?? d.activityLast7Days[d.activityLast7Days.length - 1]?.date ?? null;
 
   return (
-    <div className="page">
+    <div className="page admin-dashboard">
       <PageHero
         eyebrow="Admin"
         title="Dashboard"
         description="Live circulation counts and administration shortcuts."
         leading={<BackButton fallback={ROUTES.admin.dashboard} />}
-        actions={<div className="dashboard-actions">{QUICK.slice(0, 2).map(({ label, to }) => <Link key={to} to={to}>{label}</Link>)}</div>}
+        actions={<div className="dashboard-actions">{QUICK.slice(0, 2).map(({ label, to }) => <Link key={to} to={to}>{label}</Link>)}<DashboardLiveStatus /></div>}
       />
       <div className="dashboard-layout">
         <div className="admin-dashboard__legacy-counts" aria-hidden="true"><OperationalCountCards /></div>
@@ -91,7 +91,7 @@ export default function AdminDashboardPage() {
             <AdminMoneyFigure amount={d.unpaidFineBalance} to={ROUTES.admin.fines} />
           </ChartPanel>
           <ChartPanel title="Overdue share" note="Overdue loans compared with active loans." className="admin-dashboard__ratio-panel">
-            <RatioRing active={d.activeLoans} overdue={d.overdueLoans} />
+            <RatioRing active={d.activeLoans} overdue={d.overdueLoans} maintenance={d.copiesByStatus.MAINTENANCE} />
           </ChartPanel>
         </div>
         <ChartPanel title="Seven-day intensity" note="Daily circulation volume across the same activity period." className="admin-dashboard__heat-panel">
