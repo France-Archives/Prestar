@@ -321,6 +321,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.app-nav-badge {
+  flex: none;
+  margin-left: auto;
+  padding: 2px 6px;
+  font-size: 0.625rem;
+}
 
 .app-sidebar__foot {
   position: relative;
@@ -382,6 +388,12 @@
     overflow: hidden;
     clip-path: inset(50%);
     white-space: nowrap;
+  }
+  .app-shell[data-collapsed="true"] .app-nav-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    transform: translate(20%, -20%);
   }
 }
 

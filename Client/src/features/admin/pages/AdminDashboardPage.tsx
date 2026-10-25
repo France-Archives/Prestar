@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useState } from "react";
-import { PackageCheck, Scale, ScrollText, FileCheck, Undo2, UserCog } from "lucide-react";
+import { PackageCheck, ScrollText, FileCheck, Undo2, UserCog } from "lucide-react";
 import LoadingState from "@/components/feedback/LoadingState";
 import ErrorState from "@/components/feedback/ErrorState";
 import PageHero from "@/components/layout/PageHero";
@@ -18,7 +18,6 @@ const QUICK = [
   { label: "COR review", to: ROUTES.staff.corReview, icon: FileCheck },
   { label: "Invite a Librarian", to: ROUTES.admin.librarians, icon: UserCog },
   { label: "Audit logs", to: ROUTES.admin.auditLogs, icon: ScrollText },
-  { label: "Borrowing policies", to: ROUTES.admin.policies, icon: Scale },
 ];
 
 export default function AdminDashboardPage() {

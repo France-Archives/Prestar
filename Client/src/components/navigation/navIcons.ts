@@ -1,7 +1,7 @@
     import {
     ArrowLeftRight, Banknote, Bell, BookCopy, BookMarked, BookOpen, CalendarClock, CalendarDays, ChartColumn,
     Circle, ClipboardList, FileCheck, History, LayoutDashboard, Library, Megaphone, PackageCheck,
-    PenLine, Receipt, RefreshCw, Scale, ScrollText, Settings, ShieldAlert, Sparkles, Tags, Undo2,
+    PenLine, Receipt, RefreshCw, ScrollText, Settings, Sparkles, Tags, Undo2,
     User, UserCog, Users, Wrench,
     type LucideIcon,
     } from "lucide-react";
@@ -23,6 +23,7 @@
     [S.renewals]: RefreshCw,
     [S.history]: History,
     [S.cor]: FileCheck,
+    [S.penalties]: Receipt,
     [S.interests]: Sparkles,
     [S.borrowList]: BookCopy,
     [S.profile]: User,
@@ -34,7 +35,6 @@
     [T.returns]: Undo2,
     [T.reservations]: CalendarClock,
     [T.renewals]: RefreshCw,
-    [T.penaltyCheck]: ShieldAlert,
     [T.fines]: Receipt,
     [T.payments]: Banknote,
     [T.corReview]: FileCheck,
@@ -53,7 +53,6 @@
     [A.cor]: FileCheck,
     [A.books]: Library,
     [A.terms]: CalendarDays,
-    [A.policies]: Scale,
     [A.settings]: Settings,
     [A.fines]: Banknote,
     [A.payments]: Banknote,

@@ -1,7 +1,7 @@
 import { lazy, Suspense, type ComponentType, type LazyExoticComponent } from "react";
 import { createBrowserRouter, Navigate, type RouteObject } from "react-router-dom";
 import type { Capability } from "@/utils/permissions";
-import { GuestOnly, PageLoading, RequireAuth, RequireCapability, RequireStudentInterests } from "./guards";
+import { GuestOnly, PageLoading, RequireAuth, RequireCapability, RequireStudentInterests, RoleDashboardRedirect } from "./guards";
 import { ROUTES } from "./routeConfig";
 import PublicLayout from "@/layouts/PublicLayout";
 import StudentLayout from "@/layouts/StudentLayout";
@@ -41,6 +41,7 @@ const P = {
   MyReservations: page(() => import("@/features/student/pages/MyReservationsPage")),
   RenewalRequests: page(() => import("@/features/student/pages/RenewalRequestsPage")),
   BorrowingHistory: page(() => import("@/features/student/pages/BorrowingHistoryPage")),
+  StudentPenalties: page(() => import("@/features/student/pages/StudentPenaltiesPage")),
   StudentProfile: page(() => import("@/features/student/pages/StudentProfilePage")),
   StudentVerification: page(() => import("@/features/student/pages/StudentVerificationPage")),
   UploadCOR: page(() => import("@/features/student/pages/UploadCORPage")),
@@ -52,7 +53,6 @@ const P = {
   Returns: page(() => import("@/features/librarian/pages/ReturnsPage")),
   ReservationsQueue: page(() => import("@/features/librarian/pages/ReservationsQueuePage")),
   RenewalManagement: page(() => import("@/features/librarian/pages/RenewalManagementPage")),
-  PenaltyCheck: page(() => import("@/features/librarian/pages/PenaltyCheckPage")),
   FinesManagement: page(() => import("@/features/librarian/pages/FinesManagementPage")),
   PaymentRecording: page(() => import("@/features/librarian/pages/PaymentRecordingPage")),
   CORReview: page(() => import("@/features/librarian/pages/CORReviewPage")),
@@ -71,7 +71,6 @@ const P = {
   CirculationOverview: page(() => import("@/features/admin/pages/CirculationOverviewPage")),
   AcademicTerms: page(() => import("@/features/admin/pages/AcademicTermsPage")),
   SystemSettings: page(() => import("@/features/admin/pages/SystemSettingsPage")),
-  BorrowingPolicies: page(() => import("@/features/admin/pages/BorrowingPoliciesPage")),
   Reports: page(() => import("@/features/admin/pages/ReportsPage")),
   AuditLogs: page(() => import("@/features/admin/pages/AuditLogsPage")),
   NotificationsManagement: page(() => import("@/features/admin/pages/NotificationsManagementPage")),
@@ -104,6 +103,7 @@ const studentRoutes: RouteObject[] = [
   { path: "reservations", element: el(P.MyReservations) },
   { path: "renewals", element: el(P.RenewalRequests) },
   { path: "history", element: el(P.BorrowingHistory) },
+  { path: "penalties", element: el(P.StudentPenalties) },
   { path: "cor", element: el(P.StudentVerification) },
   { path: "cor/upload", element: el(P.UploadCOR) },
   { path: "profile", element: el(P.StudentProfile) },
@@ -119,7 +119,7 @@ const staffRoutes: RouteObject[] = [
   { path: "returns", element: el(P.Returns) },
   { path: "reservations", element: el(P.ReservationsQueue) },
   { path: "renewals", element: el(P.RenewalManagement) },
-  { path: "penalty-check", element: el(P.PenaltyCheck) },
+  { path: "penalty-check", element: <RoleDashboardRedirect /> },
   { path: "fines", element: el(P.FinesManagement) },
   { path: "payments", element: el(P.PaymentRecording) },
   { path: "notifications", element: el(P.Notifications) },
@@ -145,7 +145,7 @@ const adminRoutes: RouteObject[] = [
   { path: "cor", element: <Navigate to={ROUTES.staff.corReview} replace /> },
   { path: "terms", element: el(P.AcademicTerms) },
   { path: "settings", element: el(P.SystemSettings) },
-  { path: "policies", element: el(P.BorrowingPolicies) },
+  { path: "policies", element: <Navigate to={ROUTES.admin.dashboard} replace /> },
   { path: "fines", element: el(P.FinesManagement) },
   { path: "payments", element: el(P.PaymentRecording) },
   { path: "reports", element: el(P.Reports) },

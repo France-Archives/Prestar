@@ -31,6 +31,7 @@ export const ROUTES = {
     renewals: "/app/renewals",
     history: "/app/history",
     cor: "/app/cor",
+    penalties: "/app/penalties",
     uploadCor: "/app/cor/upload",
     profile: "/app/profile",
     notifications: "/app/notifications",
@@ -44,7 +45,6 @@ export const ROUTES = {
     returns: "/staff/returns",
     reservations: "/staff/reservations",
     renewals: "/staff/renewals",
-    penaltyCheck: "/staff/penalty-check",
     fines: "/staff/fines",
     payments: "/staff/payments",
     corReview: "/staff/cor-review",
@@ -68,7 +68,6 @@ export const ROUTES = {
     cor: "/admin/cor",
     terms: "/admin/terms",
     settings: "/admin/settings",
-    policies: "/admin/policies",
     fines: "/admin/fines",
     payments: "/admin/payments",
     reports: "/admin/reports",
@@ -136,6 +135,7 @@ const STUDENT_SECTIONS: NavSection[] = [
     title: "Account",
     items: [
       { label: "COR", to: S.cor, capability: "STUDENT_AREA" },
+      { label: "Penalties", to: S.penalties, capability: "STUDENT_AREA" },
       { label: "My interests", to: S.interests, capability: "STUDENT_AREA" },
       { label: "Profile", to: S.profile, capability: "STUDENT_AREA" },
       { label: "Notifications", to: S.notifications, capability: "STUDENT_AREA" },
@@ -154,7 +154,6 @@ const STAFF_SECTIONS: NavSection[] = [
       { label: "Returns and loans", to: T.returns, capability: "STAFF_AREA" },
       { label: "Reservations queue", to: T.reservations, capability: "STAFF_AREA" },
       { label: "Renewals", to: T.renewals, capability: "STAFF_AREA" },
-      { label: "Check Penalties", to: T.penaltyCheck, capability: "STAFF_AREA" },
     ],
   },
   {
@@ -206,7 +205,6 @@ const ADMIN_SECTIONS: NavSection[] = [
     title: "System",
     items: [
       { label: "Academic terms", to: A.terms, capability: "ADMIN_AREA" },
-      { label: "Borrowing policies", to: A.policies, capability: "ADMIN_AREA" },
       { label: "System settings", to: A.settings, capability: "ADMIN_AREA" },
       { label: "Fines", to: A.fines, capability: "ADMIN_AREA" },
       { label: "Payments", to: A.payments, capability: "ADMIN_AREA" },

@@ -42,6 +42,12 @@ export function RequireAuth() {
   return <Outlet />;
 }
 
+/** Redirects obsolete staff routes to the dashboard for the signed-in user's role. */
+export function RoleDashboardRedirect() {
+  const { user } = useAuth();
+  return <Navigate to={user ? homePathFor(user) : ROUTES.login} replace />;
+}
+
 /** Login, signup and forgot-password are for signed-out visitors only. */
 export function GuestOnly() {
   const { status, user } = useAuth();

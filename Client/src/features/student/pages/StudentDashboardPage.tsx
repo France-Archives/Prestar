@@ -7,15 +7,10 @@ import LoadingState from "@/components/feedback/LoadingState";
 import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import { useAuth } from "@/hooks/useAuth";
-import { statusLabel, TIME_ZONE, USE_MOCKS } from "@/utils/constants";
+import { TIME_ZONE, USE_MOCKS } from "@/utils/constants";
 import * as booksService from "@/services/booksService";
 import * as reportsService from "@/services/reportsService";
 import BookGrid from "@/features/books/components/BookGrid";
-import DataTable, { type Column } from "@/components/data-display/DataTable";
-import Money from "@/components/data-display/Money";
-import StatusBadge from "@/components/data-display/StatusBadge";
-import * as finesService from "@/services/finesService";
-import type { StaffFine } from "@/types";
 import DueDateAlert from "../components/DueDateAlert";
 import RecommendedBooks from "../components/RecommendedBooks";
 
@@ -50,7 +45,6 @@ export default function StudentDashboardPage() {
     () => booksService.listBooks({ pageSize: USE_MOCKS ? 100 : 6 }),
     [],
   );
-  const penalties = useAsync(() => finesService.getMyPenalties(), []);
 
   if (dash.loading) return <div className="page"><LoadingState rows={4} /></div>;
   if (dash.error || !dash.data) {
@@ -70,13 +64,6 @@ export default function StudentDashboardPage() {
     return book ? [{ book, loans: p.loanCount }] : [];
   });
   const popularMeta = Object.fromEntries(popular.map(({ book, loans }) => [book.id, <span key={book.id} className="book-card__stat">{loans} loans</span>]));
-  const penaltyColumns: Column<StaffFine>[] = [
-    { key: "fineType", header: "Fine", render: (fine) => fine.fineTypeLabel ?? statusLabel(fine.fineType) },
-    { key: "bookTitle", header: "Book" },
-    { key: "amount", header: "Amount", render: (fine) => <Money value={fine.amount} /> },
-    { key: "status", header: "Status", render: (fine) => <StatusBadge status={fine.status} /> },
-  ];
-
   return (
     <div className="page">
          <header className="dash-hello">
@@ -108,20 +95,6 @@ export default function StudentDashboardPage() {
         )}
         <DueDateAlert loans={d.activeLoans} />
       </div>
-
-      <Section eyebrow="Account" title="Penalties" note="Penalties are settled in cash at the library counter; students cannot pay online.">
-        {penalties.loading && !penalties.data ? (
-          <LoadingState rows={2} />
-        ) : penalties.error ? (
-          <ErrorState message={penalties.error} onRetry={() => void penalties.reload()} />
-        ) : penalties.data ? (
-          <div className="card">
-            <p>{penalties.data.message}</p>
-            <p><strong>Outstanding balance: <Money value={penalties.data.totalBalance} /></strong></p>
-            <DataTable columns={penaltyColumns} rows={penalties.data.fines} rowKey={(fine) => fine.id} empty="No current penalties." pageSize={5} />
-          </div>
-        ) : null}
-      </Section>
 
       {d.mostBorrowed.length > 0 && (
         <Section eyebrow="Reader activity" title="Most Borrowed This Week" note="What other students are reading right now.">

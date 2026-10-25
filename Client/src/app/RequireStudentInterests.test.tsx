@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Interest } from "@/types";
 import type { AuthContextValue } from "@/context/AuthContext";
 import { useAuth } from "@/hooks/useAuth";
-import { RequireStudentInterests } from "./guards";
+import { RequireStudentInterests, RoleDashboardRedirect } from "./guards";
 
 vi.mock("@/hooks/useAuth", () => ({ useAuth: vi.fn() }));
 
@@ -32,6 +32,32 @@ function renderGate(value: Partial<AuthContextValue>) {
           <Route path="/app/dashboard" element={<p>Dashboard</p>} />
           <Route path="/app/interests/welcome" element={<p>Interest onboarding</p>} />
         </Route>
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
+function renderLegacyStaffPath(role: "LIBRARIAN" | "ADMIN") {
+  const user = { ...student, role };
+  vi.mocked(useAuth).mockReturnValue({
+    user,
+    status: "authenticated",
+    sessionError: null,
+    interests: [],
+    interestsStatus: "loaded",
+    interestsError: null,
+    login: vi.fn(),
+    logout: vi.fn(),
+    refresh: vi.fn(),
+    refreshInterests: vi.fn(),
+    updateInterests: vi.fn(),
+  });
+  return render(
+    <MemoryRouter initialEntries={["/staff/penalty-check"]}>
+      <Routes>
+        <Route path="/staff/penalty-check" element={<RoleDashboardRedirect />} />
+        <Route path="/staff/dashboard" element={<p>Librarian dashboard</p>} />
+        <Route path="/admin/dashboard" element={<p>Admin dashboard</p>} />
       </Routes>
     </MemoryRouter>,
   );
@@ -75,5 +101,13 @@ describe("student interest route gate", () => {
     expect(screen.queryByText("Interest onboarding")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(refreshInterests).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ["LIBRARIAN", "Librarian dashboard"],
+    ["ADMIN", "Admin dashboard"],
+  ] as const)("redirects the old penalty-check path for %s to its dashboard", (role, dashboard) => {
+    renderLegacyStaffPath(role);
+    expect(screen.getByText(dashboard)).toBeTruthy();
   });
 });

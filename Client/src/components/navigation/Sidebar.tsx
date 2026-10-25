@@ -3,8 +3,10 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { LogOut } from "lucide-react";
 import { ROUTES, getNavSections } from "@/app/routeConfig";
 import { useAuth } from "@/hooks/useAuth";
+import { useAsync } from "@/hooks/useAsync";
 import { iconFor } from "./navIcons";
 import { useConfirm } from "@/hooks/useConfirm";
+import * as finesService from "@/services/finesService";
 
 interface SidebarProps {
   collapsed: boolean; // desktop: icon rail
@@ -22,6 +24,8 @@ interface Tip {
 export default function Sidebar({ collapsed, drawerOpen, isDesktop, onCloseDrawer }: SidebarProps) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const penalties = useAsync(() => finesService.getMyPenalties(), [user?.id], user?.role === "STUDENT");
+  const unpaidPenaltyCount = penalties.data?.fines.filter((fine) => fine.balance > 0).length ?? 0;
   const [tip, setTip] = useState<Tip | null>(null);
   const [signingOut, setSigningOut] = useState(false);
   const signingOutRef = useRef(false);
@@ -82,6 +86,11 @@ export default function Sidebar({ collapsed, drawerOpen, isDesktop, onCloseDrawe
                       >
                         <Icon className="app-nav-icon" strokeWidth={1.9} aria-hidden="true" />
                         <span className="app-nav-label">{item.label}</span>
+                        {item.to === ROUTES.student.penalties && penalties.data && penalties.data.totalBalance > 0 && (
+                          <span className="badge badge-danger app-nav-badge" aria-label={`${unpaidPenaltyCount} unpaid penalties`}>
+                            {unpaidPenaltyCount}
+                          </span>
+                        )}
                       </NavLink>
                     </li>
                   );

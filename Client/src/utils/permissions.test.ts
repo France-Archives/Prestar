@@ -30,6 +30,26 @@ describe("staff access and navigation", () => {
     expect(can(librarian, "FINE_MANAGE")).toBe(false);
   });
 
+  describe("student penalties navigation", () => {
+    it("places Penalties after COR and before My interests in the student Account section", () => {
+      const sections = getNavSections(sessionUser("STUDENT"));
+      const account = sections.find((section) => section.id === "student-account");
+      const items = account?.items ?? [];
+
+      expect(items.map((item) => item.label)).toEqual([
+        "COR",
+        "Penalties",
+        "My interests",
+        "Profile",
+        "Notifications",
+      ]);
+      expect(items[1]?.to).toBe(ROUTES.student.penalties);
+      expect(items[1]?.capability).toBe("STUDENT_AREA");
+      expect(navPaths("LIBRARIAN")).not.toContain(ROUTES.student.penalties);
+      expect(navPaths("ADMIN")).not.toContain(ROUTES.student.penalties);
+    });
+  });
+
   it("keeps Admin navigation and staff access while avoiding duplicate COR and book links", () => {
     const paths = navPaths("ADMIN");
     const sections = getNavSections(sessionUser("ADMIN"));
@@ -48,6 +68,16 @@ describe("staff access and navigation", () => {
   it("keeps the Librarian dashboard as the first navigation item", () => {
     const firstItem = getNavSections(sessionUser("LIBRARIAN"))[0]?.items[0];
     expect(firstItem).toMatchObject({ label: "Dashboard", to: ROUTES.staff.dashboard });
+  });
+
+  it("omits the removed pages from Admin and Librarian navigation", () => {
+    for (const role of ["LIBRARIAN", "ADMIN"] as const) {
+      const items = getNavSections(sessionUser(role)).flatMap((section) => section.items);
+      expect(items.map((item) => item.label)).not.toContain("Check Penalties");
+      expect(items.map((item) => item.label)).not.toContain("Borrowing policies");
+      expect(items.map((item) => item.to)).not.toContain("/staff/penalty-check");
+      expect(items.map((item) => item.to)).not.toContain("/admin/policies");
+    }
   });
 
   it("does not grant Students access to the staff area", () => {
