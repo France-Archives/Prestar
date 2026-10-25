@@ -1,0 +1,129 @@
+import type { ISODate, PageParams, UUID } from "./api";
+import type { AvailabilityFilter, BookCopyStatus, CopyCondition } from "./enums";
+
+export interface CategorySummary {
+  id: UUID;
+  name: string;
+  description?: string | null;
+}
+
+export interface AuthorSummary {
+  id: UUID;
+  name: string;
+}
+
+export interface BookAvailability {
+  availableCopies: number;
+  totalUsableCopies: number;
+}
+
+// books -> BookSummary. authors is ALWAYS an array (ordered by author_order); never a single text field.
+export interface BookSummary {
+  id: UUID;
+  isbn: string | null;
+  title: string;
+  description: string | null;
+  category: CategorySummary | null;
+  authors: AuthorSummary[];
+  availability: BookAvailability;
+  coverImageUrl: string | null;
+}
+
+/** Staff-only extras on create/update. Visibility to students is TO CONFIRM. */
+export interface BookDetail extends BookSummary {
+  publisher: string | null;
+  publicationYear: number | null;
+  language: string | null;
+  price?: string | null;
+  isArchived: boolean;
+}
+
+export interface CopyRef {
+  id: UUID;
+  barcode: string;
+}
+
+export interface CopyLocation {
+  section: string | null;
+  shelfCode: string | null;
+  levelOrRow: string | null;
+  locationNotes: string | null;
+}
+
+// book_copies -> BookCopy (derived, staff)
+export interface BookCopy extends CopyLocation {
+  id: UUID;
+  bookId: UUID;
+  barcode: string;
+  status: BookCopyStatus;
+  condition: CopyCondition;
+  /** Legacy single-field value kept for compatibility with older mock records and search views. */
+  shelfLocation: string | null;
+  acquisitionDate: ISODate | null;
+  notes: string | null;
+}
+
+/** Copy row with its title, for cross-title staff lists (maintenance page). */
+export interface StaffCopyRow extends BookCopy {
+  bookTitle: string;
+}
+
+// ----- Query / request bodies -----
+
+export interface BookListParams extends PageParams {
+  search?: string; // title, ISBN, author name
+  categoryId?: UUID;
+  availability?: AvailabilityFilter;
+}
+
+/** Create payload shared with mocks; the live adapter maps the selected authorIds[0] to Server authorId. */
+export interface CreateBookRequest {
+  isbn?: string | null;
+  title: string;
+  description?: string | null;
+  categoryId?: UUID | null;
+  authorIds: UUID[];
+  publisher?: string | null;
+  publicationYear?: number | null;
+  language?: string | null;
+  coverImageUrl?: string | null;
+  price?: number | null;
+  initialCopies?: number;
+  coverImage?: File;
+}
+
+/** C5 PATCH /books/:bookId */
+export type UpdateBookRequest = Partial<CreateBookRequest> & { isArchived?: boolean };
+
+/** C6 POST /books/:bookId/copies */
+export interface CreateCopyRequest {
+  condition: CopyCondition;
+  shelfLocation?: string | null;
+  section?: string | null;
+  shelfCode?: string | null;
+  levelOrRow?: string | null;
+  locationNotes?: string | null;
+  acquisitionDate?: ISODate | null;
+  notes?: string | null;
+}
+
+/** C7 PATCH /copies/:copyId */
+export interface UpdateCopyRequest {
+  status?: BookCopyStatus;
+  condition?: CopyCondition;
+  shelfLocation?: string | null;
+  section?: string | null;
+  shelfCode?: string | null;
+  levelOrRow?: string | null;
+  locationNotes?: string | null;
+  notes?: string | null;
+}
+
+/** POST /categories */
+export interface SaveCategoryRequest {
+  name: string;
+  description?: string | null;
+}
+export interface SaveAuthorRequest {
+  name: string;
+}

@@ -1,0 +1,122 @@
+/* PRESTAR design tokens. Mapped into Tailwind v4 utilities (bg-forest, text-brick, bg-sidebar, ...). */
+@theme {
+  /* Brand palette */
+  --color-forest: #0b3d32;
+  --color-forest-deep: #07352c;
+  --color-sage: #6f9b78;
+  --color-green: #2f6f57;
+  --color-mist: #dce5d7;
+  --color-cream: #f5f3ea;
+  --color-paper: #fbfaf5;
+  --color-amber: #b98a4a;
+  --color-amber-ink: #8c6430;
+  --color-teal: #335c67;
+  --color-brick: #9e2a2b;
+
+  /* Surfaces and neutrals */
+  --color-canvas: #f5f3ea;
+  --color-ink: #1c2b25;
+  --color-heading: #07352c;
+  --color-muted: #5e6c64;
+  --color-line: #dad8ca;
+  --color-line-soft: #e7e5d8;
+  --color-cream-deep: #e9e1c8;
+  --color-amber-soft: #f3e7d0;
+  --color-brick-soft: #f3dedb;
+  --color-teal-soft: #dce7e8;
+
+  /* Sidebar */
+  --color-sidebar: #dce5d7;
+  --color-sidebar-hover: #cfdccb;
+  --color-sidebar-line: #c2d1bf;
+  --color-sidebar-ink: #0b3d32;
+  --color-sidebar-muted: #4a6354;
+
+  /* Bookshelf wood */
+  --color-wood-light: #e8d6b0;
+  --color-wood: #d2b684;
+  --color-wood-dark: #b98a4a;
+
+  /* Typography */
+  --font-sans: "Roboto", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-serif: "Playfair Display", Georgia, "Times New Roman", serif;
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  /* Shadows */
+  --shadow-card: 0 1px 2px rgba(7, 53, 44, 0.04), 0 10px 26px -16px rgba(7, 53, 44, 0.18);
+  --shadow-raised: 0 14px 36px rgba(7, 53, 44, 0.2);
+  --shadow-soft: 0 1px 2px rgba(7, 53, 44, 0.05), 0 6px 20px -8px rgba(7, 53, 44, 0.12);
+  --shadow-lift: 0 2px 4px rgba(7, 53, 44, 0.06), 0 18px 40px -14px rgba(7, 53, 44, 0.28);
+  --shadow-cover: 0 1px 1px rgba(7, 40, 33, 0.25), 4px 8px 16px -6px rgba(7, 40, 33, 0.32);
+  --color-forest-glass: rgba(11, 61, 50, 0.12);
+  --color-amber-glow: rgba(185, 138, 74, 0.35);
+  --shadow-glass: 0 8px 32px rgba(7, 53, 44, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  --shadow-book: 8px 16px 40px -8px rgba(7, 53, 44, 0.45);
+  --shadow-hero: 0 32px 80px -24px rgba(7, 53, 44, 0.28);
+}
+
+:root {
+  --book-modal-forest: #134a3c;
+  --book-modal-forest-deep: #0a2f26;
+  --book-modal-surface: linear-gradient(160deg, var(--book-modal-forest), var(--book-modal-forest-deep));
+  --book-modal-radius: 26px;
+  --book-modal-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.6);
+  --book-modal-text: #eef7f2;
+  --book-modal-muted: #a9c9bb;
+  --book-modal-mint: #9fe0c2;
+  --book-modal-mint-light: #b6ecd2;
+  --book-modal-mint-strong: #5fc9a0;
+  --book-modal-glass-border: rgba(159, 224, 194, 0.22);
+  --book-modal-glass: rgba(255, 255, 255, 0.07);
+  --book-modal-glass-hover: rgba(255, 255, 255, 0.08);
+  --book-modal-glass-outline: rgba(255, 255, 255, 0.3);
+  --book-modal-glass-highlight: rgba(255, 255, 255, 0.18);
+  --book-modal-warm-glow: #f0c36a;
+  --book-modal-green-glow: #2fae86;
+  --book-modal-close: rgba(19, 74, 60, 0.7);
+  --book-modal-close-hover: #1d5a49;
+  --book-modal-primary: linear-gradient(135deg, #b6ecd2, #5fc9a0);
+  --book-modal-primary-ink: #052a1f;
+  --book-modal-primary-shadow: 0 8px 22px -12px rgba(95, 201, 160, 0.72);
+
+  --dashboard-space-1: 0.5rem;
+  --dashboard-space-2: 0.75rem;
+  --dashboard-space-3: 1rem;
+  --dashboard-space-4: 1.35rem;
+  --color-reading-forest: #1b4332;
+  --color-reading-green: #2d6a4f;
+  --color-reading-amber: #e09f3e;
+  --color-reading-cream: #f2e8cf;
+  --color-reading-teal: #335c67;
+  --color-reading-brick: #9e2a2b;
+  --grain-opacity: 0.035;
+  --section-pad-y: clamp(4rem, 8vw, 7rem);
+  --gutter: clamp(16px, 2.6vw, 32px);
+  --content-max: 1360px;
+  --ease: cubic-bezier(0.22, 0.8, 0.3, 1);
+
+  /* Layout */
+  --header-h: 4rem;
+  --sidebar-w: 15.5rem;
+  --sidebar-w-collapsed: 4.5rem;
+
+  /* Controls: inputs, selects and buttons share one height */
+  --control-h: 2.5rem;
+  --control-h-sm: 2rem;
+  --radius-control: 10px;
+
+  /* Motion */
+  --dur-fast: 150ms;
+  --dur: 220ms;
+  --dur-slow: 380ms;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --stagger: 60ms;
+  --lift-y: -3px;
+
+  --ring: 0 0 0 3px rgba(47, 111, 87, 0.22);
+}
