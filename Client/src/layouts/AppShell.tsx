@@ -3,18 +3,16 @@ import { Outlet, useLocation } from "react-router-dom";
 import AppNavbar from "@/components/navigation/AppNavbar";
 import Sidebar from "@/components/navigation/Sidebar";
 import { useAuth } from "@/hooks/useAuth";
-import "@/styles/shell.css"; // shell/navbar/page-typography styles, loaded after global.css so they win ties
+import "@/styles/shell.css";
 
-/** Shared signed-in shell: top navbar + hidden-by-default sidebar drawer + routed content. */
 export default function AppShell({ areaLabel }: { areaLabel: string }) {
   const { user } = useAuth();
-  const [open, setOpen] = useState(false); // sidebar is CLOSED by default
+  const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
 
   const close = useCallback(() => setOpen(false), []);
   const toggle = useCallback(() => setOpen((v) => !v), []);
 
-  // Close the drawer and jump to top on every route change (same behaviour as before).
   useEffect(() => {
     setOpen(false);
     window.scrollTo(0, 0);

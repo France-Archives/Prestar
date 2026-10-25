@@ -26,7 +26,19 @@
   font-family: var(--font-sans);
 }
 
-/* Page canvas */
+.admin-theme,
+.admin-theme * {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.admin-theme::-webkit-scrollbar,
+.admin-theme *::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 .admin-theme .page {
   width: 100%;
   max-width: 1400px;
@@ -101,7 +113,7 @@
   line-height: 1.45;
 }
 
-/* Minimalist Cards */
+/* Cards */
 .admin-theme .card {
   background: #ffffff !important;
   border: 1px solid #e2e8f0 !important;
@@ -126,7 +138,7 @@
   padding: 20px !important;
 }
 
-/* Minimal Stat Cards */
+/* Stat Cards */
 .admin-theme .stat {
   display: flex;
   flex-direction: column;

@@ -5,11 +5,7 @@ import AdminSidebar from "@/features/admin/components/AdminSidebar";
 import { useAuth } from "@/hooks/useAuth";
 import "@/styles/admin.css";
 
-/**
- * Dedicated Professional & Minimal Admin Layout.
- * Features a persistent dark-slate navigation console, sleek minimal header with
- * breadcrumbs, command quick-jump, and clean high-density workspace.
- */
+
 export default function AdminLayout() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
