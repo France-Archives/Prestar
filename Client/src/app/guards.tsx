@@ -1,7 +1,7 @@
 import { Link, Navigate, Outlet, useLocation, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { can, type Capability } from "@/utils/permissions";
-import { ROUTES, homePathFor, safeNext } from "./routeConfig";
+import { ROUTES, homePathFor, postLoginPathFor } from "./routeConfig";
 
 // Route guards are a UX convenience only. Every endpoint is authorized again by the backend.
 
@@ -53,7 +53,7 @@ export function GuestOnly() {
   const [params] = useSearchParams();
   if (status === "loading") return <PageLoading />;
   if (status === "error") return <SessionUnavailable />;
-  if (user) return <Navigate to={safeNext(params.get("next")) ?? homePathFor(user)} replace />;
+  if (user) return <Navigate to={postLoginPathFor(user, params.get("next"))} replace />;
   return <Outlet />;
 }
 

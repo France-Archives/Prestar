@@ -91,6 +91,22 @@ export function safeNext(next: string | null | undefined): string | null {
   return next;
 }
 
+export function postLoginPathFor(user: SessionUser, next: string | null | undefined): string {
+  const destination = safeNext(next);
+  if (!destination) return homePathFor(user);
+
+  const pathname = destination.split(/[?#]/, 1)[0];
+  const capability: Capability | null = pathname === "/app" || pathname.startsWith("/app/")
+    ? "STUDENT_AREA"
+    : pathname === "/staff" || pathname.startsWith("/staff/")
+      ? "STAFF_AREA"
+      : pathname === "/admin" || pathname.startsWith("/admin/")
+        ? "ADMIN_AREA"
+        : null;
+
+  return capability && can(user, capability) ? destination : homePathFor(user);
+}
+
 export interface NavItem {
   label: string;
   to: string;
