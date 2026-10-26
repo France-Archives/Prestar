@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
 import SearchInput from "@/components/forms/SearchInput";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
 import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import * as librarianService from "@/services/librarianService";
@@ -16,7 +17,7 @@ export default function BooksToReleasePage() {
 
   return (
     <div className="page">
-      <PageHeader eyebrow="Circulation" title="Books to Release" description="Approved borrowing requests and reservation offers are released here. Verify the student and copy; a loan starts only when you confirm handover." />
+      <PageHero eyebrow="Circulation" title="Books to Release" description="Approved borrowing requests and reservation offers are released here. Verify the student and copy; a loan starts only when you confirm handover." leading={<BackButton fallback={ROUTES.staff.dashboard} />} compact />
       <div className="toolbar" style={{ marginTop: 0 }}>
         <SearchInput value={search} onChange={setSearch} placeholder="Search student, number, book or barcode…" />
       </div>

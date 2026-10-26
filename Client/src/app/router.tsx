@@ -1,10 +1,9 @@
 import { lazy, Suspense, type ComponentType, type LazyExoticComponent } from "react";
 import { createBrowserRouter, Navigate, type RouteObject } from "react-router-dom";
 import type { Capability } from "@/utils/permissions";
-import { GuestOnly, PageLoading, RequireAuth, RequireCapability } from "./guards";
+import { GuestOnly, PageLoading, RequireAuth, RequireCapability, RoleDashboardRedirect } from "./guards";
 import { ROUTES } from "./routeConfig";
-import LandingLayout from "@/layouts/LandingLayout";
-import PublicLayoutWithFooter from "@/layouts/PublicLayout";
+import PublicLayout from "@/layouts/PublicLayout";
 import StudentLayout from "@/layouts/StudentLayout";
 import StaffLayout from "@/layouts/StaffLayout";
 import AdminLayout from "@/layouts/AdminLayout";
@@ -34,13 +33,13 @@ const P = {
   BookDetails: page(() => import("@/features/books/pages/BookDetailsPage")),
   // student
   StudentDashboard: page(() => import("@/features/student/pages/StudentDashboardPage")),
-  MyInterests: page(() => import("@/features/student/pages/MyInterestsPage")),
   MyBorrowings: page(() => import("@/features/student/pages/MyBorrowingsPage")),
   MyBorrowList: page(() => import("@/features/student/pages/MyBorrowListPage")),
   MyRequests: page(() => import("@/features/student/pages/MyRequestsPage")),
   MyReservations: page(() => import("@/features/student/pages/MyReservationsPage")),
   RenewalRequests: page(() => import("@/features/student/pages/RenewalRequestsPage")),
   BorrowingHistory: page(() => import("@/features/student/pages/BorrowingHistoryPage")),
+  StudentPenalties: page(() => import("@/features/student/pages/StudentPenaltiesPage")),
   StudentProfile: page(() => import("@/features/student/pages/StudentProfilePage")),
   StudentVerification: page(() => import("@/features/student/pages/StudentVerificationPage")),
   UploadCOR: page(() => import("@/features/student/pages/UploadCORPage")),
@@ -52,7 +51,6 @@ const P = {
   Returns: page(() => import("@/features/librarian/pages/ReturnsPage")),
   ReservationsQueue: page(() => import("@/features/librarian/pages/ReservationsQueuePage")),
   RenewalManagement: page(() => import("@/features/librarian/pages/RenewalManagementPage")),
-  PenaltyCheck: page(() => import("@/features/librarian/pages/PenaltyCheckPage")),
   FinesManagement: page(() => import("@/features/librarian/pages/FinesManagementPage")),
   PaymentRecording: page(() => import("@/features/librarian/pages/PaymentRecordingPage")),
   CORReview: page(() => import("@/features/librarian/pages/CORReviewPage")),
@@ -64,16 +62,13 @@ const P = {
   ShelfLocator: page(() => import("@/features/librarian/pages/ShelfLocatorPage")),
   // admin
   AdminDashboard: page(() => import("@/features/admin/pages/AdminDashboardPage")),
+  CreateAdmin: page(() => import("@/features/admin/pages/CreateAdminPage")),
   UserManagement: page(() => import("@/features/admin/pages/UserManagementPage")),
   StudentDetails: page(() => import("@/features/admin/pages/StudentDetailsPage")),
   LibrarianManagement: page(() => import("@/features/admin/pages/LibrarianManagementPage")),
-  BookManagement: page(() => import("@/features/admin/pages/BookManagementPage")),
   CirculationOverview: page(() => import("@/features/admin/pages/CirculationOverviewPage")),
-  CORAdministration: page(() => import("@/features/admin/pages/CORAdministrationPage")),
   AcademicTerms: page(() => import("@/features/admin/pages/AcademicTermsPage")),
   SystemSettings: page(() => import("@/features/admin/pages/SystemSettingsPage")),
-  BorrowingPolicies: page(() => import("@/features/admin/pages/BorrowingPoliciesPage")),
-  FinesAndPayments: page(() => import("@/features/admin/pages/FinesAndPaymentsPage")),
   Reports: page(() => import("@/features/admin/pages/ReportsPage")),
   AuditLogs: page(() => import("@/features/admin/pages/AuditLogsPage")),
   NotificationsManagement: page(() => import("@/features/admin/pages/NotificationsManagementPage")),
@@ -93,18 +88,20 @@ const gated = (capability: Capability, children: RouteObject[]): RouteObject => 
   children,
 });
 
-const studentRoutes: RouteObject[] = [
+export const studentRoutes: RouteObject[] = [
   { index: true, element: <Navigate to="dashboard" replace /> },
   { path: "dashboard", element: el(P.StudentDashboard) },
   { path: "books", element: el(P.BookCatalog) },
   { path: "books/:bookId", element: el(P.BookDetails) },
-  { path: "interests", element: el(P.MyInterests) },
+  { path: "interests/welcome", element: <Navigate to={ROUTES.student.profile} replace /> },
+  { path: "interests", element: <Navigate to={ROUTES.student.profile} replace /> },
   { path: "borrowing", element: el(P.MyBorrowings) },
   { path: "borrow-list", element: el(P.MyBorrowList) },
   { path: "requests", element: el(P.MyRequests) },
   { path: "reservations", element: el(P.MyReservations) },
   { path: "renewals", element: el(P.RenewalRequests) },
   { path: "history", element: el(P.BorrowingHistory) },
+  { path: "penalties", element: el(P.StudentPenalties) },
   { path: "cor", element: el(P.StudentVerification) },
   { path: "cor/upload", element: el(P.UploadCOR) },
   { path: "profile", element: el(P.StudentProfile) },
@@ -120,13 +117,13 @@ const staffRoutes: RouteObject[] = [
   { path: "returns", element: el(P.Returns) },
   { path: "reservations", element: el(P.ReservationsQueue) },
   { path: "renewals", element: el(P.RenewalManagement) },
-  { path: "penalty-check", element: el(P.PenaltyCheck) },
+  { path: "penalty-check", element: <RoleDashboardRedirect /> },
   { path: "fines", element: el(P.FinesManagement) },
   { path: "payments", element: el(P.PaymentRecording) },
   { path: "notifications", element: el(P.Notifications) },
+  { path: "books", element: el(P.ManageBooks) },
   gated("COR_REVIEW", [{ path: "cor-review", element: el(P.CORReview) }]),
   gated("CATALOG_MANAGE", [
-    { path: "books", element: el(P.ManageBooks) },
     { path: "books/:bookId/copies", element: el(P.BookCopies) },
     { path: "categories", element: el(P.ManageCategories) },
     { path: "authors", element: el(P.ManageAuthors) },
@@ -138,15 +135,17 @@ const staffRoutes: RouteObject[] = [
 const adminRoutes: RouteObject[] = [
   { index: true, element: <Navigate to="dashboard" replace /> },
   { path: "dashboard", element: el(P.AdminDashboard) },
+  { path: "create-admin", element: el(P.CreateAdmin) },
   { path: "users", element: el(P.UserManagement) },
   { path: "users/students/:studentId", element: el(P.StudentDetails) },
-  { path: "books", element: el(P.BookManagement) },
+  { path: "books", element: <Navigate to={ROUTES.staff.books} replace /> },
   { path: "circulation", element: el(P.CirculationOverview) },
-  { path: "cor", element: el(P.CORAdministration) },
+  { path: "cor", element: <Navigate to={ROUTES.staff.corReview} replace /> },
   { path: "terms", element: el(P.AcademicTerms) },
   { path: "settings", element: el(P.SystemSettings) },
-  { path: "policies", element: el(P.BorrowingPolicies) },
-  { path: "fines", element: el(P.FinesAndPayments) },
+  { path: "policies", element: <Navigate to={ROUTES.admin.dashboard} replace /> },
+  { path: "fines", element: el(P.FinesManagement) },
+  { path: "payments", element: el(P.PaymentRecording) },
   { path: "reports", element: el(P.Reports) },
   { path: "audit-logs", element: el(P.AuditLogs) },
   { path: "notifications", element: el(P.NotificationsManagement) },
@@ -154,21 +153,16 @@ const adminRoutes: RouteObject[] = [
 ];
 
 export const router = createBrowserRouter([
-  // Landing page — no footer (footer lives inside the final CTA snap screen)
+  // Public site
   {
-    element: <LandingLayout />,
-    children: [{ path: ROUTES.home, element: el(P.Landing) }],
-  },
-  // Other public pages (Contact, Terms, Privacy) — full layout with footer
-  {
-    element: <PublicLayoutWithFooter />,
+    element: <PublicLayout />,
     children: [
+      { path: ROUTES.home, element: el(P.Landing) },
       { path: ROUTES.contact, element: el(P.Contact) },
       { path: ROUTES.terms, element: el(P.Terms) },
       { path: ROUTES.privacy, element: el(P.Privacy) },
     ],
   },
-
   // Signed-out only
   {
     element: <GuestOnly />,

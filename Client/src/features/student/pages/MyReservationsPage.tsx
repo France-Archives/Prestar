@@ -5,7 +5,8 @@ import EmptyState from "@/components/feedback/EmptyState";
 import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
 import Tabs from "@/components/ui/Tabs";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
 import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import { matchesSearch, useSearchTerm } from "@/hooks/useSearchTerm";
@@ -52,7 +53,7 @@ export default function MyReservationsPage() {
 
   return (
     <div className="page">
-      <PageHeader eyebrow="Student" title="Reservations" description="Reservations are first-in, first-out and exist only when no copy is available. An offered copy is held for 3 days." />
+      <PageHero eyebrow="Student" title="Reservations" description="Reservations are first-in, first-out and exist only when no copy is available. An offered copy is held for 3 days." leading={<BackButton fallback={ROUTES.student.dashboard} />} />
       <Tabs<Tab> tabs={[{ key: "active", label: "Active", count: active.length }, { key: "closed", label: "Closed", count: closed.length }]} active={tab} onChange={setTab} />
       {list.loading ? (
         <LoadingState rows={3} />
@@ -68,8 +69,15 @@ export default function MyReservationsPage() {
         <div className="stack">{shown.map((r) => <ReservationStatus key={r.id} reservation={r} onCancel={setTarget} highlighted={r.id === reservationId} />)}</div>
       )}
       {target && (
-        <ConfirmDialog title="Cancel this reservation?" danger confirmLabel="Cancel reservation" onConfirm={cancel} onClose={() => setTarget(null)}>
-          <p>{target.bookTitle}: you will lose your place in the queue{target.status === "OFFERED" ? " and the held copy will be passed on" : ""}.</p>
+        <ConfirmDialog
+          title={`Cancel your reservation for ${target.bookTitle}?`}
+          message={`You will lose your place in the queue${target.status === "OFFERED" ? " and the held copy will be passed on" : ""}.`}
+          details={[{ label: "Book", value: target.bookTitle }, { label: "Status", value: statusLabel(target.status) }]}
+          variant="destructive"
+          confirmLabel="Cancel reservation"
+          onConfirm={cancel}
+          onClose={() => setTarget(null)}
+        >
         </ConfirmDialog>
       )}
     </div>

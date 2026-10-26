@@ -21,7 +21,7 @@ function Shell({ label, error, hint, required, render }: FieldShellProps & { ren
     <div className="field">
       <label className="label" htmlFor={id}>
         {label}
-        {required && <span aria-hidden="true"> *</span>}
+        {required && <span className="field-required" aria-hidden="true">*</span>}
       </label>
       {render({ id, invalid: Boolean(error), describedBy })}
       {error ? (

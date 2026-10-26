@@ -1,9 +1,12 @@
-import { useState, type MouseEvent, type FocusEvent } from "react";
+import { useRef, useState, type MouseEvent, type FocusEvent } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { LogOut } from "lucide-react";
 import { ROUTES, getNavSections } from "@/app/routeConfig";
 import { useAuth } from "@/hooks/useAuth";
+import { useAsync } from "@/hooks/useAsync";
 import { iconFor } from "./navIcons";
+import { useConfirm } from "@/hooks/useConfirm";
+import * as finesService from "@/services/finesService";
 
 interface SidebarProps {
   collapsed: boolean; // desktop: icon rail
@@ -21,7 +24,12 @@ interface Tip {
 export default function Sidebar({ collapsed, drawerOpen, isDesktop, onCloseDrawer }: SidebarProps) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const penalties = useAsync(() => finesService.getMyPenalties(), [user?.id], user?.role === "STUDENT");
+  const unpaidPenaltyCount = penalties.data?.fines.filter((fine) => fine.balance > 0).length ?? 0;
   const [tip, setTip] = useState<Tip | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
+  const signingOutRef = useRef(false);
+  const signOutConfirmation = useConfirm();
 
   if (!user) return null;
 
@@ -45,9 +53,17 @@ export default function Sidebar({ collapsed, drawerOpen, isDesktop, onCloseDrawe
   });
 
   const signOut = async () => {
+    if (signingOutRef.current) return;
+    signingOutRef.current = true;
+    setSigningOut(true);
     onCloseDrawer();
-    await logout();
-    navigate(ROUTES.login, { replace: true });
+    try {
+      await logout();
+      navigate(ROUTES.login, { replace: true });
+    } finally {
+      signingOutRef.current = false;
+      setSigningOut(false);
+    }
   };
 
   return (
@@ -65,11 +81,17 @@ export default function Sidebar({ collapsed, drawerOpen, isDesktop, onCloseDrawe
                     <li key={item.to}>
                       <NavLink
                         to={item.to}
+                        aria-label={collapsed && isDesktop ? item.label : undefined}
                         className={({ isActive }) => `app-nav-item${isActive ? " is-active" : ""}`}
                         {...tipHandlers(item.label)}
                       >
                         <Icon className="app-nav-icon" strokeWidth={1.9} aria-hidden="true" />
                         <span className="app-nav-label">{item.label}</span>
+                        {item.to === ROUTES.student.penalties && penalties.data && penalties.data.totalBalance > 0 && (
+                          <span className="badge badge-danger app-nav-badge" aria-label={`${unpaidPenaltyCount} unpaid penalties`}>
+                            {unpaidPenaltyCount}
+                          </span>
+                        )}
                       </NavLink>
                     </li>
                   );
@@ -80,12 +102,24 @@ export default function Sidebar({ collapsed, drawerOpen, isDesktop, onCloseDrawe
         </nav>
 
         <div className="app-sidebar__foot">
-          <button type="button" className="app-nav-item app-nav-item--danger" onClick={signOut} {...tipHandlers("Sign out")}>
+          <button
+            type="button"
+            className="app-nav-item app-nav-item--danger"
+            onClick={() => signOutConfirmation.ask({
+              title: "Sign out?",
+              message: "You will be signed out of this session and returned to the login page.",
+              confirmLabel: "Sign out",
+              onConfirm: signOut,
+            })}
+            disabled={signingOut}
+            {...tipHandlers("Sign out")}
+          >
             <LogOut className="app-nav-icon" strokeWidth={1.9} aria-hidden="true" />
             <span className="app-nav-label">Sign out</span>
           </button>
         </div>
       </aside>
+      {signOutConfirmation.dialog}
 
       {tip && (
         <div className="app-tooltip" role="tooltip" style={{ top: tip.top, left: tip.left, transform: "translateY(-50%)" }}>

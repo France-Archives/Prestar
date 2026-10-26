@@ -2,7 +2,8 @@ import { Link } from "react-router-dom";
 import Card from "@/components/ui/Card";
 import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
 import { ROUTES } from "@/app/routeConfig";
 import CirculationStats from "@/features/librarian/components/CirculationStats";
 import RequestQueueTable from "@/features/librarian/components/RequestQueueTable";
@@ -17,8 +18,7 @@ const SCREENS = [
   ["Returns and loans", T.returns, "Confirm returns, mark lost."],
   ["Reservations queue", T.reservations, "FIFO queue and offered copies."],
   ["Renewals", T.renewals, "Automatic renewal history."],
-  ["Check Penalties", T.penaltyCheck, "Live eligibility lookup."],
-  ["Fines", ROUTES.admin.finesAndPayments, "Assess, record payments, waive."],
+  ["Fines", ROUTES.admin.fines, "Review and waive unpaid penalties."],
   ["Maintenance copies", T.maintenance, "Damaged, lost and withdrawn copies."],
 ] as const;
 
@@ -28,7 +28,7 @@ export default function CirculationOverviewPage() {
   const dash = useAsync(() => reportsService.getStaffDashboard(), []);
   return (
     <div className="page">
-      <PageHeader eyebrow="Administration" title="Circulation overview" description="Everything a Librarian can do, available to Admin." />
+      <PageHero eyebrow="Administration" title="Circulation overview" description="Everything a Librarian can do, available to Admin." leading={<BackButton fallback={ROUTES.admin.dashboard} />} compact />
       <div className="stack">
         {dash.loading && !dash.data ? <LoadingState rows={2} /> : dash.error || !dash.data ? <ErrorState message={dash.error ?? ""} onRetry={() => void dash.reload()} /> : (
           <>

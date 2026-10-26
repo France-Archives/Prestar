@@ -5,7 +5,7 @@ import type { StudentRef } from "./user";
 // fines -> FineSummary. paidAmount and balance are computed.
 export interface FineSummary {
   id: UUID;
-  fineType: FineType;
+  fineType: FineType | string;
   amount: number; // 100 / 200 / 500, chosen by the server
   paidAmount: number;
   balance: number;
@@ -13,21 +13,30 @@ export interface FineSummary {
   recordedAt: ISODateTime;
 }
 
-/** P10 GET /staff/fines (proposed). There is NO student "My Fines" page. */
+/** Staff fine shape mapped from GET /api/fines and student penalties. */
 export interface StaffFine extends FineSummary {
-  student: StudentRef;
-  loanId: UUID;
+  penaltyId?: UUID;
+  student: StudentRef & { email?: string; userId?: UUID };
+  loanId?: UUID | null;
+  borrowId?: UUID | null;
+  returnId?: UUID | null;
   bookTitle: string;
+  book?: { id: UUID; title: string; isbn?: string | null } | null;
+  fineTypeLabel?: string;
+  statusLabel?: string;
   notes: string | null;
+  waivedAt?: ISODateTime | null;
+  waivedBy?: string | null;
+  waiveRemarks?: string | null;
 }
 
-/** F1 POST /staff/loans/:loanId/fines. Amount is chosen by the server, never sent. */
+/** Mock-only assessment request; the live Server creates fines during circulation. */
 export interface CreateFineRequest {
   fineType: FineType;
   notes: string;
 }
 
-/** P11 POST /staff/fines/:fineId/waive (Admin only, audited). */
+/** POST /api/fines/:id/waive (reason required and audited). */
 export interface WaiveFineRequest {
   reason: string;
 }

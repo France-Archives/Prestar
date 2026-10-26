@@ -1,73 +1,102 @@
 import { Link } from "react-router-dom";
-import { PackageCheck, Scale, ScrollText, FileCheck, Undo2, UserCog } from "lucide-react";
-import Alert from "@/components/feedback/Alert";
-import Card from "@/components/ui/Card";
-import ErrorState from "@/components/feedback/ErrorState";
+import { useState } from "react";
+import { PackageCheck, ScrollText, FileCheck, Undo2, UserCog } from "lucide-react";
 import LoadingState from "@/components/feedback/LoadingState";
-import PageHeader from "@/components/layout/PageHeader";
+import ErrorState from "@/components/feedback/ErrorState";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
 import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import * as reportsService from "@/services/reportsService";
-import AdminStats from "../components/AdminStats";
-import { ActivityChart, CopyStatusBars } from "../components/SystemActivityChart";
+import OperationalCountCards from "@/features/dashboard/OperationalCountCards";
+import { AdminKpiStrip, AdminMoneyFigure, ActivityHeatStrip, ChartPanel, DashboardLiveStatus, RankedBars, RatioRing } from "@/features/dashboard/DashboardVisuals";
+import { ActivityChart, CopyStatusDonut } from "@/features/admin/components/SystemActivityChart";
 
 const QUICK = [
   { label: "Books to Release", to: ROUTES.staff.booksToRelease, icon: PackageCheck },
   { label: "Returns and loans", to: ROUTES.staff.returns, icon: Undo2 },
-  { label: "COR review", to: ROUTES.admin.cor, icon: FileCheck },
+  { label: "COR review", to: ROUTES.staff.corReview, icon: FileCheck },
   { label: "Invite a Librarian", to: ROUTES.admin.librarians, icon: UserCog },
   { label: "Audit logs", to: ROUTES.admin.auditLogs, icon: ScrollText },
-  { label: "Borrowing policies", to: ROUTES.admin.policies, icon: Scale },
 ];
 
-// GET /admin/dashboard (D1). Admin can also open every Librarian screen from here.
 export default function AdminDashboardPage() {
   const dash = useAsync(() => reportsService.getAdminDashboard(), []);
-  if (dash.loading && !dash.data) return <div className="page"><LoadingState rows={5} /></div>;
-  if (dash.error || !dash.data) return <div className="page"><ErrorState message={dash.error ?? "Could not load the dashboard."} onRetry={() => void dash.reload()} /></div>;
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+
+  if (dash.loading && !dash.data) {
+    return (
+      <div className="page admin-dashboard">
+        <PageHero
+          eyebrow="Admin"
+          title="Dashboard"
+          description="Live circulation counts and administration shortcuts."
+          leading={<BackButton fallback={ROUTES.admin.dashboard} />}
+        />
+        <LoadingState rows={5} />
+      </div>
+    );
+  }
+
+  if (dash.error || !dash.data) {
+    return (
+      <div className="page admin-dashboard">
+        <PageHero
+          eyebrow="Admin"
+          title="Dashboard"
+          description="Live circulation counts and administration shortcuts."
+          leading={<BackButton fallback={ROUTES.admin.dashboard} />}
+        />
+        <ErrorState message={dash.error ?? "Could not load the dashboard."} onRetry={() => void dash.reload()} />
+      </div>
+    );
+  }
+
   const d = dash.data;
+  const activeSelectedDay = selectedDay ?? d.activityLast7Days[d.activityLast7Days.length - 1]?.date ?? null;
 
   return (
-    <div className="page">
-      <PageHeader eyebrow="Admin" title="Admin dashboard" description="System overview. Admin can run every Librarian operation plus the administrative tools." />
-      <div className="stack">
-        {d.pendingCorReviews > 0 && (
-          <Alert kind="warn">
-            {d.pendingCorReviews} COR {d.pendingCorReviews === 1 ? "submission is" : "submissions are"} waiting. <Link to={ROUTES.admin.cor}>Review now</Link>
-          </Alert>
-        )}
-        <AdminStats data={d} />
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card title="Activity, last 7 days" note="Sample statistics in this demo (TC-16).">
-            <ActivityChart days={d.activityLast7Days} />
-          </Card>
-          <Card title="Copies by status" note="Computed live from the copy records.">
-            <CopyStatusBars counts={d.copiesByStatus} />
-          </Card>
+    <div className="page admin-dashboard">
+      <PageHero
+        eyebrow="Admin"
+        title="Dashboard"
+        description="Live circulation counts and administration shortcuts."
+        leading={<BackButton fallback={ROUTES.admin.dashboard} />}
+        actions={<div className="dashboard-actions">{QUICK.slice(0, 2).map(({ label, to }) => <Link key={to} to={to}>{label}</Link>)}<DashboardLiveStatus /></div>}
+      />
+      <div className="dashboard-layout">
+        <div className="admin-dashboard__legacy-counts" aria-hidden="true"><OperationalCountCards /></div>
+        <AdminKpiStrip data={d} />
+        <section className="dashboard-shortcuts" aria-label="Administration shortcuts">
+          {QUICK.slice(2).map(({ label, to, icon: Icon }) => (
+            <Link key={to} to={to}>
+              <Icon size={17} aria-hidden="true" />
+              {label}
+            </Link>
+          ))}
+        </section>
+        <div className="dashboard-grid-main admin-dashboard__charts">
+          <ChartPanel title="Library activity" note="Loans issued and returns, day by day." className="dashboard-panel--feature admin-dashboard__activity-panel">
+            <ActivityChart days={d.activityLast7Days} selectedDay={activeSelectedDay} onSelectDay={setSelectedDay} />
+          </ChartPanel>
+          <ChartPanel title="Copies by status" note="Collection distribution across copy states." className="admin-dashboard__copies-panel">
+            <CopyStatusDonut counts={d.copiesByStatus} />
+          </ChartPanel>
         </div>
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card title="Most borrowed">
-            <ol className="rank-list">
-              {d.popularBooks.map((b, i) => (
-                <li key={b.bookId}>
-                  <span className="rank-list__n">{i + 1}</span>
-                  <Link to={ROUTES.student.bookDetails(b.bookId)}>{b.title}</Link>
-                  <span className="subtle">{b.loanCount} loans</span>
-                </li>
-              ))}
-            </ol>
-          </Card>
-          <Card title="Quick links">
-            <div className="quick-links">
-              {QUICK.map(({ label, to, icon: Icon }) => (
-                <Link key={to} to={to} className="quick-link">
-                  <Icon size={18} strokeWidth={1.9} aria-hidden="true" />
-                  {label}
-                </Link>
-              ))}
-            </div>
-          </Card>
+        <div className="dashboard-grid-support admin-dashboard__support">
+          <ChartPanel title="Most borrowed" note="Ranked titles by loan count." className="admin-dashboard__books-panel">
+            <RankedBars books={d.popularBooks} />
+          </ChartPanel>
+          <ChartPanel title="Unpaid fines" note="Outstanding balance across unpaid and partially paid fines." className="admin-dashboard__fines-panel">
+            <AdminMoneyFigure amount={d.unpaidFineBalance} to={ROUTES.admin.fines} />
+          </ChartPanel>
+          <ChartPanel title="Overdue share" note="Overdue loans compared with active loans." className="admin-dashboard__ratio-panel">
+            <RatioRing active={d.activeLoans} overdue={d.overdueLoans} maintenance={d.copiesByStatus.MAINTENANCE} />
+          </ChartPanel>
         </div>
+        <ChartPanel title="Seven-day intensity" note="Daily circulation volume across the same activity period." className="admin-dashboard__heat-panel">
+          <ActivityHeatStrip days={d.activityLast7Days} selectedDay={activeSelectedDay} onSelectDay={setSelectedDay} />
+        </ChartPanel>
       </div>
     </div>
   );

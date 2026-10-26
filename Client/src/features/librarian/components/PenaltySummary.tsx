@@ -10,13 +10,13 @@ export default function PenaltySummary({ check }: { check: PenaltyCheck }) {
     <div className="stack" style={{ gap: 12 }}>
       <Alert kind={check.eligible ? "ok" : "error"}>
         {check.eligible ? "Eligible: no restriction was found." : "Not eligible: a restriction applies."}{" "}
-        <span className="subtle">Checked {formatDate(check.checkedAt)}</span>
+        {check.checkedAt && <span className="subtle">Checked {formatDate(check.checkedAt)}</span>}
       </Alert>
       <dl className="kv">
-        <div><dt>Account</dt><dd><StatusBadge status={check.accountStatus} /></dd></div>
-        <div><dt>Email verified</dt><dd>{check.emailVerified ? "Yes" : "No"}</dd></div>
-        <div><dt>COR (current term)</dt><dd><StatusBadge status={check.corStatus} /></dd></div>
-        <div><dt>Active commitments</dt><dd>{check.activeCommitmentCount}</dd></div>
+        {check.accountStatus !== null && <div><dt>Account</dt><dd><StatusBadge status={check.accountStatus} /></dd></div>}
+        {check.emailVerified !== null && <div><dt>Email verified</dt><dd>{check.emailVerified ? "Yes" : "No"}</dd></div>}
+        {check.corStatus !== null && <div><dt>COR (current term)</dt><dd><StatusBadge status={check.corStatus} /></dd></div>}
+        {check.activeCommitmentCount !== null && <div><dt>Active commitments</dt><dd>{check.activeCommitmentCount}</dd></div>}
       </dl>
       {check.reasons.length > 0 && (
         <div>

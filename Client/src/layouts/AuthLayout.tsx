@@ -8,12 +8,13 @@ interface AuthLayoutProps {
   subtitle?: string;
   children: ReactNode;
   footer?: ReactNode;
+  className?: string;
 }
 
 type Variant = "login" | "signup" | "plain";
 
 /** Auth pages: one cream rounded card with a soft raised shadow. A matching panel sits beside it on large screens. */
-export default function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProps) {
+export default function AuthLayout({ title, subtitle, children, footer, className = "" }: AuthLayoutProps) {
   const { pathname } = useLocation();
   const variant: Variant = pathname === ROUTES.login ? "login" : pathname === ROUTES.signup ? "signup" : "plain";
 
@@ -29,7 +30,7 @@ export default function AuthLayout({ title, subtitle, children, footer }: AuthLa
       </header>
 
       <main className="auth-body">
-        <div className="auth-shell" data-variant={variant}>
+        <div className={`auth-shell ${className}`.trim()} data-variant={variant}>
           <section className="auth-card">
             <div className="auth-card__head">
               <h1>{title}</h1>

@@ -6,7 +6,9 @@ import LoadingState from "@/components/feedback/LoadingState";
 import SearchInput from "@/components/forms/SearchInput";
 import StatusBadge from "@/components/data-display/StatusBadge";
 import Tabs from "@/components/ui/Tabs";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
+import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import * as verificationService from "@/services/verificationService";
 import type { StaffCorVerification, VerificationStatus } from "@/types";
@@ -15,7 +17,7 @@ import CORReviewPanel from "../components/CORReviewPanel";
 
 type Tab = "PENDING" | "APPROVED" | "REJECTED" | "ALL";
 
-// Also used by the Admin COR administration page. Needs Admin or a Librarian with the COR_REVIEW permission.
+// Also used by the Admin COR route. Available to Admins and Librarians.
 export default function CORReviewPage() {
   const [tab, setTab] = useState<Tab>("PENDING");
   const [search, setSearch] = useState("");
@@ -27,9 +29,9 @@ export default function CORReviewPage() {
   const rows = tab === "ALL" ? all : all.filter((c) => c.status === tab);
 
   const columns: Column<StaffCorVerification>[] = [
-    { key: "student", header: "Student", render: (c) => `${c.student.name} (${c.student.studentNumber})` },
+    { key: "student", header: "Student", render: (c) => `${c.student.name}${c.student.studentNumber ? ` (${c.student.studentNumber})` : ""}` },
     { key: "termName", header: "Term" },
-    { key: "originalFileName", header: "File" },
+    { key: "originalFileName", header: "File", render: (c) => c.originalFileName || "Not provided yet" },
     { key: "submittedAt", header: "Submitted", render: (c) => formatDate(c.submittedAt) },
     { key: "status", header: "Status", render: (c) => <StatusBadge status={c.status} /> },
     {
@@ -45,7 +47,7 @@ export default function CORReviewPage() {
 
   return (
     <div className="page">
-      <PageHeader eyebrow="Verification" title="COR review" description="Approve or reject each student's Certificate of Registration. A rejection needs a reason, and the student may resubmit." />
+      <PageHero eyebrow="Verification" title="COR review" description="Approve or reject each student's Certificate of Registration. A rejection needs a reason, and the student may resubmit." leading={<BackButton fallback={ROUTES.staff.dashboard} />} compact />
       <div className="toolbar" style={{ marginTop: 0 }}>
         <SearchInput value={search} onChange={setSearch} placeholder="Search student, number, term or file…" />
       </div>

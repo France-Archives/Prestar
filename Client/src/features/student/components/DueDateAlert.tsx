@@ -3,7 +3,9 @@ import type { Loan } from "@/types";
 import { daysUntil, formatDate } from "@/utils/formatDate";
 
 // Display only. The backend decides the real restriction (more than 3 calendar days overdue blocks new borrowing).
-export default function DueDateAlert({ loans }: { loans: Loan[] }) {
+type DashboardLoan = Pick<Loan, "id" | "bookTitle" | "status" | "dueAt">;
+
+export default function DueDateAlert({ loans }: { loans: DashboardLoan[] }) {
   const active = loans.filter((l) => l.status === "ACTIVE");
   const overdue = active.filter((l) => daysUntil(l.dueAt) < 0);
   const restricted = overdue.filter((l) => -daysUntil(l.dueAt) > 3);

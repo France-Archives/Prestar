@@ -22,7 +22,6 @@ export const ROUTES = {
     dashboard: "/app/dashboard",
     books: "/app/books",
     bookDetails: (id: string) => `/app/books/${id}`,
-    interests: "/app/interests",
     borrowings: "/app/borrowing",
     borrowList: "/app/borrow-list",
     requests: "/app/requests",
@@ -30,6 +29,7 @@ export const ROUTES = {
     renewals: "/app/renewals",
     history: "/app/history",
     cor: "/app/cor",
+    penalties: "/app/penalties",
     uploadCor: "/app/cor/upload",
     profile: "/app/profile",
     notifications: "/app/notifications",
@@ -43,7 +43,6 @@ export const ROUTES = {
     returns: "/staff/returns",
     reservations: "/staff/reservations",
     renewals: "/staff/renewals",
-    penaltyCheck: "/staff/penalty-check",
     fines: "/staff/fines",
     payments: "/staff/payments",
     corReview: "/staff/cor-review",
@@ -58,6 +57,7 @@ export const ROUTES = {
 
   admin: {
     dashboard: "/admin/dashboard",
+    createAdmin: "/admin/create-admin",
     users: "/admin/users",
     studentDetails: (studentId: string) => `/admin/users/students/${studentId}`,
     librarians: "/admin/librarians",
@@ -66,8 +66,8 @@ export const ROUTES = {
     cor: "/admin/cor",
     terms: "/admin/terms",
     settings: "/admin/settings",
-    policies: "/admin/policies",
-    finesAndPayments: "/admin/fines",
+    fines: "/admin/fines",
+    payments: "/admin/payments",
     reports: "/admin/reports",
     auditLogs: "/admin/audit-logs",
     notifications: "/admin/notifications",
@@ -89,6 +89,22 @@ export function notificationsPathFor(user: Pick<SessionUser, "role">): string {
 export function safeNext(next: string | null | undefined): string | null {
   if (!next || !next.startsWith("/") || next.startsWith("//") || next.includes("\\")) return null;
   return next;
+}
+
+export function postLoginPathFor(user: SessionUser, next: string | null | undefined): string {
+  const destination = safeNext(next);
+  if (!destination) return homePathFor(user);
+
+  const pathname = destination.split(/[?#]/, 1)[0];
+  const capability: Capability | null = pathname === "/app" || pathname.startsWith("/app/")
+    ? "STUDENT_AREA"
+    : pathname === "/staff" || pathname.startsWith("/staff/")
+      ? "STAFF_AREA"
+      : pathname === "/admin" || pathname.startsWith("/admin/")
+        ? "ADMIN_AREA"
+        : null;
+
+  return capability && can(user, capability) ? destination : homePathFor(user);
 }
 
 export interface NavItem {
@@ -133,7 +149,7 @@ const STUDENT_SECTIONS: NavSection[] = [
     title: "Account",
     items: [
       { label: "COR", to: S.cor, capability: "STUDENT_AREA" },
-      { label: "My interests", to: S.interests, capability: "STUDENT_AREA" },
+      { label: "Penalties", to: S.penalties, capability: "STUDENT_AREA" },
       { label: "Profile", to: S.profile, capability: "STUDENT_AREA" },
       { label: "Notifications", to: S.notifications, capability: "STUDENT_AREA" },
     ],
@@ -151,7 +167,6 @@ const STAFF_SECTIONS: NavSection[] = [
       { label: "Returns and loans", to: T.returns, capability: "STAFF_AREA" },
       { label: "Reservations queue", to: T.reservations, capability: "STAFF_AREA" },
       { label: "Renewals", to: T.renewals, capability: "STAFF_AREA" },
-      { label: "Check Penalties", to: T.penaltyCheck, capability: "STAFF_AREA" },
     ],
   },
   {
@@ -167,10 +182,8 @@ const STAFF_SECTIONS: NavSection[] = [
     id: "staff-catalog",
     title: "Catalog",
     items: [
-      { label: "Books", to: T.books, capability: "CATALOG_MANAGE" },
+      { label: "Books", to: T.books, capability: "STAFF_AREA" },
       { label: "Categories", to: T.categories, capability: "CATALOG_MANAGE" },
-      { label: "Authors", to: T.authors, capability: "CATALOG_MANAGE" },
-      { label: "Maintenance copies", to: T.maintenance, capability: "CATALOG_MANAGE" },
       { label: "Shelf locator", to: T.shelfLocator, capability: "CATALOG_MANAGE" },
     ],
   },
@@ -186,7 +199,6 @@ const ADMIN_SECTIONS: NavSection[] = [
     id: "admin-overview",
     title: "Administration",
     items: [
-      { label: "Admin dashboard", to: A.dashboard, capability: "ADMIN_AREA" },
       { label: "Circulation overview", to: A.circulation, capability: "ADMIN_AREA" },
       { label: "Reports", to: A.reports, capability: "ADMIN_AREA" },
       { label: "Audit logs", to: A.auditLogs, capability: "ADMIN_AREA" },
@@ -197,19 +209,18 @@ const ADMIN_SECTIONS: NavSection[] = [
     title: "People",
     items: [
       { label: "Users", to: A.users, capability: "ADMIN_AREA" },
+      { label: "Create admin", to: A.createAdmin, capability: "ADMIN_AREA" },
       { label: "Librarians", to: A.librarians, capability: "MANAGE_LIBRARIANS" },
-      { label: "COR administration", to: A.cor, capability: "ADMIN_AREA" },
     ],
   },
   {
     id: "admin-system",
     title: "System",
     items: [
-      { label: "Book management", to: A.books, capability: "ADMIN_AREA" },
       { label: "Academic terms", to: A.terms, capability: "ADMIN_AREA" },
-      { label: "Borrowing policies", to: A.policies, capability: "ADMIN_AREA" },
       { label: "System settings", to: A.settings, capability: "ADMIN_AREA" },
-      { label: "Fines and payments", to: A.finesAndPayments, capability: "ADMIN_AREA" },
+      { label: "Fines", to: A.fines, capability: "ADMIN_AREA" },
+      { label: "Payments", to: A.payments, capability: "ADMIN_AREA" },
       { label: "Notifications management", to: A.notifications, capability: "ADMIN_AREA" },
     ],
   },
@@ -217,8 +228,20 @@ const ADMIN_SECTIONS: NavSection[] = [
 
 /** Navigation for the signed-in user. Admin gets every Librarian section plus the Admin sections. */
 export function getNavSections(user: SessionUser): NavSection[] {
-  const sections = user.role === "STUDENT" ? STUDENT_SECTIONS : [...STAFF_SECTIONS, ...ADMIN_SECTIONS];
+  const staffSections = user.role === "ADMIN"
+    ? STAFF_SECTIONS.map((section) => section.id === "staff-money"
+      ? { ...section, title: "Verification", items: section.items.filter((item) => item.to === T.corReview) }
+      : section)
+    : STAFF_SECTIONS;
+  const sections = user.role === "STUDENT" ? STUDENT_SECTIONS : [...staffSections, ...(user.role === "ADMIN" ? ADMIN_SECTIONS : [])];
   return sections
-    .map((s) => ({ ...s, items: s.items.filter((i) => can(user, i.capability)) }))
+    .map((s) => ({
+      ...s,
+      items: s.items
+        .map((item) => user.role === "ADMIN" && item.to === T.dashboard
+          ? { ...item, to: A.dashboard }
+          : item)
+        .filter((item) => can(user, item.capability)),
+    }))
     .filter((s) => s.items.length > 0);
 }

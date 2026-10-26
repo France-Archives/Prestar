@@ -1,7 +1,6 @@
 import React, { useRef, useCallback, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
-import { useReducedMotion } from "motion/react";
 import { ROUTES } from "@/app/routeConfig";
 import { useScreenEnter } from "@/hooks/useScreenEnter";
 import { staggerIn, fadeIn } from "@/lib/motion";
@@ -80,8 +79,6 @@ const FEATURED_BOOKS: FeaturedBook[] = [
 
 export default function FeaturedBooks() {
   const carouselRef = useRef<HTMLDivElement>(null);
-  const reducedMotion = useReducedMotion() ?? false;
-
   const scrollLeft  = () => carouselRef.current?.scrollBy({ left: -280, behavior: "smooth" });
   const scrollRight = () => carouselRef.current?.scrollBy({ left: 280,  behavior: "smooth" });
 

@@ -3,12 +3,15 @@ import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
 import Pagination from "@/components/data-display/Pagination";
 import SearchInput from "@/components/forms/SearchInput";
-import PageHeader from "@/components/layout/PageHeader";
+import PageHero from "@/components/layout/PageHero";
+import BackButton from "@/components/navigation/BackButton";
+import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import { useAuth } from "@/hooks/useAuth";
 import * as adminService from "@/services/adminService";
 import type { AccountStatus, AdminUserRow, UserRole } from "@/types";
-import { statusLabel } from "@/utils/constants";
+import { statusLabel, USE_MOCKS } from "@/utils/constants";
+import Alert from "@/components/feedback/Alert";
 import AccountStatusDialog from "../components/AccountStatusDialog";
 import UserManagementTable from "../components/UserManagementTable";
 
@@ -33,16 +36,27 @@ export default function UserManagementPage() {
 
   return (
     <div className="page">
-      <PageHeader eyebrow="People" title="Users" description="Students, Librarians and Admins. Suspending an account blocks new borrowing but never changes existing loans or due dates." />
+      <PageHero
+        eyebrow="People"
+        title="Users"
+        description={USE_MOCKS
+          ? "Students, Librarians and Admins. Suspending an account blocks new borrowing but never changes existing loans or due dates."
+          : "Browse student, librarian, and admin accounts by name, role, and status."}
+        leading={<BackButton fallback={ROUTES.admin.dashboard} />}
+        compact
+      />
+      {!USE_MOCKS && <Alert kind="info">The live list includes names, roles and statuses only. Search matches names; account status changes are not available through this API.</Alert>}
       <div className="toolbar" style={{ marginTop: 0 }}>
-        <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search name, email or number…" />
+        <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder={USE_MOCKS ? "Search name, email or number…" : "Search names…"} />
         <select className="select" style={{ width: "auto" }} aria-label="Role" value={role} onChange={(e) => { setRole(e.target.value as "" | UserRole); setPage(1); }}>
           <option value="">All roles</option>
           {ROLES.map((r) => <option key={r} value={r}>{statusLabel(r)}</option>)}
         </select>
         <select className="select" style={{ width: "auto" }} aria-label="Account status" value={status} onChange={(e) => { setStatus(e.target.value as "" | AccountStatus); setPage(1); }}>
           <option value="">All statuses</option>
-          {STATUSES.map((s) => <option key={s} value={s}>{statusLabel(s)}</option>)}
+          {(USE_MOCKS ? STATUSES : STATUSES.filter((s) => s !== "PENDING_VERIFICATION")).map((s) => (
+            <option key={s} value={s}>{!USE_MOCKS && s === "DISABLED" ? "Inactive" : statusLabel(s)}</option>
+          ))}
         </select>
       </div>
       {list.loading && !list.data ? (
@@ -51,7 +65,7 @@ export default function UserManagementPage() {
         <ErrorState message={list.error} onRetry={() => void list.reload()} />
       ) : (
         <div className="card">
-          <UserManagementTable rows={list.data?.data ?? []} currentUserId={user?.id} onChangeStatus={setTarget} />
+          <UserManagementTable rows={list.data?.data ?? []} currentUserId={user?.id} onChangeStatus={setTarget} live={!USE_MOCKS} />
           {meta && (
             <Pagination
               page={meta.page}

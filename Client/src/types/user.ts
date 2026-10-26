@@ -7,7 +7,7 @@ export interface AuthUser {
   email: string;
   role: UserRole;
   accountStatus: AccountStatus;
-  emailVerifiedAt: ISODateTime | null; // null = unverified
+  emailVerifiedAt: ISODateTime | null; // The backend exposes a boolean, not a verification timestamp.
 }
 
 // students -> StudentProfile
@@ -38,6 +38,7 @@ export interface LibrarianProfile {
  * so this is a frontend convenience that merges AuthUser with the matching profile. TO CONFIRM.
  */
 export interface SessionUser extends AuthUser {
+  emailVerified: boolean;
   displayName: string;
   student: StudentProfile | null;
   librarian: LibrarianProfile | null;
@@ -55,6 +56,8 @@ export interface StudentRef {
 export interface Interest {
   id: UUID;
   name: string;
+  categoryId?: number;
+  description?: string | null;
 }
 
 /** S1 GET /me/profile. Interests are included for convenience. TO CONFIRM. */
@@ -74,9 +77,11 @@ export interface RegisterStudentRequest {
   middleName?: string | null;
   lastName: string;
   suffix?: string | null;
-  college?: string | null;
-  program?: string | null; // the selected course
-  yearLevel?: number | null;
+  college: string;
+  program: string; // the selected course
+  yearLevel: number;
+  termsAccepted: boolean;
+  privacyPolicyAccepted: boolean;
 }
 
 export interface LoginRequest {
@@ -100,8 +105,10 @@ export interface ForgotPasswordRequest {
   email: string;
 }
 export interface ResetPasswordRequest {
-  token: string;
+  email: string;
+  otp: string;
   password: string;
+  confirmPassword: string;
 }
 /** P2 POST /auth/accept-invitation (proposed). */
 export interface AcceptInvitationRequest {
@@ -120,7 +127,7 @@ export interface UpdateProfileRequest {
   yearLevel?: number | null;
 }
 
-/** S3 PUT /me/interests: exactly 3 distinct ids. */
+/** PUT /me/interests: one or more category IDs, represented as strings in the Client. */
 export interface UpdateInterestsRequest {
-  interestIds: [UUID, UUID, UUID];
+  interestIds: UUID[];
 }

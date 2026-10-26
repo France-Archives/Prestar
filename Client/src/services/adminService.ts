@@ -1,12 +1,16 @@
 import type {
   AcademicTerm,
+  AdminUserListRow,
   AdminUserListParams,
   AdminUserRow,
+  LiveAdminUserRow,
   AuditLog,
   AuditLogParams,
   CorSummary,
   CorVerification,
+  CreateStaffAccountRequest,
   CreateAcademicTermRequest,
+  CreatedStaffAccount,
   FineSummary,
   InviteLibrarianRequest,
   LibrarianAccount,
@@ -27,11 +31,12 @@ import type {
   UUID,
 } from "@/types";
 import { LIBRARIAN_PERMISSIONS } from "@/types";
+import { apiClient } from "@/services/apiClient";
 import type { MockAccount } from "@/data";
-import { POLICY_SETTINGS } from "@/utils/constants";
-import { fail } from "@/utils/errors";
+import { POLICY_SETTINGS, USE_MOCKS } from "@/utils/constants";
+import { fail, toApiError, unsupportedOperation } from "@/utils/errors";
 import { dateKey } from "@/utils/formatDate";
-import { validateDateRange, validateEmail, validateName, validateRequired } from "@/utils/validators";
+import { validateDateRange, validateEmail, validateName, validatePassword, validateRequired } from "@/utils/validators";
 import { begin, checkEligibility, corSummaryOf, toCor, toFineSummary, toLoan, toReservation, toStaffFine } from "./mockEngine";
 import { audit, commit, db, issueToken, matches, newId, notify, nowIso, out, paginate, requireCapability } from "./mockStore";
 
@@ -69,10 +74,171 @@ const toLibrarianAccount = (a: MockAccount): LibrarianAccount => ({
   createdAt: a.createdAt,
 });
 
+function validateStaffAccountRequest(req: CreateStaffAccountRequest): void {
+  check(validateEmail(req.email));
+  if (req.email.trim().length > 255) fail("VALIDATION_ERROR", "A valid email address (max 255 characters) is required.", 400);
+  check(validateName(req.firstName, "First name"));
+  check(validateName(req.lastName, "Last name"));
+  check(validatePassword(req.password));
+  if (req.employeeNumber && req.employeeNumber.trim().length > 50) {
+    fail("VALIDATION_ERROR", "Employee number must not exceed 50 characters.", 400);
+  }
+}
+
+async function createStaffAccount(
+  role: "Librarian" | "Admin",
+  req: CreateStaffAccountRequest,
+): Promise<CreatedStaffAccount> {
+  if (!USE_MOCKS) {
+    try {
+      const response = await apiClient.post<{ message: string; user: CreatedStaffAccount }>(
+        role === "Librarian" ? "/admin/librarians" : "/admin/admins",
+        {
+          email: req.email.trim(),
+          password: req.password,
+          firstName: req.firstName.trim(),
+          lastName: req.lastName.trim(),
+          employeeNumber: req.employeeNumber?.trim() || null,
+        },
+      );
+      return response.data.user;
+    } catch (error) {
+      throw toApiError(error);
+    }
+  }
+
+  await begin();
+  const admin = requireCapability(role === "Librarian" ? "MANAGE_LIBRARIANS" : "ADMIN_AREA");
+  validateStaffAccountRequest(req);
+  const email = req.email.trim().toLowerCase();
+  if (db.accounts.some((account) => account.user.email.toLowerCase() === email)) {
+    fail("CONFLICT", "An account with that email already exists.", 409);
+  }
+
+  const userId = newId();
+  const permissions = role === "Librarian"
+    ? (req.permissions ?? []).filter((permission) => LIBRARIAN_PERMISSIONS.includes(permission))
+    : [];
+  const displayName = `${req.firstName.trim()} ${req.lastName.trim()}`;
+  const account: MockAccount = {
+    user: {
+      id: userId,
+      email,
+      role: role === "Librarian" ? "LIBRARIAN" : "ADMIN",
+      accountStatus: "ACTIVE",
+      emailVerifiedAt: nowIso(),
+    },
+    password: req.password,
+    displayName,
+    student: null,
+    librarian: role === "Librarian"
+      ? { id: newId(), userId, employeeNumber: req.employeeNumber?.trim() || null, permissions }
+      : null,
+    createdAt: nowIso(),
+    invitation: role === "Librarian" ? "ACCEPTED" : null,
+  };
+  db.accounts.push(account);
+  audit(admin, role === "Librarian" ? "LIBRARIAN_CREATED" : "ADMIN_CREATED", "USER", userId, `Created ${displayName} (${email}) as ${role}.`);
+  commit();
+  return {
+    id: userId,
+    userId,
+    email,
+    firstName: req.firstName.trim(),
+    lastName: req.lastName.trim(),
+    displayName,
+    role,
+    status: "Active",
+    employeeNumber: req.employeeNumber?.trim() || null,
+    emailVerified: true,
+  };
+}
+
+export async function createLibrarian(req: CreateStaffAccountRequest): Promise<CreatedStaffAccount> {
+  return createStaffAccount("Librarian", req);
+}
+
+export async function createAdmin(req: CreateStaffAccountRequest): Promise<CreatedStaffAccount> {
+  return createStaffAccount("Admin", req);
+}
+
 // ---------- users ----------
 
 /** D5 GET /admin/users */
-export async function listUsers(params: AdminUserListParams = {}): Promise<Paginated<AdminUserRow>> {
+export async function listUsers(params: AdminUserListParams = {}): Promise<Paginated<AdminUserListRow>> {
+  if (!USE_MOCKS) {
+    try {
+      const apiRole = params.role ? ({
+        STUDENT: "Student",
+        LIBRARIAN: "Librarian",
+        ADMIN: "Admin",
+      } as const)[params.role] : undefined;
+      const statusFilters: Partial<Record<AdminUserRow["accountStatus"], string>> = {
+        ACTIVE: "Active",
+        SUSPENDED: "Suspended",
+        DISABLED: "Inactive",
+      };
+      const apiStatus = params.accountStatus ? statusFilters[params.accountStatus] : undefined;
+      const pageSize = params.pageSize ?? 10;
+      const serverPageSize = 100;
+      const rows: AdminUserListRow[] = [];
+      let serverPage = 1;
+
+      while (true) {
+        const response = (await apiClient.get<unknown>("/admin/users", {
+          params: {
+            role: apiRole,
+            status: apiStatus,
+            page: serverPage,
+            limit: serverPageSize,
+          },
+        })).data;
+        if (!response || typeof response !== "object" || Array.isArray(response)) {
+          throw new Error("The Server returned an invalid user list.");
+        }
+        const envelope = response as Record<string, unknown>;
+        const pageRows = Array.isArray(envelope.data) ? envelope.data : envelope.users;
+        if (!Array.isArray(pageRows)) throw new Error("The Server returned an invalid user list.");
+        const mapped = pageRows.map((value): AdminUserListRow => {
+          if (!value || typeof value !== "object" || Array.isArray(value)) {
+            throw new Error("The Server returned an invalid user record.");
+          }
+          const row = value as Record<string, unknown>;
+          if (typeof row.name !== "string" || typeof row.status !== "string" || typeof row.role !== "string") {
+            throw new Error("The Server returned an invalid user record.");
+          }
+          const role = row.role.trim().toUpperCase();
+          const status = row.status.trim().toLowerCase();
+          if (!["STUDENT", "LIBRARIAN", "ADMIN"].includes(role)
+            || !["active", "inactive", "suspended"].includes(status)) {
+            throw new Error("The Server returned an unsupported user role or status.");
+          }
+          return {
+            name: row.name,
+            role: role as LiveAdminUserRow["role"],
+            status: status === "active" ? "Active" : status === "inactive" ? "Inactive" : "Suspended",
+          };
+        });
+        rows.push(...mapped);
+        if (mapped.length < serverPageSize) break;
+        serverPage += 1;
+      }
+
+      const search = params.search?.trim().toLowerCase();
+      const filtered = search
+        ? rows.filter((row) => "name" in row && row.name.toLowerCase().includes(search))
+        : rows;
+      const page = params.page ?? 1;
+      const start = (page - 1) * pageSize;
+      return {
+        data: filtered.slice(start, start + pageSize),
+        meta: { page, pageSize, total: filtered.length },
+      };
+    } catch (error) {
+      throw toApiError(error);
+    }
+  }
+
   await begin();
   requireCapability("ADMIN_AREA");
   const rows = db.accounts
@@ -115,6 +281,7 @@ export async function getStudentDetails(studentId: UUID): Promise<AdminStudentDe
 
 /** D6 PATCH /admin/users/:userId/status. Reason required. Existing loans and due dates are unchanged. */
 export async function updateUserStatus(userId: UUID, req: UpdateUserStatusRequest): Promise<AdminUserRow> {
+  if (!USE_MOCKS) unsupportedOperation("Account status changes");
   await begin();
   const admin = requireCapability("ADMIN_AREA");
   check(validateRequired(req.reason, "A reason"));
@@ -194,15 +361,97 @@ function validateTerm(req: Partial<CreateAcademicTermRequest>, selfId?: UUID): v
   }
 }
 
-/** D9 GET /admin/academic-terms. Oldest term first. */
+/** GET /academic-terms in live mode; list-only endpoint. */
 export async function listAcademicTerms(): Promise<AcademicTerm[]> {
+  if (!USE_MOCKS) {
+    try {
+      const response = (await apiClient.get<unknown>("/academic-terms")).data;
+      if (!Array.isArray(response)) throw new Error("The Server returned an invalid academic-term list.");
+      return response.map(mapLiveAcademicTerm);
+    } catch (error) {
+      throw toApiError(error);
+    }
+  }
   await begin();
   requireCapability("ADMIN_AREA");
   return out([...db.terms].sort((a, b) => a.startDate.localeCompare(b.startDate)));
 }
 
+function mapLiveAcademicTerm(value: unknown): AcademicTerm {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("The Server returned an invalid academic term.");
+  }
+  const term = value as Record<string, unknown>;
+  if ((typeof term.id !== "string" && typeof term.id !== "number")
+    || typeof term.name !== "string" || typeof term.startDate !== "string"
+    || typeof term.endDate !== "string" || typeof term.corDeadline !== "string"
+    || typeof term.status !== "string") {
+    throw new Error("The Server returned an incomplete academic term.");
+  }
+  const id = String(term.id);
+  const isDate = (date: string) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+    const parsed = new Date(`${date}T00:00:00Z`);
+    return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date;
+  };
+  if (!/^[1-9]\d*$/.test(id) || !term.name.trim()
+    || !isDate(term.startDate) || !isDate(term.endDate) || !isDate(term.corDeadline)
+    || term.endDate < term.startDate || term.corDeadline < term.startDate || term.corDeadline > term.endDate) {
+    throw new Error("The Server returned invalid academic-term fields.");
+  }
+  const status = term.status.toUpperCase();
+  if (status !== "ACTIVE" && status !== "UPCOMING" && status !== "COMPLETED") {
+    throw new Error("The Server returned an unknown academic-term status.");
+  }
+  return {
+    id,
+    name: term.name,
+    startDate: term.startDate,
+    endDate: term.endDate,
+    corDeadline: term.corDeadline,
+    status,
+  };
+}
+
+export async function getAcademicTerm(id: UUID): Promise<AcademicTerm> {
+  if (!USE_MOCKS) {
+    const numericId = Number(id);
+    if (!/^[1-9]\d*$/.test(id) || !Number.isSafeInteger(numericId)) {
+      fail("VALIDATION_ERROR", "Academic term id must be a positive integer.", 400);
+    }
+    try {
+      const response = (await apiClient.get<unknown>(`/admin/academic-terms/${numericId}`)).data;
+      const body = typeof response === "object" && response !== null && "data" in response
+        ? (response as { data: unknown }).data
+        : response;
+      return mapLiveAcademicTerm(body);
+    } catch (error) {
+      throw toApiError(error);
+    }
+  }
+  await begin();
+  requireCapability("ADMIN_AREA");
+  const term = db.terms.find((item) => item.id === id);
+  if (!term) fail("NOT_FOUND", "We could not find that academic term.");
+  return out(term);
+}
+
 /** D10 POST /admin/academic-terms */
 export async function createAcademicTerm(req: CreateAcademicTermRequest): Promise<AcademicTerm> {
+  if (!USE_MOCKS) {
+    try {
+      const response = (await apiClient.post<unknown>("/admin/academic-terms", req)).data;
+      const body = typeof response === "object" && response !== null && "data" in response && !("term" in response)
+        ? (response as { data: unknown }).data
+        : response;
+      if (typeof body !== "object" || body === null || !("term" in body)) {
+        throw new Error("The Server returned an invalid created academic term.");
+      }
+      return mapLiveAcademicTerm((body as { term: unknown }).term);
+    } catch (error) {
+      throw toApiError(error);
+    }
+  }
   await begin();
   const admin = requireCapability("ADMIN_AREA");
   if (!req.name || !req.startDate || !req.endDate || !req.corDeadline) fail("VALIDATION_ERROR", "Name, start date, end date and COR deadline are required.", 422);
@@ -216,6 +465,24 @@ export async function createAcademicTerm(req: CreateAcademicTermRequest): Promis
 
 /** D11 PATCH /admin/academic-terms/:id */
 export async function updateAcademicTerm(id: UUID, req: UpdateAcademicTermRequest): Promise<AcademicTerm> {
+  if (!USE_MOCKS) {
+    const numericId = Number(id);
+    if (!/^[1-9]\d*$/.test(id) || !Number.isSafeInteger(numericId)) {
+      fail("VALIDATION_ERROR", "Academic term id must be a positive integer.", 400);
+    }
+    try {
+      const response = (await apiClient.patch<unknown>(`/admin/academic-terms/${numericId}`, req)).data;
+      const body = typeof response === "object" && response !== null && "data" in response && !("term" in response)
+        ? (response as { data: unknown }).data
+        : response;
+      if (typeof body !== "object" || body === null || !("term" in body)) {
+        throw new Error("The Server returned an invalid updated academic term.");
+      }
+      return mapLiveAcademicTerm((body as { term: unknown }).term);
+    } catch (error) {
+      throw toApiError(error);
+    }
+  }
   await begin();
   const admin = requireCapability("ADMIN_AREA");
   const term = db.terms.find((t) => t.id === id);
@@ -262,8 +529,70 @@ export async function updateSetting(key: string, req: UpdateSettingRequest): Pro
 
 // ---------- audit logs ----------
 
-/** D12 GET /admin/audit-logs */
+/** GET /admin/audit-logs with server-side filters and pagination. */
 export async function listAuditLogs(params: AuditLogParams = {}): Promise<Paginated<AuditLog>> {
+  if (!USE_MOCKS) {
+    try {
+      const response = (await apiClient.get<unknown>("/admin/audit-logs", {
+        params: {
+          ...(params.from ? { from: params.from } : {}),
+          ...(params.to ? { to: params.to } : {}),
+          ...(params.actorRole ? { actorRole: params.actorRole } : {}),
+          ...(params.action ? { action: params.action } : {}),
+          ...(params.search?.trim() ? { search: params.search.trim() } : {}),
+          page: params.page ?? 1,
+          pageSize: params.pageSize ?? 15,
+        },
+      })).data;
+      if (typeof response !== "object" || response === null || Array.isArray(response)) {
+        throw new Error("The Server returned an invalid audit-log list.");
+      }
+      const body = response as Record<string, unknown>;
+      if (!Array.isArray(body.data) || typeof body.meta !== "object" || body.meta === null || Array.isArray(body.meta)) {
+        throw new Error("The Server returned an invalid audit-log list.");
+      }
+      const meta = body.meta as Record<string, unknown>;
+      if (typeof meta.page !== "number" || !Number.isSafeInteger(meta.page) || meta.page < 1
+        || typeof meta.pageSize !== "number" || !Number.isSafeInteger(meta.pageSize) || meta.pageSize < 1 || meta.pageSize > 100
+        || typeof meta.total !== "number" || !Number.isSafeInteger(meta.total) || meta.total < 0) {
+        throw new Error("The Server returned invalid audit-log pagination.");
+      }
+      const data = body.data.map((row: unknown): AuditLog => {
+        if (typeof row !== "object" || row === null || Array.isArray(row)) throw new Error("The Server returned an invalid audit entry.");
+        const item = row as Record<string, unknown>;
+        if ((typeof item.id !== "string" && typeof item.id !== "number")
+          || (typeof item.auditId !== "string" && typeof item.auditId !== "number")
+          || (typeof item.actorUserId !== "string" && typeof item.actorUserId !== "number")
+          || typeof item.actorName !== "string" || typeof item.actorRole !== "string"
+          || typeof item.action !== "string" || typeof item.entityType !== "string"
+          || (item.entityId !== null && typeof item.entityId !== "string" && typeof item.entityId !== "number")
+          || typeof item.summary !== "string" || typeof item.createdAt !== "string") {
+          throw new Error("The Server returned an incomplete audit entry.");
+        }
+        if (item.actorRole !== "ADMIN" && item.actorRole !== "LIBRARIAN" && item.actorRole !== "STUDENT") {
+          throw new Error("The Server returned an unknown audit actor role.");
+        }
+        return {
+          id: String(item.id),
+          auditId: item.auditId === undefined ? undefined : String(item.auditId),
+          actorUserId: String(item.actorUserId),
+          actorName: item.actorName,
+          actorRole: item.actorRole,
+          action: item.action,
+          entityType: item.entityType,
+          entityId: item.entityId === null || item.entityId === undefined ? null : String(item.entityId),
+          summary: item.summary,
+          createdAt: item.createdAt,
+        };
+      });
+      return {
+        data,
+        meta: { page: meta.page, pageSize: meta.pageSize, total: meta.total },
+      };
+    } catch (error) {
+      throw toApiError(error);
+    }
+  }
   await begin();
   requireCapability("ADMIN_AREA");
   const rows = db.audit

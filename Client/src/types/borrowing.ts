@@ -9,7 +9,7 @@ export interface BorrowingRequest {
   bookId: UUID;
   bookTitle: string;
   assignedCopyId: UUID | null;
-  requestedDurationDays: AllowedDurationDays;
+  requestedDurationDays: number;
   status: BorrowingRequestStatus;
   requestedAt: ISODateTime;
   approvedAt: ISODateTime | null;

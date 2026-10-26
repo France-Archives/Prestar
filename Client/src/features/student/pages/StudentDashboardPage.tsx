@@ -1,16 +1,18 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import Alert from "@/components/feedback/Alert";
+import EmptyState from "@/components/feedback/EmptyState";
 import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
 import { ROUTES } from "@/app/routeConfig";
 import { useAsync } from "@/hooks/useAsync";
 import { useAuth } from "@/hooks/useAuth";
+import { TIME_ZONE, USE_MOCKS } from "@/utils/constants";
 import * as booksService from "@/services/booksService";
 import * as reportsService from "@/services/reportsService";
 import BookGrid from "@/features/books/components/BookGrid";
-import { TIME_ZONE } from "@/utils/constants";
 import DueDateAlert from "../components/DueDateAlert";
+import RecommendedBooks from "../components/RecommendedBooks";
 
 const S = ROUTES.student;
 
@@ -38,8 +40,11 @@ function Section({ eyebrow, title, note, action, children }: { eyebrow: string; 
 export default function StudentDashboardPage() {
   const { user } = useAuth();
   const dash = useAsync(() => reportsService.getStudentDashboard(), []);
-  // The statistics carry no covers or authors, so look the popular titles up in the catalog.
-  const catalog = useAsync(() => booksService.listBooks({ pageSize: 100 }), []);
+  // Mock popular-book rows need a larger catalog lookup; live rows include book summaries.
+  const catalog = useAsync(
+    () => booksService.listBooks({ pageSize: USE_MOCKS ? 100 : 6 }),
+    [],
+  );
 
   if (dash.loading) return <div className="page"><LoadingState rows={4} /></div>;
   if (dash.error || !dash.data) {
@@ -49,16 +54,16 @@ export default function StudentDashboardPage() {
   const d = dash.data;
   const firstName = user?.displayName.split(" ")[0] ?? "";
   const offered = d.reservations.filter((r) => r.status === "OFFERED").length;
-  // A pending COR is shown only on the COR page, and an approval arrives as a notification.
+  // A pending COR is shown only on the COR page.
   const needsCor = d.cor.status !== "APPROVED" && d.cor.status !== "PENDING";
 
-  const byId = new Map((catalog.data?.data ?? []).map((b) => [b.id, b] as const));
+  const books = catalog.data?.data ?? [];
+  const byId = new Map(books.map((b) => [b.id, b] as const));
   const popular = d.mostBorrowed.flatMap((p) => {
-    const book = byId.get(p.bookId);
+    const book = p.book ?? byId.get(p.bookId);
     return book ? [{ book, loans: p.loanCount }] : [];
   });
   const popularMeta = Object.fromEntries(popular.map(({ book, loans }) => [book.id, <span key={book.id} className="book-card__stat">{loans} loans</span>]));
-
   return (
     <div className="page">
          <header className="dash-hello">
@@ -93,7 +98,7 @@ export default function StudentDashboardPage() {
 
       {d.mostBorrowed.length > 0 && (
         <Section eyebrow="Reader activity" title="Most Borrowed This Week" note="What other students are reading right now.">
-          {catalog.loading && !catalog.data ? (
+          {USE_MOCKS && catalog.loading && !catalog.data ? (
             <div className="book-row" aria-hidden="true">
               {Array.from({ length: 6 }, (_, i) => <div key={i} className="book-skel skeleton" />)}
             </div>
@@ -103,8 +108,24 @@ export default function StudentDashboardPage() {
         </Section>
       )}
 
-      <Section eyebrow="Chosen for you" title="Recommended For You">
-        <BookGrid books={d.recommended} emptyText="No recommendations yet." />
+      <Section eyebrow="Chosen for you" title="Recommended for you" action={<Link to={S.profile} className="link-btn">Edit interests</Link>}>
+        <RecommendedBooks books={d.recommended} />
+      </Section>
+
+      <Section
+        eyebrow="Explore the collection"
+        title="Browse Books"
+        action={<Link to={S.books} className="btn btn-ghost btn-sm">View All</Link>}
+      >
+        {catalog.loading ? (
+          <LoadingState rows={2} />
+        ) : catalog.error ? (
+          <ErrorState message={catalog.error} onRetry={() => void catalog.reload()} />
+        ) : books.length === 0 ? (
+          <EmptyState title="No books are currently available." text="Visit the catalog again later." />
+        ) : (
+          <BookGrid books={books.slice(0, 6)} />
+        )}
       </Section>
     </div>
   );

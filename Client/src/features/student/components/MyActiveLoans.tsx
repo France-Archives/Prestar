@@ -61,7 +61,14 @@ export default function MyActiveLoans({ loans, onChanged, compact = false }: Pro
         })}
       </ul>
       {target && (
-        <ConfirmDialog title={`Renew ${target.bookTitle}`} confirmLabel="Request renewal" onConfirm={renew} onClose={() => setTarget(null)}>
+        <ConfirmDialog
+          title={`Renew ${target.bookTitle}?`}
+          message={`A renewal request for ${duration} days will be submitted.`}
+          details={[{ label: "Book", value: target.bookTitle }, { label: "Requested extension", value: `${duration} days` }]}
+          confirmLabel="Request renewal"
+          onConfirm={renew}
+          onClose={() => setTarget(null)}
+        >
           <SelectField label="Renewal duration" value={duration} onChange={(e) => setDuration(Number(e.target.value) as AllowedDurationDays)}>
             {DURATIONS.map((d) => (
               <option key={d} value={d}>{d} days</option>

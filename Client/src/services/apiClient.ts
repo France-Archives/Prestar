@@ -3,12 +3,7 @@ import type { ApiData, Paginated } from "@/types";
 import { API_BASE_URL } from "@/utils/constants";
 import { toApiError } from "@/utils/errors";
 
-// Axios client for the future backend. Not used while the services run on mocks (VITE_USE_MOCKS=true).
-// When connecting a service: replace the body of each mock function with ONE call to apiGet/apiPost/... below.
-// Function names, parameters and return types stay the same, so pages do not change.
-//
-// Auth mechanism (cookie session vs JWT) is TO CONFIRM (TC-01). withCredentials supports httpOnly cookies;
-// if the team picks bearer tokens, attach the Authorization header in the request interceptor instead.
+// Shared Axios client for live service calls. Cookie sessions are sent with every request.
 export const UNAUTHENTICATED_EVENT = "prestar:unauthenticated";
 
 export const apiClient = axios.create({
@@ -22,8 +17,12 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error: unknown) => {
     const err = toApiError(error);
-    // 401 UNAUTHENTICATED: AuthContext listens and redirects to /login?next=. (A failed login is INVALID_CREDENTIALS.)
-    if (err.code === "UNAUTHENTICATED") window.dispatchEvent(new CustomEvent(UNAUTHENTICATED_EVENT));
+    const isLoginRequest = axios.isAxiosError(error)
+      && error.config?.method?.toLowerCase() === "post"
+      && error.config.url === "/auth/login";
+    if (err.code === "UNAUTHENTICATED" && !isLoginRequest) {
+      window.dispatchEvent(new CustomEvent(UNAUTHENTICATED_EVENT));
+    }
     return Promise.reject(err);
   },
 );

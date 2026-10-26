@@ -15,7 +15,7 @@ export interface UpdateSettingRequest {
   value: Setting["value"];
 }
 
-/** D5 GET /admin/users row. Exact shape not defined in the source. TO CONFIRM. */
+/** Existing detailed account row used by mock mode and account-management tools. */
 export interface AdminUserRow {
   id: UUID;
   email: string;
@@ -28,6 +28,15 @@ export interface AdminUserRow {
   employeeNumber: string | null;
   createdAt: ISODateTime;
 }
+
+/** Exact shape returned by the live GET /admin/users endpoint. */
+export interface LiveAdminUserRow {
+  name: string;
+  role: UserRole;
+  status: "Active" | "Inactive" | "Suspended";
+}
+
+export type AdminUserListRow = AdminUserRow | LiveAdminUserRow;
 
 export interface AdminUserListParams extends PageParams {
   search?: string;
@@ -48,6 +57,28 @@ export interface InviteLibrarianRequest {
   lastName: string;
   employeeNumber?: string | null;
   permissions?: LibrarianPermission[];
+}
+
+export interface CreateStaffAccountRequest {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  employeeNumber?: string | null;
+  permissions?: LibrarianPermission[];
+}
+
+export interface CreatedStaffAccount {
+  id: UUID;
+  userId: UUID;
+  email: string;
+  firstName: string;
+  lastName: string;
+  displayName: string;
+  role: "Librarian" | "Admin";
+  status: string;
+  employeeNumber: string | null;
+  emailVerified: boolean;
 }
 
 /** Librarian list row (Admin). Invitation acceptance flow is TO CONFIRM (TC-19). */
@@ -75,9 +106,10 @@ export interface AuditLog {
   actorRole: UserRole;
   action: string; // e.g. HANDOVER_CLAIMED, FINE_WAIVED
   entityType: string;
-  entityId: UUID | null;
+  entityId?: UUID | null;
   summary: string;
   createdAt: ISODateTime;
+  auditId?: UUID;
 }
 
 export interface AuditLogParams extends PageParams {

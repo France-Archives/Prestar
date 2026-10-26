@@ -27,7 +27,6 @@ export type Capability =
 
 const GATED: Partial<Record<Capability, LibrarianPermission>> = {
   CATALOG_MANAGE: "CATALOG_MANAGE",
-  COR_REVIEW: "COR_REVIEW",
   FINE_MANAGE: "FINE_PAYMENT",
 };
 
@@ -47,6 +46,7 @@ export function can(user: SessionUser | null | undefined, capability: Capability
   if (role !== "LIBRARIAN") return false;
 
   if (capability === "STAFF_AREA") return true;
+  if (capability === "COR_REVIEW") return true;
   const needed = GATED[capability];
   return needed ? (user.librarian?.permissions ?? []).includes(needed) : false;
 }

@@ -45,7 +45,7 @@ describe("permission and role normalization", () => {
 });
 
 describe("borrowing commitments", () => {
-  it("counts only active loans and concrete offers, not waiting reservations", () => {
+  it("counts active loans, requests, and waiting or offered reservations", () => {
     const studentId = "student-commitment-test";
     const titleId = bookId(99);
     const copyOne = crypto.randomUUID();
@@ -107,7 +107,7 @@ describe("borrowing commitments", () => {
       },
     );
 
-    expect(commitmentsOf(studentId, titleId)).toBe(3);
+    expect(commitmentsOf(studentId, titleId)).toBe(4);
   });
 });
 

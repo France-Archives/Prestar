@@ -1,0 +1,115 @@
+// Server/app.js
+import express from "express";
+import helmet from "helmet";
+import morgan from "morgan";
+import cookieParser from "cookie-parser";
+import cors from "cors";
+import authRoutes from "./routes/authRoutes.js";
+import bookRoutes from "./routes/bookRoutes.js";
+import borrowRequestRoutes from "./routes/borrowRequestRoutes.js";
+import borrowedBookRoutes from "./routes/borrowedBookRoutes.js";
+import otpRoutes from "./routes/otpRoutes.js";
+import verificationRoutes from "./routes/verificationRoutes.js";
+import reservationRoutes from "./routes/reservationRoutes.js";
+import studentDashboardRoutes from "./routes/studentDashboardRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
+import categoryRoutes from "./routes/categoryRoutes.js";
+import staffDashboardRoutes from "./routes/staffDashboardRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
+import renewalRoutes from "./routes/renewalRoutes.js";
+import interestRoutes from "./routes/interestRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
+import penaltyRoutes from "./routes/penaltyRoutes.js";
+import shelfLocatorRoutes from "./routes/shelfLocatorRoutes.js";
+import authMiddleware from "./middleware/authMiddleware.js";
+import { requireRole } from "./middleware/roleMiddleware.js";
+import { getAuthorsHandler } from "./controllers/bookController.js";
+import { getMyFinesHandler } from "./controllers/penaltyController.js";
+import { getAuditLogsHandler } from "./controllers/auditLogController.js";
+import {
+  getMyInterestsHandler,
+  updateMyInterestsHandler,
+  getRecommendedBooksHandler,
+} from "./controllers/interestController.js";
+
+const app = express();
+app.set("trust proxy", 1);
+const allowedOrigins = new Set(
+	(process.env.FRONTEND_ORIGINS || "http://localhost:5173,http://127.0.0.1:5173")
+		.split(",")
+		.map((origin) => origin.trim())
+		.filter(Boolean),
+);
+
+app.use(helmet());
+app.use(morgan("common"));
+app.use(express.json({ limit: "15mb" }));
+app.use(express.urlencoded({ extended: true, limit: "15mb" }));
+app.use(cookieParser());
+app.use(cors({
+	origin(origin, callback) {
+		if (!origin || allowedOrigins.has(origin)) {
+			return callback(null, true);
+		}
+		return callback(null, false);
+	},
+	credentials: true,
+}));
+
+app.use("/api/auth", authRoutes);
+app.use("/api/books", bookRoutes);
+app.use("/api/borrow-requests", borrowRequestRoutes);
+app.use("/api/borrowing-requests", borrowRequestRoutes);
+app.use("/api/borrowed-books", borrowedBookRoutes);
+app.use("/api/staff/loans", borrowedBookRoutes);
+app.use("/api/otp", otpRoutes);
+app.use("/api/reservations", reservationRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/renewals", renewalRoutes);
+app.use("/api", studentDashboardRoutes);
+app.use("/api", staffDashboardRoutes);
+app.use("/api", verificationRoutes);
+
+// Category routes (listing categories, creating categories, and books by category)
+app.use("/api/categories", categoryRoutes);
+
+// Penalties and cash payment routes
+app.use("/api/fines", penaltyRoutes);
+app.use("/api/penalties", penaltyRoutes);
+app.get("/api/me/penalties", authMiddleware, getMyFinesHandler);
+app.get("/api/me/fines", authMiddleware, getMyFinesHandler);
+
+// Reading interests & personalized book recommendations
+app.use("/api/interests", interestRoutes);
+app.get("/api/me/interests", authMiddleware, getMyInterestsHandler);
+app.put("/api/me/interests", authMiddleware, updateMyInterestsHandler);
+app.post("/api/me/interests", authMiddleware, updateMyInterestsHandler);
+app.get("/api/me/recommended-books", authMiddleware, getRecommendedBooksHandler);
+
+// Catalog helper lists (authenticated, any role)
+app.get("/api/authors", authMiddleware, getAuthorsHandler);
+
+// Shelf locator & inventory management routes
+app.use("/api/shelf-locator", shelfLocatorRoutes);
+app.use("/api/shelf-locations", shelfLocatorRoutes);
+
+// Audit logs list endpoint
+app.get("/api/audit-logs", authMiddleware, requireRole(["Admin", "Librarian"]), getAuditLogsHandler);
+
+app.use((req, res) => {
+	res.status(404).json({ error: "Route not found." });
+});
+
+app.use((error, _req, res, _next) => {
+	console.error(error);
+	const statusCode = Number.isInteger(error.status) && error.status >= 400 && error.status < 500
+		? error.status
+		: 500;
+	res.status(statusCode).json({
+		error: statusCode === 500 ? "Internal server error." : error.message,
+	});
+});
+
+export default app;

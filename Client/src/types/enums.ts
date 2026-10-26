@@ -10,7 +10,7 @@ export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
 export const TERM_STATUSES = ["UPCOMING", "ACTIVE", "COMPLETED"] as const;
 export type TermStatus = (typeof TERM_STATUSES)[number];
 
-export const VERIFICATION_STATUSES = ["PENDING", "APPROVED", "REJECTED", "SUPERSEDED"] as const;
+export const VERIFICATION_STATUSES = ["PENDING", "APPROVED", "REJECTED", "SUPERSEDED", "EXPIRED"] as const;
 export type VerificationStatus = (typeof VERIFICATION_STATUSES)[number];
 
 export const BOOK_COPY_STATUSES = ["AVAILABLE", "RESERVED", "ON_LOAN", "MAINTENANCE", "LOST", "WITHDRAWN"] as const;
@@ -20,6 +20,7 @@ export const COPY_CONDITIONS = ["NEW", "GOOD", "FAIR", "DAMAGED", "UNUSABLE"] as
 export type CopyCondition = (typeof COPY_CONDITIONS)[number];
 
 export const BORROWING_REQUEST_STATUSES = [
+  "PENDING",
   "APPROVED",
   "ON_HOLD",
   "RELEASE_REJECTED",
@@ -60,6 +61,7 @@ export const NOTIFICATION_TYPES = [
   "COR_APPROVED",
   "COR_REJECTED",
   "BORROW_REQUEST_APPROVED",
+  "BORROW_REQUEST_REJECTED",
   "BORROW_REQUEST_ON_HOLD",
   "HANDOVER_REJECTED",
   "PICKUP_REMINDER",
@@ -75,7 +77,9 @@ export const NOTIFICATION_TYPES = [
   "RENEWAL_APPROVED",
   "RENEWAL_REJECTED",
   "FINE_RECORDED",
+  "FINE_ASSESSED",
   "FINE_PAYMENT_RECORDED",
+  "FINE_WAIVED",
   "ACCOUNT_SUSPENDED",
   "ACCOUNT_REACTIVATED",
   "GENERAL",

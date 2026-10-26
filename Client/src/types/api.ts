@@ -40,4 +40,4 @@ export interface PageParams {
 }
 
 /** Codes created by the client itself (no server response). */
-export type ClientErrorCode = "NETWORK_ERROR" | "UNKNOWN";
+export type ClientErrorCode = "NETWORK_ERROR" | "UNSUPPORTED_OPERATION" | "UNKNOWN";

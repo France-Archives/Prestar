@@ -3,6 +3,7 @@
 @import "./tokens.css";
 @import "./global.css";
 @import "./utilities.css";
+@import "./shared-design.css";
 @import "./motion.css";
 @import "./shell.css";
 @import "./auth.css";
