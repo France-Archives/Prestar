@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import Alert from "@/components/feedback/Alert";
 import Button from "@/components/common/Button";
 import ConfirmDialog from "@/components/feedback/ConfirmDialog";
@@ -117,6 +117,7 @@ export default function StaffAccountForm({
   const [success, setSuccess] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const submitting = useRef(false);
 
   const change = (field: keyof StaffAccountFormValues) => (event: React.ChangeEvent<HTMLInputElement>) => {
     setValues((current) => ({ ...current, [field]: event.target.value }));
@@ -129,6 +130,8 @@ export default function StaffAccountForm({
   };
 
   const create = async () => {
+    if (submitting.current) return;
+    submitting.current = true;
     setBusy(true);
     try {
       const result = await submitStaffAccountForm(role, values, permissions, onCreate);
@@ -145,6 +148,7 @@ export default function StaffAccountForm({
       setSuccess(`${role} account created successfully.`);
       onDone?.();
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   };
@@ -183,17 +187,13 @@ export default function StaffAccountForm({
             {new TextEncoder().encode(values.password).length <= 72 ? "✓" : "○"} Maximum 72 bytes
           </li>
         </ul>
-        {role === "Librarian" && (
-          USE_MOCKS ? (
-            <fieldset className="stack" style={{ gap: 6 }}>
-              <legend style={{ fontSize: "0.8125rem", fontWeight: 600, color: "var(--color-forest)" }}>Extra permissions</legend>
-              {LIBRARIAN_PERMISSIONS.map((permission) => (
-                <CheckboxField key={permission} label={PERMISSION_LABELS[permission]} checked={permissions.includes(permission)} onChange={() => togglePermission(permission)} />
-              ))}
-            </fieldset>
-          ) : (
-            <p className="subtle">Permissions are not available yet.</p>
-          )
+        {role === "Librarian" && USE_MOCKS && (
+          <fieldset className="stack" style={{ gap: 6 }}>
+            <legend style={{ fontSize: "0.8125rem", fontWeight: 600, color: "var(--color-forest)" }}>Extra permissions</legend>
+            {LIBRARIAN_PERMISSIONS.map((permission) => (
+              <CheckboxField key={permission} label={PERMISSION_LABELS[permission]} checked={permissions.includes(permission)} onChange={() => togglePermission(permission)} />
+            ))}
+          </fieldset>
         )}
         {formError && <Alert kind="error">{formError}</Alert>}
         <div className="row-actions">
