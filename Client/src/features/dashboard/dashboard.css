@@ -259,6 +259,7 @@
 }
 
 .dashboard-donut__segment--forest { stroke: var(--color-reading-forest); }
+.dashboard-donut__segment--green { stroke: var(--color-reading-green); }
 .dashboard-donut__segment--amber { stroke: var(--color-reading-amber); }
 .dashboard-donut__segment--teal { stroke: var(--color-reading-teal); }
 .dashboard-donut__segment--brick { stroke: var(--color-reading-brick); }

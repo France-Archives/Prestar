@@ -247,13 +247,16 @@ export function ActivityChart({
   days,
   selectedDay,
   onSelectDay,
+  formatBucket,
 }: {
   days: ActivityDay[] | null;
   selectedDay?: string | null;
   onSelectDay?: (date: string) => void;
+  formatBucket?: (date: string) => string;
 }) {
   const [mode, setMode] = useState<ActivityMode>("Both");
   if (!days?.length) return <UnavailableChart label="7-day activity" />;
+  const labelForDate = formatBucket ?? ((date: string) => date.slice(5));
 
   const max = Math.max(1, ...days.flatMap((day) => [day.loansIssued, day.returns]));
   const plot = { left: 50, top: 28, width: 676, height: 174 };
@@ -335,7 +338,7 @@ export function ActivityChart({
           return (
             <g key={day.date}>
               <text x={center} y={plot.top + plot.height + 24} textAnchor="middle" className={`dashboard-chart__label${selectedIndex === index ? " is-selected" : ""}`}>
-                {day.date.slice(5)}
+                {labelForDate(day.date)}
               </text>
               <foreignObject x={plot.left + step * index} y={plot.top} width={step} height={plot.height + 32}>
                 <button
@@ -378,78 +381,99 @@ const STATUS_TONES: Record<BookCopyStatus, Tone> = {
   WITHDRAWN: "teal",
 };
 
-export function DonutChart({ counts }: { counts: Record<BookCopyStatus, number> | null }) {
-  const [hovered, setHovered] = useState<BookCopyStatus | null>(null);
-  const [pinned, setPinned] = useState<BookCopyStatus | null>(null);
-  if (!counts) return <UnavailableChart label="Copies by status" />;
-  const entries = Object.entries(counts) as [BookCopyStatus, number][];
-  const total = entries.reduce((sum, [, count]) => sum + count, 0);
+export interface DonutChartItem {
+  key: string;
+  label: string;
+  count: number;
+  tone: Tone;
+}
+
+export function DonutChart({
+  counts,
+  items,
+  caption = "copies",
+}: {
+  counts: Record<BookCopyStatus, number> | null;
+  items?: DonutChartItem[];
+  caption?: string;
+}) {
+  const [hovered, setHovered] = useState<string | null>(null);
+  const [pinned, setPinned] = useState<string | null>(null);
+  if (!items && !counts) return <UnavailableChart label="Copies by status" />;
+  const entries: DonutChartItem[] = items ?? (Object.entries(counts ?? {}) as [BookCopyStatus, number][]).map(([status, count]) => ({
+    key: status,
+    label: statusLabel(status),
+    count,
+    tone: STATUS_TONES[status],
+  }));
+  const total = entries.reduce((sum, entry) => sum + entry.count, 0);
   const circumference = 2 * Math.PI * 52;
   const activeStatus = hovered ?? pinned;
-  const activeEntry = activeStatus ? entries.find(([status]) => status === activeStatus) : null;
+  const activeEntry = activeStatus ? entries.find((entry) => entry.key === activeStatus) : null;
   let offset = 0;
-  const positiveEntries = entries.filter(([, count]) => count > 0);
+  const positiveEntries = entries.filter((entry) => entry.count > 0);
 
   return (
     <div className="dashboard-donut admin-dashboard-donut">
       <svg
         viewBox="0 0 140 140"
         role="group"
-        aria-label={`Copies by status: ${entries.map(([status, count]) => `${statusLabel(status)} ${count}`).join(", ")}`}
+      aria-label={`Status breakdown: ${entries.map((entry) => `${entry.label} ${entry.count}`).join(", ")}`}
       >
         <circle cx="70" cy="70" r="52" className="dashboard-donut__track" />
-        {positiveEntries.map(([status, count], index) => {
-          const segment = total > 0 ? (count / total) * circumference : 0;
+      {positiveEntries.map((entry, index) => {
+        const { key, count, tone, label } = entry;
+        const segment = total > 0 ? (count / total) * circumference : 0;
           const gap = Math.min(5, segment);
           const dashLength = Math.max(segment < 4 ? 2 : 0, segment - gap);
-          const isActive = activeStatus === status;
+          const isActive = activeStatus === key;
           const segmentOffset = -offset;
           const angle = -Math.PI / 2 + ((offset + segment / 2) / circumference) * Math.PI * 2;
           const marker = { x: 70 + 52 * Math.cos(angle), y: 70 + 52 * Math.sin(angle) };
           const segmentElement = (
             <g
-              key={status}
+              key={key}
               className={`admin-dashboard-donut__segment-group${isActive ? " is-active" : ""}${activeStatus && !isActive ? " is-dimmed" : ""}`}
               style={{ "--i": index, "--segment-end": `${segmentOffset}`, "--segment-start": `${segmentOffset - dashLength}` } as CSSProperties}
-              onPointerEnter={() => setHovered(status)}
+              onPointerEnter={() => setHovered(key)}
               onPointerLeave={() => setHovered(null)}
             >
               <circle
                 cx="70"
                 cy="70"
                 r={isActive ? 54 : 52}
-                className={`dashboard-donut__segment dashboard-donut__segment--${STATUS_TONES[status]}`}
+                className={`dashboard-donut__segment dashboard-donut__segment--${tone}`}
                 strokeDasharray={`${dashLength} ${circumference - dashLength}`}
                 strokeDashoffset={segmentOffset}
               >
-                <title>{`${statusLabel(status)}: ${count}`}</title>
+                <title>{`${label}: ${count}`}</title>
               </circle>
-              {segment < 5 && <circle cx={marker.x} cy={marker.y} r="2.6" className={`admin-dashboard-donut__marker dashboard-donut__segment--${STATUS_TONES[status]}`} aria-hidden="true" />}
+              {segment < 5 && <circle cx={marker.x} cy={marker.y} r="2.6" className={`admin-dashboard-donut__marker dashboard-donut__segment--${tone}`} aria-hidden="true" />}
             </g>
           );
           offset += segment;
           return segmentElement;
         })}
-        <DashboardSvgNumber x={70} y={67} className="dashboard-donut__total" value={activeEntry?.[1] ?? total} />
+        <DashboardSvgNumber x={70} y={67} className="dashboard-donut__total" value={activeEntry?.count ?? total} />
         <text x="70" y="83" className="dashboard-donut__caption">
-          {activeEntry ? `${Math.round((activeEntry[1] / (total || 1)) * 100)}%` : "copies"}
+          {activeEntry ? `${Math.round((activeEntry.count / (total || 1)) * 100)}%` : caption}
         </text>
       </svg>
       <ul className="dashboard-donut__legend">
-        {entries.map(([status, count]) => (
-          <li key={status}>
+        {entries.map(({ key, label, tone, count }) => (
+          <li key={key}>
             <button
               type="button"
-              className={`admin-dashboard-donut__legend-button${activeStatus === status ? " is-active" : ""}`}
-              onMouseEnter={() => setHovered(status)}
+              className={`admin-dashboard-donut__legend-button${activeStatus === key ? " is-active" : ""}`}
+              onMouseEnter={() => setHovered(key)}
               onMouseLeave={() => setHovered(null)}
-              onFocus={() => setHovered(status)}
+              onFocus={() => setHovered(key)}
               onBlur={() => setHovered(null)}
-              onClick={() => setPinned((current) => current === status ? null : status)}
-              aria-pressed={pinned === status}
+              onClick={() => setPinned((current) => current === key ? null : key)}
+              aria-pressed={pinned === key}
             >
-              <i className={`dashboard-legend-dot dashboard-legend-dot--${STATUS_TONES[status]}`} />
-              <span>{statusLabel(status)}</span>
+              <i className={`dashboard-legend-dot dashboard-legend-dot--${tone}`} />
+              <span>{label}</span>
               <b>{count.toLocaleString()}</b>
             </button>
           </li>

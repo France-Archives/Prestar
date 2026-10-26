@@ -7,12 +7,14 @@ export function ActivityChart({
   days,
   selectedDay,
   onSelectDay,
+  formatBucket,
 }: {
   days: Day[] | null;
   selectedDay: string | null;
   onSelectDay: (date: string) => void;
+  formatBucket?: (date: string) => string;
 }) {
-  return <ActivityVisualization days={days} selectedDay={selectedDay} onSelectDay={onSelectDay} />;
+  return <ActivityVisualization days={days} selectedDay={selectedDay} onSelectDay={onSelectDay} formatBucket={formatBucket} />;
 }
 
 export function CopyStatusBars({ counts }: { counts: Record<BookCopyStatus, number> | null }) {

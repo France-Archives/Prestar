@@ -213,7 +213,7 @@ const inRange = (iso: string, f: ReportFilters): boolean => (!f.from || dateKey(
 
 /** D2 GET /admin/reports/borrowing */
 export async function getBorrowingReport(filters: ReportFilters = {}): Promise<BorrowingReportRow[]> {
-  if (!USE_MOCKS) return apiGet<BorrowingReportRow[]>("/admin/reports/borrowing", filters);
+  if (!USE_MOCKS) return apiGet<BorrowingReportRow[]>("/admin/reports/borrowing", { ...filters });
   await begin();
   requireCapability("ADMIN_AREA");
   return out(
@@ -229,7 +229,7 @@ export async function getBorrowingReport(filters: ReportFilters = {}): Promise<B
 
 /** D3 GET /admin/reports/overdue */
 export async function getOverdueReport(filters: ReportFilters = {}): Promise<OverdueReportRow[]> {
-  if (!USE_MOCKS) return apiGet<OverdueReportRow[]>("/admin/reports/overdue", filters);
+  if (!USE_MOCKS) return apiGet<OverdueReportRow[]>("/admin/reports/overdue", { ...filters });
   await begin();
   requireCapability("ADMIN_AREA");
   return out(
@@ -245,7 +245,7 @@ export async function getOverdueReport(filters: ReportFilters = {}): Promise<Ove
 
 /** D4 GET /admin/reports/fines */
 export async function getFinesReport(filters: ReportFilters = {}): Promise<FinesReportRow[]> {
-  if (!USE_MOCKS) return apiGet<FinesReportRow[]>("/admin/reports/fines", filters);
+  if (!USE_MOCKS) return apiGet<FinesReportRow[]>("/admin/reports/fines", { ...filters });
   await begin();
   requireCapability("ADMIN_AREA");
   return out(
