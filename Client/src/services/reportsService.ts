@@ -8,6 +8,7 @@ import type {
   ReportFilters,
   StaffDashboardData,
   StudentDashboardData,
+  TopBorrowedBook,
 } from "@/types";
 import { BOOK_COPY_STATUSES } from "@/types";
 import { apiGet } from "@/services/apiClient";
@@ -207,6 +208,25 @@ export async function getAdminDashboard(): Promise<AdminDashboardData> {
 export async function getPopularBooks(): Promise<PopularBook[]> {
   await begin();
   return out(MOCK_POPULAR_BOOKS);
+}
+
+/** Ranked books from GET /books/top. The server supports limits up to 50, but not offsets or dates. */
+export async function getTopBorrowedBooks(limit: number): Promise<TopBorrowedBook[]> {
+  if (!Number.isInteger(limit) || limit < 1 || limit > 50) {
+    throw new ApiError("UNKNOWN", "The ranking limit must be an integer from 1 to 50.");
+  }
+  if (!USE_MOCKS) {
+    return apiGet<TopBorrowedBook[]>("/books/top", { limit });
+  }
+  await begin();
+  requireCapability("ADMIN_AREA");
+  return out(MOCK_POPULAR_BOOKS.slice(0, limit).map((book) => ({
+    id: book.bookId,
+    bookId: book.bookId,
+    title: book.title,
+    loanCount: book.loanCount,
+    coverImageUrl: book.book?.coverImageUrl ?? null,
+  })));
 }
 
 const inRange = (iso: string, f: ReportFilters): boolean => (!f.from || dateKey(iso) >= f.from) && (!f.to || dateKey(iso) <= f.to);

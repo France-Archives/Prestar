@@ -111,8 +111,6 @@ export default function CTABanner() {
         ))}
 
         <div className="cta-banner__content">
-          <span className="land-eyebrow land-eyebrow--light">Start today</span>
-
           {/* Word-by-word headline */}
           <h2 className="cta-banner__headline" aria-label="Ready to borrow?">
             {CTA_WORDS.map((word, i) => (
@@ -127,8 +125,8 @@ export default function CTABanner() {
           </h2>
 
           <p className="cta-banner__lead" style={{ opacity: 0, transform: "translateY(14px)" }}>
-            Join thousands of students experiencing seamless, queue-free book borrowing.
-            Create your free student account in under two minutes.
+            Join thousands of university students and faculty experiencing seamless, queue-free textbook borrowing.
+            Set up your verified campus account in under two minutes.
           </p>
 
           <div className="cta-banner__actions" style={{ opacity: 0, transform: "translateY(14px)" }}>
@@ -141,7 +139,7 @@ export default function CTABanner() {
               <Link
                 to={ROUTES.signup}
                 className="hero-btn-primary"
-                style={{ padding: "0.875rem 1.75rem", fontSize: "1rem", boxShadow: "0 12px 32px rgba(0,0,0,0.35)" }}
+                style={{ padding: "0.95rem 2rem", fontSize: "1.05rem", boxShadow: "0 14px 36px rgba(0,0,0,0.4)" }}
                 onMouseMove={handleMouseMove}
                 onMouseLeave={handleMouseLeave}
                 aria-label="Create a student account"
@@ -150,9 +148,15 @@ export default function CTABanner() {
                 <ArrowRight size={18} className="hero-btn-primary__arrow" aria-hidden="true" />
               </Link>
             </motion.div>
-            <Link to={ROUTES.login} className="cta-banner__login-link">
-              Already have an account? Log in →
+            <Link to={ROUTES.login} className="cta-banner__login-link" style={{ color: "var(--color-cream)", opacity: 0.9 }}>
+              Already registered? Sign in →
             </Link>
+          </div>
+
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "1.5rem", marginTop: "2rem", fontSize: "0.8rem", color: "rgba(255, 255, 255, 0.75)" }}>
+            <span>✓ Verified Campus Access</span>
+            <span>✓ Free for Enrolled Students</span>
+            <span>✓ 24-Hour Reserve Window</span>
           </div>
         </div>
       </div>
@@ -161,12 +165,15 @@ export default function CTABanner() {
       <footer className="slim-footer" aria-label="Site footer">
         <Link to={ROUTES.home} className="slim-footer__brand" aria-label="PRESTAR home" style={{ textDecoration: "none" }}>
           <span className="slim-footer__logo-wrap"><Logo height={22} /></span>
-          <span className="slim-footer__tagline">Online library borrowing system</span>
+          <span className="slim-footer__tagline">University Library Borrowing & Stacks Portal</span>
         </Link>
+        <div style={{ fontSize: "0.75rem", color: "var(--color-muted)", opacity: 0.7 }}>
+          © 2026 PRESTAR. All rights reserved.
+        </div>
         <nav className="slim-footer__links" aria-label="Footer navigation">
-          <Link to={ROUTES.contact} className="slim-footer__link">Contact</Link>
-          <Link to={ROUTES.terms}   className="slim-footer__link">Terms</Link>
-          <Link to={ROUTES.privacy} className="slim-footer__link">Privacy</Link>
+          <Link to={ROUTES.contact} className="slim-footer__link">Contact Desk</Link>
+          <Link to={ROUTES.terms}   className="slim-footer__link">Borrowing Terms</Link>
+          <Link to={ROUTES.privacy} className="slim-footer__link">Privacy Policy</Link>
         </nav>
       </footer>
     </div>

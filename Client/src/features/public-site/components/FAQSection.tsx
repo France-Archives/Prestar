@@ -53,9 +53,8 @@ export default function FAQSection() {
     >
       <div className="land-container">
         <div className="land-header" style={{ opacity: 0, transform: "translateY(18px)" }}>
-          <span className="land-eyebrow">Got questions?</span>
-          <h2 className="land-title">Common <em>questions</em></h2>
-          <p className="land-subtitle">Everything you need to know about borrowing privileges, registration, and library rules.</p>
+          <h2 className="land-title">Frequently Asked <em>Questions</em></h2>
+          <p className="land-subtitle">Everything you need to know about borrowing privileges, semester registration, and circulation policies.</p>
         </div>
 
         <div className="faq-list">

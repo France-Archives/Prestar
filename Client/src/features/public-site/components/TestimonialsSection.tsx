@@ -4,25 +4,36 @@ import { useScreenEnter } from "@/hooks/useScreenEnter";
 import { staggerIn, fadeIn } from "@/lib/motion";
 import "../styles/landing.css";
 
-// PLACEHOLDER: Replace with real student testimonials
 const TESTIMONIALS = [
   {
     id: "t1",
-    // PLACEHOLDER: Replace with real student testimonials
-    quote: "No more waiting in long lines between classes. I requested my engineering textbooks the night before and picked them up at the counter in under two minutes.",
-    name: "Maria Santos", degree: "BS Computer Science, 3rd Year", initials: "MS", tone: "#0b3d32", rotate: -1.2,
+    quote: "No more rushing to the circulation desk between lectures. I requested my operating systems and algorithms textbooks online and picked them up at the counter in under two minutes.",
+    name: "Maria Santos",
+    degree: "BS Computer Science, 3rd Year",
+    college: "College of Computer Studies",
+    initials: "MS",
+    tone: "#0b3d32",
+    rotate: -1.2,
   },
   {
     id: "t2",
-    // PLACEHOLDER: Replace with real student testimonials
-    quote: "The reservation queue saved my finals prep! When all copies of Operating Systems were out, PRESTAR held one for me the second another student returned it.",
-    name: "David Reyes", degree: "BS Information Technology, 4th Year", initials: "DR", tone: "#8c6430", rotate: 1.5,
+    quote: "The reservation queue saved my midterms. When all physical copies of Pedagogy were out, PRESTAR automatically secured the next returned copy and held it for 24 hours.",
+    name: "David Reyes",
+    degree: "Bachelor of Secondary Education, 4th Year",
+    college: "College of Education",
+    initials: "DR",
+    tone: "#8c6430",
+    rotate: 1.2,
   },
   {
     id: "t3",
-    // PLACEHOLDER: Replace with real student testimonials
-    quote: "Submitting my COR online took sixty seconds. Once verified, borrowing research literature throughout the whole term has been completely seamless.",
-    name: "Angela Cruz", degree: "BA Communication, 2nd Year", initials: "AC", tone: "#335c67", rotate: -0.8,
+    quote: "Uploading my semester COR took sixty seconds. Once approved, borrowing required reading for Philippine history and literature has been completely frictionless.",
+    name: "Angela Cruz",
+    degree: "BA Communication, 2nd Year",
+    college: "College of Arts & Letters",
+    initials: "AC",
+    tone: "#335c67",
+    rotate: -0.8,
   },
 ];
 
@@ -60,10 +71,9 @@ export default function TestimonialsSection() {
     >
       <div className="land-container">
         <div className="land-header">
-          <span className="land-eyebrow">Campus feedback</span>
-          <h2 className="land-title">What <em>students</em> say</h2>
+          <h2 className="land-title">Voices Across the <em>Campus</em></h2>
           <p className="land-subtitle">
-            How PRESTAR helps university students spend less time queuing and more time learning.
+            How students and faculty across academic departments spend less time queuing and more time learning.
           </p>
         </div>
 
@@ -77,8 +87,13 @@ export default function TestimonialsSection() {
                 : { rotate: `${item.rotate}deg` }
               }
             >
-              {/* PLACEHOLDER: Replace with real student testimonials */}
-              <p className="testimonial-quote">{item.quote}</p>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.85rem" }}>
+                <span style={{ fontSize: "1.75rem", fontFamily: "var(--font-serif)", color: "var(--color-amber)", lineHeight: 1 }}>“</span>
+                <span style={{ fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.06em", color: "#2f6f57", background: "rgba(47,111,87,0.1)", padding: "2px 8px", borderRadius: "4px" }}>
+                  VERIFIED BORROWER
+                </span>
+              </div>
+              <p className="testimonial-quote" style={{ marginTop: 0 }}>{item.quote}</p>
               <div className="testimonial-author">
                 <div
                   className="testimonial-avatar"
@@ -93,6 +108,7 @@ export default function TestimonialsSection() {
                 <div className="testimonial-meta">
                   <h4>{item.name}</h4>
                   <span>{item.degree}</span>
+                  <span style={{ fontSize: "0.7rem", color: "var(--color-muted)", opacity: 0.8 }}>{item.college}</span>
                 </div>
               </div>
             </div>

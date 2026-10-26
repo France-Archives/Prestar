@@ -135,7 +135,10 @@ export default function SnapLanding({ sections, children }: SnapLandingProps) {
                 onClick={() => scrollTo(s.id)}
                 aria-label={`Go to ${s.label}`}
                 aria-current={i === activeIdx ? "true" : undefined}
-              />
+                title={s.label}
+              >
+                <span className="snap-dot__tooltip" aria-hidden="true">{s.label}</span>
+              </button>
             ))}
           </nav>
         )}

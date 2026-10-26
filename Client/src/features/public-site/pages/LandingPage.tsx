@@ -10,13 +10,13 @@ import SnapLanding from "../components/SnapLanding";
 // Screen order for snap scroll and dot navigation
 // Each id must match the id= attribute on the corresponding section element
 const SNAP_SECTIONS = [
-  { id: "snap-hero",         label: "Hero" },
-  { id: "snap-books",        label: "Browse the collection" },
-  { id: "snap-how",          label: "How it works" },
-  { id: "snap-why",          label: "Why PRESTAR" },
-  { id: "snap-testimonials", label: "Student testimonials" },
-  { id: "snap-faq",          label: "FAQ" },
-  { id: "snap-cta",          label: "Get started" },
+  { id: "snap-hero",         label: "Welcome & Overview" },
+  { id: "snap-books",        label: "Campus Holdings" },
+  { id: "snap-how",          label: "Borrowing Journey" },
+  { id: "snap-why",          label: "Academic Features" },
+  { id: "snap-testimonials", label: "Campus Voices" },
+  { id: "snap-faq",          label: "Frequently Asked Questions" },
+  { id: "snap-cta",          label: "Get Started" },
 ];
 
 export default function LandingPage() {

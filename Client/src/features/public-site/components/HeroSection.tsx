@@ -8,26 +8,25 @@ import { useScreenEnter } from "@/hooks/useScreenEnter";
 import { staggerIn, fadeIn, animTo } from "@/lib/motion";
 import "../styles/landing.css";
 
-// PLACEHOLDER: replace with real data from your analytics/backend
 const STATS = [
-  { label: "Books in catalog", value: 12000, suffix: "+" },
-  { label: "Active borrowers",  value: 3400,  suffix: "+" },
-  { label: "Daily checkouts",   value: 150,   suffix: "+" },
-  { label: "Avg. pickup time",  value: 24,    suffix: "h" },
+  { label: "Active catalog titles", value: 200,  suffix: "+" },
+  { label: "Verified physical copies", value: 1000, suffix: "" },
+  { label: "Automated hold window", value: 24,   suffix: "h" },
+  { label: "Counter checkout pickup", value: 1,    suffix: " min" },
 ];
 
 const HERO_BOOKS = [
-  { id: "b1", title: "The Design of Everyday Things", tone: "#1a5c48", posClass: "hero-book-pos-1", bobDelay: 0,   bobDuration: 4.8 },
-  { id: "b2", title: "Clean Architecture",            tone: "#0b3d32", posClass: "hero-book-pos-2", bobDelay: 0.6, bobDuration: 5.2 },
-  { id: "b3", title: "Structure and Interpretation",  tone: "#335c67", posClass: "hero-book-pos-3", bobDelay: 1.2, bobDuration: 4.4 },
-  { id: "b4", title: "Design Patterns",               tone: "#9e2a2b", posClass: "hero-book-pos-4", bobDelay: 1.8, bobDuration: 5.6 },
-  { id: "b5", title: "Introduction to Algorithms",    tone: "#8c6430", posClass: "hero-book-pos-5", bobDelay: 2.2, bobDuration: 4.6 },
+  { id: "b1", title: "The Design of Everyday Things", callNo: "NK 1510", tone: "#1a5c48", posClass: "hero-book-pos-1", bobDelay: 0,   bobDuration: 4.8 },
+  { id: "b2", title: "Clean Architecture",            callNo: "QA 76.76", tone: "#0b3d32", posClass: "hero-book-pos-2", bobDelay: 0.6, bobDuration: 5.2 },
+  { id: "b3", title: "Structure and Interpretation",  callNo: "QA 76.6",  tone: "#335c67", posClass: "hero-book-pos-3", bobDelay: 1.2, bobDuration: 4.4 },
+  { id: "b4", title: "Design Patterns",               callNo: "QA 76.73", tone: "#9e2a2b", posClass: "hero-book-pos-4", bobDelay: 1.8, bobDuration: 5.6 },
+  { id: "b5", title: "Introduction to Algorithms",    callNo: "QA 76.9",  tone: "#8c6430", posClass: "hero-book-pos-5", bobDelay: 2.2, bobDuration: 4.6 },
 ];
 
 const CHIPS = [
-  { text: "Approved in minutes", icon: CheckCircle2, posClass: "hero-chip-pos-1", bobDelay: 0.3, bobDuration: 4.2 },
-  { text: "Pick up at the library", icon: Clock,      posClass: "hero-chip-pos-2", bobDelay: 1.0, bobDuration: 4.9 },
-  { text: "No surprises",          icon: ShieldCheck, posClass: "hero-chip-pos-3", bobDelay: 1.6, bobDuration: 5.4 },
+  { text: "Live shelf availability", icon: CheckCircle2, posClass: "hero-chip-pos-1", bobDelay: 0.3, bobDuration: 4.2 },
+  { text: "Same-day counter pickup", icon: Clock,      posClass: "hero-chip-pos-2", bobDelay: 1.0, bobDuration: 4.9 },
+  { text: "Automated FIFO waitlist", icon: ShieldCheck, posClass: "hero-chip-pos-3", bobDelay: 1.6, bobDuration: 5.4 },
 ];
 
 function StatCard({ label, value, suffix }: { label: string; value: number; suffix: string }) {
@@ -166,7 +165,7 @@ export default function HeroSection() {
               transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
             >
               <span className="hero-badge__dot" aria-hidden="true" />
-              <span>PRESTAR Borrowing System</span>
+              <span>University Library Reservation System</span>
             </motion.div>
 
             <h1 className="hero-headline" style={{ willChange: "opacity, transform" }}>
@@ -245,10 +244,16 @@ export default function HeroSection() {
                     <div className="book3d__face book3d__front">
                       <div className="book3d__front-rule" />
                       <div className="book3d__front-title">{b.title}</div>
-                      <div className="book3d__front-logo">PRESTAR</div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", fontSize: "0.5625rem", letterSpacing: "0.08em", opacity: 0.85 }}>
+                        <span>{b.callNo}</span>
+                        <span className="book3d__front-logo">PRESTAR</span>
+                      </div>
                     </div>
                     <div className="book3d__face book3d__back" />
-                    <div className="book3d__spine"><span className="book3d__spine-text">{b.title}</span></div>
+                    <div className="book3d__spine">
+                      <span className="book3d__spine-text">{b.title}</span>
+                      <span style={{ fontSize: "0.5rem", color: "#b98a4a", marginTop: "auto", fontWeight: 700 }}>{b.callNo}</span>
+                    </div>
                     <div className="book3d__pages" />
                   </motion.div>
                 </div>

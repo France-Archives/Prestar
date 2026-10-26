@@ -13,11 +13,11 @@ interface StepItem {
 }
 
 const STEPS: StepItem[] = [
-  { num: "01", title: "Sign up and verify",    text: "Create a student account and verify your campus email.",                                                                                  icon: User      },
-  { num: "02", title: "Submit your COR",        text: "Upload your Certificate of Registration each term. Library staff quickly review and approve it.",                                         icon: FileText  },
-  { num: "03", title: "Request or reserve",     text: "Eligible requests are approved automatically when copies are available. Otherwise, join the intelligent queue.",                           icon: BookOpen  },
-  { num: "04", title: "Pick up at the library", text: "Staff confirm your clearance and hand the book over in person. That is when your loan period starts.",                                    icon: Landmark  },
-  { num: "05", title: "Return and renew",       text: "Renew online when no peers are waiting. Returns are scanned on the spot, and fees can be settled at the counter.",                        icon: RefreshCw },
+  { num: "01", title: "Campus Authentication", text: "Register with your verified university credentials and complete secure email authentication.", icon: User },
+  { num: "02", title: "Term Enrollment Clearance", text: "Submit your semester Certificate of Registration (COR) for rapid staff verification.", icon: FileText },
+  { num: "03", title: "Real-time Reserve", text: "Request available shelf copies instantly, or automatically join the FIFO waitlist if in loan.", icon: BookOpen },
+  { num: "04", title: "Circulation Desk Pickup", text: "Staff pull your held book from the stacks. Show your student ID for quick checkout handover.", icon: Landmark },
+  { num: "05", title: "Flexible Return & Extension", text: "Renew online before due dates with no waiting list, or drop off at the circulation return counter.", icon: RefreshCw },
 ];
 
 export default function HowItWorks() {
@@ -88,12 +88,11 @@ export default function HowItWorks() {
     >
       <div className="land-container">
         <div className="land-header">
-          <span className="land-eyebrow land-eyebrow--light">Clear, transparent process</span>
           <h2 className="land-title land-title--light">
-            A simpler way to <em>borrow</em> books
+            The <em>Borrowing</em> Journey
           </h2>
           <p className="land-subtitle land-subtitle--light">
-            From online catalog search to in-person counter pickup, here is exactly how PRESTAR works.
+            From instant digital catalog discovery to in-person counter pickup in five transparent steps.
           </p>
         </div>
 

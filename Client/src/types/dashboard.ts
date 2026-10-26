@@ -16,6 +16,14 @@ export interface PopularBook {
   book?: BookSummary;
 }
 
+export interface TopBorrowedBook {
+  id: UUID;
+  bookId: UUID;
+  title: string;
+  loanCount: number;
+  coverImageUrl: string | null;
+}
+
 export interface StudentDashboardData {
   accountStatus: AccountStatus;
   emailVerified: boolean;

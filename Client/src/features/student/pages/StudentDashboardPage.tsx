@@ -97,7 +97,12 @@ export default function StudentDashboardPage() {
       </div>
 
       {d.mostBorrowed.length > 0 && (
-        <Section eyebrow="Reader activity" title="Most Borrowed This Week" note="What other students are reading right now.">
+        <Section
+          eyebrow="Reader activity"
+          title="Most Borrowed This Week"
+          note="What other students are reading right now."
+          action={<Link to={`${ROUTES.admin.reports}#most-borrowed`} className="link-btn">View all</Link>}
+        >
           {USE_MOCKS && catalog.loading && !catalog.data ? (
             <div className="book-row" aria-hidden="true">
               {Array.from({ length: 6 }, (_, i) => <div key={i} className="book-skel skeleton" />)}
