@@ -7,6 +7,11 @@ import {
   createLibrarianAccount,
 } from "../controllers/adminController.js";
 import { getAdminDashboard } from "../controllers/adminDashboardController.js";
+import {
+  getBorrowingReportHandler,
+  getFinesReportHandler,
+  getOverdueReportHandler,
+} from "../controllers/adminReportsController.js";
 import { getUsers } from "../controllers/userController.js";
 import {
   approveVerificationHandler,
@@ -33,6 +38,11 @@ router.use(authMiddleware, requireRole(["Admin"]));
 
 // Admin dashboard endpoint
 router.get("/dashboard", getAdminDashboard);
+
+// Admin report endpoints (optional inclusive YYYY-MM-DD from/to filters)
+router.get("/reports/borrowing", getBorrowingReportHandler);
+router.get("/reports/overdue", getOverdueReportHandler);
+router.get("/reports/fines", getFinesReportHandler);
 
 // User listing endpoint (sorted by role and status)
 router.get("/users", getUsers);
