@@ -10,69 +10,103 @@ interface FeaturedBook {
   id: string;
   title: string;
   author: string;
+  category: string;
+  accessionNo: string;
+  shelf: string;
   status: "Available" | "Reserved";
+  copiesAvailable?: number;
   queueCount?: number;
   tone: string;
 }
 
-// 8 featured titles in PRESTAR palette
+// Curated academic titles from PRESTAR collection
 const FEATURED_BOOKS: FeaturedBook[] = [
   {
-    id: "1",
-    title: "Atomic Habits",
-    author: "James Clear",
+    id: "101",
+    title: "Pedagogy of the Oppressed",
+    author: "Paulo Freire",
+    category: "Education",
+    accessionNo: "ACC-ED-101",
+    shelf: "Shelf-102 • Aisle 3",
     status: "Available",
-    tone: "#0b3d32",
+    copiesAvailable: 5,
+    tone: "#134a3c",
   },
   {
     id: "2",
     title: "Clean Code",
     author: "Robert C. Martin",
+    category: "Computer Science",
+    accessionNo: "ACC-CS-002",
+    shelf: "Shelf-104 • Aisle 4",
     status: "Available",
-    tone: "#1a5c48",
+    copiesAvailable: 2,
+    tone: "#0b3d32",
   },
   {
-    id: "3",
-    title: "Sapiens",
-    author: "Yuval Noah Harari",
-    status: "Reserved",
-    queueCount: 2,
+    id: "102",
+    title: "Mindset: The Psychology of Success",
+    author: "Carol S. Dweck",
+    category: "Psychology",
+    accessionNo: "ACC-PS-102",
+    shelf: "Shelf-108 • Aisle 2",
+    status: "Available",
+    copiesAvailable: 4,
     tone: "#8c6430",
   },
   {
-    id: "4",
-    title: "Educated",
-    author: "Tara Westover",
-    status: "Available",
+    id: "103",
+    title: "Make It Stick: Science of Learning",
+    author: "Peter C. Brown",
+    category: "Education",
+    accessionNo: "ACC-ED-103",
+    shelf: "Shelf-102 • Aisle 3",
+    status: "Reserved",
+    queueCount: 2,
     tone: "#9e2a2b",
   },
   {
     id: "5",
     title: "The Design of Everyday Things",
     author: "Don Norman",
+    category: "Art and Design",
+    accessionNo: "ACC-AD-005",
+    shelf: "Shelf-110 • Aisle 1",
     status: "Available",
+    copiesAvailable: 3,
     tone: "#335c67",
   },
   {
-    id: "6",
-    title: "Deep Work",
-    author: "Cal Newport",
-    status: "Reserved",
-    queueCount: 1,
+    id: "104",
+    title: "Democracy and Education",
+    author: "John Dewey",
+    category: "Philosophy",
+    accessionNo: "ACC-PH-104",
+    shelf: "Shelf-103 • Aisle 3",
+    status: "Available",
+    copiesAvailable: 5,
     tone: "#07352c",
   },
   {
-    id: "7",
-    title: "Thinking, Fast and Slow",
-    author: "Daniel Kahneman",
-    status: "Available",
+    id: "24",
+    title: "Introduction to Algorithms",
+    author: "Thomas H. Cormen",
+    category: "Computer Science",
+    accessionNo: "ACC-CS-024",
+    shelf: "Shelf-104 • Aisle 4",
+    status: "Reserved",
+    queueCount: 3,
     tone: "#b98a4a",
   },
   {
-    id: "8",
-    title: "Algorithms to Live By",
-    author: "Brian Christian",
+    id: "3",
+    title: "Design Patterns",
+    author: "Erich Gamma et al.",
+    category: "Software Engineering",
+    accessionNo: "ACC-SE-003",
+    shelf: "Shelf-104 • Aisle 4",
     status: "Available",
+    copiesAvailable: 4,
     tone: "#2f6f57",
   },
 ];
@@ -117,12 +151,11 @@ export default function FeaturedBooks() {
       <div className="land-container">
         <div className="shelf-controls">
           <div>
-            <span className="land-eyebrow">The collection</span>
-            <h2 className="land-title" style={{ marginBottom: "0.25rem" }}>
-              Browse the <em>collection</em>
+            <h2 className="land-title" style={{ marginBottom: "0.4rem" }}>
+              Campus <em>Holdings</em> & Stacks
             </h2>
-            <p className="land-subtitle">
-              A preview of popular campus holdings. Sign in to view live copy availability and reserve titles.
+            <p className="land-subtitle" style={{ maxWidth: "48rem" }}>
+              Explore real-time titles across university departments. Verified students can reserve copies online and pick them up directly at the circulation counter.
             </p>
           </div>
 
@@ -141,21 +174,34 @@ export default function FeaturedBooks() {
                 className="shelf-book-item"
                 style={{ "--book-tone": book.tone, opacity: 0, transform: "translateY(-55px)" } as CSSProperties}
               >
-                {/* Tooltip on Hover */}
+                {/* Catalog Card Tooltip on Hover */}
                 <div className="shelf-book-tooltip" role="tooltip">
-                  <div style={{ fontWeight: 600 }}>{book.title}</div>
-                  <div style={{ fontSize: "0.75rem", opacity: 0.85 }}>{book.author}</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                    <span style={{ fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.08em", color: "#b98a4a", textTransform: "uppercase" }}>
+                      {book.category}
+                    </span>
+                    <span style={{ fontSize: "0.6rem", background: "rgba(255,255,255,0.08)", padding: "1px 5px", borderRadius: "3px", fontFamily: "monospace" }}>
+                      {book.accessionNo}
+                    </span>
+                  </div>
+                  <div style={{ fontWeight: 600, fontSize: "0.85rem", lineHeight: 1.25, color: "#fff" }}>{book.title}</div>
+                  <div style={{ fontSize: "0.72rem", opacity: 0.8, color: "var(--color-cream)" }}>{book.author}</div>
+                  <div style={{ fontSize: "0.68rem", opacity: 0.65, marginTop: "3px" }}>📍 {book.shelf}</div>
                   <div
                     style={{
-                      fontSize: "0.7rem",
-                      fontWeight: 700,
-                      color: book.status === "Available" ? "#6f9b78" : "#e09f3e",
-                      marginTop: 2,
+                      fontSize: "0.72rem",
+                      fontWeight: 600,
+                      color: book.status === "Available" ? "#9fe0c2" : "#f0c36a",
+                      marginTop: 6,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4
                     }}
                   >
+                    <span>●</span>
                     {book.status === "Available"
-                      ? "• Available to borrow"
-                      : `• ${book.queueCount} in waitlist`}
+                      ? `${book.copiesAvailable} copies available on shelf`
+                      : `In loan • ${book.queueCount} in waitlist`}
                   </div>
                 </div>
 
@@ -163,25 +209,33 @@ export default function FeaturedBooks() {
                 <div className="shelf-book3d">
                   {/* Front Face */}
                   <div className="shelf-book3d__face shelf-book3d__front">
-                    <div style={{ width: 22, height: 2, background: "var(--color-amber)", borderRadius: 1 }} />
+                    <div style={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "center" }}>
+                      <div style={{ width: 18, height: 2, background: "var(--color-amber)", borderRadius: 1 }} />
+                      <span style={{ fontSize: "0.5rem", letterSpacing: "0.06em", opacity: 0.8, fontFamily: "monospace" }}>{book.accessionNo}</span>
+                    </div>
                     <div>
                       <h3
                         style={{
                           fontFamily: "var(--font-serif)",
-                          fontSize: "0.875rem",
+                          fontSize: "0.8125rem",
                           fontWeight: 600,
                           lineHeight: 1.25,
-                          marginBottom: "0.25rem",
+                          marginBottom: "0.2rem",
                           color: "#fff",
                         }}
                       >
                         {book.title}
                       </h3>
-                      <p style={{ fontSize: "0.7rem", opacity: 0.85, color: "#fff" }}>{book.author}</p>
+                      <p style={{ fontSize: "0.65rem", opacity: 0.85, color: "var(--color-cream)" }}>{book.author}</p>
                     </div>
-                    <span style={{ fontSize: "0.5625rem", fontWeight: 700, letterSpacing: "0.1em", color: "var(--color-amber-soft)" }}>
-                      PRESTAR
-                    </span>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                      <span style={{ fontSize: "0.5rem", fontWeight: 700, letterSpacing: "0.1em", color: "var(--color-amber-soft)" }}>
+                        PRESTAR
+                      </span>
+                      <span style={{ fontSize: "0.48rem", color: book.status === "Available" ? "#9fe0c2" : "#f0c36a", fontWeight: 600 }}>
+                        {book.status === "Available" ? "ON SHELF" : "WAITLIST"}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Back Face */}
@@ -195,12 +249,15 @@ export default function FeaturedBooks() {
                         transform: "rotate(180deg)",
                         fontSize: "0.625rem",
                         fontWeight: 600,
-                        letterSpacing: "0.06em",
-                        color: "rgba(255, 255, 255, 0.85)",
+                        letterSpacing: "0.05em",
+                        color: "rgba(255, 255, 255, 0.9)",
                         whiteSpace: "nowrap",
                       }}
                     >
                       {book.title}
+                    </span>
+                    <span style={{ fontSize: "0.45rem", color: "#b98a4a", marginTop: "auto", fontFamily: "monospace" }}>
+                      {book.accessionNo.replace("ACC-", "")}
                     </span>
                   </div>
 
@@ -208,7 +265,6 @@ export default function FeaturedBooks() {
                   <div className="shelf-book3d__pages" />
                 </div>
               </div>
-
             ))}
           </div>
 

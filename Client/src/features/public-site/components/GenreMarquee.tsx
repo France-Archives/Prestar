@@ -2,20 +2,24 @@ import { useReducedMotion } from "motion/react";
 import "../styles/landing.css";
 
 const GENRES = [
-  "Fiction",
-  "Science",
-  "History",
-  "Philosophy",
-  "Technology",
-  "Literature",
-  "Psychology",
-  "Arts",
-  "Education",
-  "Law",
-  "Medicine",
-  "Engineering",
+  "Computer Science",
+  "Artificial Intelligence",
+  "Philippine History & Culture",
+  "Education & Pedagogy",
+  "Psychology & Human Behavior",
+  "Software Engineering",
+  "Cybersecurity",
+  "Database Systems",
   "Mathematics",
-  "Economics",
+  "Physics",
+  "Art & Industrial Design",
+  "Environmental Science",
+  "Web Development",
+  "Astronomy & Earth Science",
+  "Biology",
+  "Chemistry",
+  "Business & Economics",
+  "World Literature",
 ];
 
 export default function GenreMarquee() {

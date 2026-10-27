@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ArrowDownRight, ArrowUpRight, Minus, Search, Wallet } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import ErrorState from "@/components/feedback/ErrorState";
 import LoadingState from "@/components/feedback/LoadingState";
 import Money from "@/components/data-display/Money";
@@ -253,12 +253,14 @@ function humanDateRangeError(range: DateRange) {
 
 export default function ReportsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const initial = parseUrlState(searchParams);
   const [range, setRange] = useState(initial.range);
   const [preset, setPreset] = useState(initial.preset);
   const [group, setGroup] = useState<ReportGroup>(initial.group);
   const [tab, setTab] = useState<Tab>(initial.tab);
   const [search, setSearch] = useState("");
+  const [rankingLimit, setRankingLimit] = useState(5);
   const validRange = !!range.from && !!range.to && !humanDateRangeError(range);
   const rangeError = humanDateRangeError(range);
   const reportData = useAsync(async () => {
@@ -269,7 +271,15 @@ export default function ReportsPage() {
     ]);
     return { borrowing, overdue, fines };
   }, []);
+  const ranking = useAsync(() => reportsService.getTopBorrowedBooks(rankingLimit), [rankingLimit]);
   const allData = reportData.data;
+  const topTotal = ranking.data?.reduce((total, item) => total + item.loanCount, 0) ?? 0;
+
+  useEffect(() => {
+    if (location.hash === "#most-borrowed") {
+      document.getElementById("most-borrowed")?.scrollIntoView({ block: "start" });
+    }
+  }, [location.hash]);
 
   useEffect(() => {
     const parsed = parseUrlState(searchParams);
@@ -353,6 +363,57 @@ export default function ReportsPage() {
         rangeError={rangeError}
         rangeDays={rangeDays}
       />
+      <section className="reports-ranking" id="most-borrowed" aria-labelledby="most-borrowed-title">
+        <div className="reports-section-heading">
+          <div>
+            <h2 id="most-borrowed-title">Most borrowed</h2>
+            <p className="reports-ranking__scope">All time · Based on loans with status Borrowed or Returned.</p>
+          </div>
+          <label className="reports-ranking__limit">
+            <span>Show</span>
+            <select
+              aria-label="Number of most borrowed books"
+              value={rankingLimit}
+              onChange={(event) => setRankingLimit(Number(event.target.value))}
+            >
+              {[5, 10, 25, 50].map((limit) => <option key={limit} value={limit}>Top {limit}</option>)}
+            </select>
+          </label>
+        </div>
+        <div className="card reports-ranking__card" aria-live="polite" aria-busy={ranking.loading}>
+          {ranking.loading && !ranking.data ? (
+            <div className="reports-ranking__skeleton" aria-label="Loading most borrowed books">
+              {Array.from({ length: 5 }, (_, index) => <div className="reports-ranking__skeleton-row" key={index} />)}
+            </div>
+          ) : ranking.error && !ranking.data ? (
+            <div className="reports-ranking__message">
+              <p>{ranking.error}</p>
+              <button type="button" onClick={() => void ranking.reload()}>Retry loading most borrowed books</button>
+            </div>
+          ) : !ranking.data?.length ? (
+            <p className="reports-ranking__message">No ranked books are available yet.</p>
+          ) : (
+            <ol className="reports-ranking__list">
+              {ranking.data.map((book, index) => {
+                const share = topTotal > 0 ? book.loanCount / topTotal : 0;
+                return (
+                  <li className="reports-ranking__row" key={book.bookId}>
+                    <span className="reports-ranking__rank" aria-label={`Rank ${index + 1}`}>{index + 1}</span>
+                    {book.coverImageUrl ? <img className="reports-ranking__cover" src={book.coverImageUrl} alt="" /> : <span className="reports-ranking__cover reports-ranking__cover--empty" aria-hidden="true">—</span>}
+                    <div className="reports-ranking__details">
+                      <span className="reports-ranking__title" tabIndex={0} title={book.title}>{book.title}</span>
+                      <div className="reports-ranking__bar" role="img" aria-label={`${Math.round(share * 100)} percent of the displayed top total`}>
+                        <span style={{ width: `${share * 100}%` }} />
+                      </div>
+                    </div>
+                    <span className="reports-ranking__count">{book.loanCount.toLocaleString()} loans</span>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </div>
+      </section>
       {reportData.loading && !allData ? (
         <div className="reports-skeleton" aria-label="Loading reports">
           <LoadingState rows={3} />
