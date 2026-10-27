@@ -3,6 +3,7 @@ import type { BorrowingReportRow } from "@/types";
 import {
   buildActivityBuckets,
   guessReportGroup,
+  isValidDateKey,
   rangeForPreset,
   type DateRange,
 } from "./reportsModel";
@@ -19,6 +20,12 @@ describe("reportsModel", () => {
     expect(guessReportGroup({ from: "2026-01-01", to: "2026-03-01" })).toBe("weekly");
     expect(guessReportGroup({ from: "2026-01-01", to: "2026-08-01" })).toBe("monthly");
     expect(guessReportGroup({ from: "2020-01-01", to: "2026-01-01" })).toBe("yearly");
+  });
+
+  it("rejects malformed calendar dates from shared URLs", () => {
+    expect(isValidDateKey("2026-02-28")).toBe(true);
+    expect(isValidDateKey("2026-02-30")).toBe(false);
+    expect(isValidDateKey("not-a-date")).toBe(false);
   });
 
   it("creates gap-free buckets and places returns by returned date", () => {

@@ -32,6 +32,12 @@ function dateString(year: number, month: number, day: number) {
   return `${normalized.getUTCFullYear()}-${String(normalized.getUTCMonth() + 1).padStart(2, "0")}-${String(normalized.getUTCDate()).padStart(2, "0")}`;
 }
 
+export function isValidDateKey(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const { year, month, day } = parts(value);
+  return dateString(year, month, day) === value;
+}
+
 function shiftDate(value: string, days: number) {
   const { year, month, day } = parts(value);
   const shifted = new Date(Date.UTC(year, month - 1, day + days));
@@ -66,7 +72,7 @@ export function rangeForPreset(preset: ReportPreset, today = todayKey()): DateRa
 }
 
 export function guessReportGroup(range: DateRange): ReportGroup {
-  if (!range.from || !range.to || range.to < range.from) return "daily";
+  if (!isValidDateKey(range.from) || !isValidDateKey(range.to) || range.to < range.from) return "daily";
   const days = calendarDaysBetween(range.from, range.to) + 1;
   if (days <= 31) return "daily";
   if (days <= 120) return "weekly";
@@ -75,14 +81,14 @@ export function guessReportGroup(range: DateRange): ReportGroup {
 }
 
 export function previousDateRange(range: DateRange): DateRange {
-  if (!range.from || !range.to || range.to < range.from) return { from: "", to: "" };
+  if (!isValidDateKey(range.from) || !isValidDateKey(range.to) || range.to < range.from) return { from: "", to: "" };
   const length = calendarDaysBetween(range.from, range.to) + 1;
   const to = shiftDate(range.from, -1);
   return { from: shiftDate(to, -(length - 1)), to };
 }
 
 export function isWithinRange(value: string | null | undefined, range: DateRange): boolean {
-  if (!value || !range.from || !range.to || range.to < range.from) return false;
+  if (!value || !isValidDateKey(range.from) || !isValidDateKey(range.to) || range.to < range.from) return false;
   const key = dateKey(value);
   return key >= range.from && key <= range.to;
 }
@@ -120,7 +126,7 @@ export function buildActivityBuckets(
   range: DateRange,
   group: ReportGroup,
 ): ActivityBucket[] {
-  if (!range.from || !range.to || range.to < range.from) return [];
+  if (!isValidDateKey(range.from) || !isValidDateKey(range.to) || range.to < range.from) return [];
   const first = bucketStart(range.from, group);
   const last = bucketStart(range.to, group);
   const buckets: ActivityBucket[] = [];
@@ -138,8 +144,8 @@ export function buildActivityBuckets(
       const bucket = byDate.get(key);
       if (bucket) bucket.loansIssued += 1;
     }
-    if (isWithinRange(row.returnedAt, range)) {
-      const key = bucketStart(dateKey(row.returnedAt as string), group);
+    if (row.returnedAt && isWithinRange(row.returnedAt, range)) {
+      const key = bucketStart(dateKey(row.returnedAt), group);
       const bucket = byDate.get(key);
       if (bucket) bucket.returns += 1;
     }

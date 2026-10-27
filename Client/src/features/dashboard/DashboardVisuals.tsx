@@ -418,12 +418,12 @@ export function DonutChart({
       <svg
         viewBox="0 0 140 140"
         role="group"
-      aria-label={`Status breakdown: ${entries.map((entry) => `${entry.label} ${entry.count}`).join(", ")}`}
+        aria-label={`Status breakdown: ${entries.map((entry) => `${entry.label} ${entry.count}`).join(", ")}`}
       >
         <circle cx="70" cy="70" r="52" className="dashboard-donut__track" />
-      {positiveEntries.map((entry, index) => {
-        const { key, count, tone, label } = entry;
-        const segment = total > 0 ? (count / total) * circumference : 0;
+        {positiveEntries.map((entry, index) => {
+          const { key, count, tone, label } = entry;
+          const segment = total > 0 ? (count / total) * circumference : 0;
           const gap = Math.min(5, segment);
           const dashLength = Math.max(segment < 4 ? 2 : 0, segment - gap);
           const isActive = activeStatus === key;

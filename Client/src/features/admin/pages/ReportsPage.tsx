@@ -23,6 +23,7 @@ import {
   buildActivityBuckets,
   formatBucketLabel,
   guessReportGroup,
+  isValidDateKey,
   isWithinRange,
   previousDateRange,
   rangeForPreset,
@@ -237,10 +238,15 @@ function rowDateInRange(value: string | null | undefined, range: DateRange) {
 }
 
 function changeRangeLength(range: DateRange) {
-  return range.from && range.to && range.to >= range.from ? calendarDaysBetween(range.from, range.to) + 1 : 1;
+  return isValidDateKey(range.from) && isValidDateKey(range.to) && range.to >= range.from
+    ? calendarDaysBetween(range.from, range.to) + 1
+    : 1;
 }
 
 function humanDateRangeError(range: DateRange) {
+  if ((range.from && !isValidDateKey(range.from)) || (range.to && !isValidDateKey(range.to))) {
+    return "Enter valid From and To dates.";
+  }
   if (range.from && range.to && range.to < range.from) return "To date must be the same as or later than From date.";
   return null;
 }
@@ -311,8 +317,8 @@ export default function ReportsPage() {
   const previousOverdue = useMemo(() => (allData?.overdue ?? []).filter((row) => rowDateInRange(row.dueAt, previousRange)), [allData, previousRange]);
   const currentFines = useMemo(() => (allData?.fines ?? []).filter((row) => rowDateInRange(row.recordedAt, range)), [allData, range]);
   const previousFines = useMemo(() => (allData?.fines ?? []).filter((row) => rowDateInRange(row.recordedAt, previousRange)), [allData, previousRange]);
-  const currentReturns = currentBorrowing.filter((row) => rowDateInRange(row.returnedAt, range)).length;
-  const previousReturns = previousBorrowing.filter((row) => rowDateInRange(row.returnedAt, previousRange)).length;
+  const currentReturns = (allData?.borrowing ?? []).filter((row) => rowDateInRange(row.returnedAt, range)).length;
+  const previousReturns = (allData?.borrowing ?? []).filter((row) => rowDateInRange(row.returnedAt, previousRange)).length;
   const currentFineTotal = currentFines.reduce((sum, row) => sum + row.amount, 0);
   const previousFineTotal = previousFines.reduce((sum, row) => sum + row.amount, 0);
   const activity: ActivityBucket[] = useMemo(() => buildActivityBuckets(allData?.borrowing ?? [], range, group), [allData, range, group]);
@@ -330,7 +336,7 @@ export default function ReportsPage() {
   return (
     <div className="page admin-dashboard admin-reports">
       <PageHero
-        eyebrow="Administration"
+        eyebrow="Admin"
         title="Reports"
         description={titleDescription}
         leading={<BackButton fallback={ROUTES.admin.dashboard} />}
@@ -361,7 +367,10 @@ export default function ReportsPage() {
           <section aria-labelledby="reports-kpis-title">
             <div className="reports-section-heading">
               <h2 id="reports-kpis-title">Selected-period summary</h2>
-              <span title="Loans use borrowed date; returns use returned date; fines use recorded date." aria-label="KPI definitions: loan and return activity use their event dates; fines use recorded date.">ⓘ KPI definitions</span>
+              <details className="reports-definitions">
+                <summary aria-label="KPI definitions">ⓘ KPI definitions</summary>
+                <p>Loans use borrowed date, returns use returned date, overdue uses due date, and fines use recorded date.</p>
+              </details>
             </div>
             <div className="admin-reports__kpis">
               <article className="admin-kpi admin-kpi--active">
@@ -390,6 +399,9 @@ export default function ReportsPage() {
           <div className="dashboard-grid-main admin-dashboard__charts reports-chart-grid">
             <ChartPanel title="Library activity" note={`${group[0].toUpperCase()}${group.slice(1)} totals for loans issued and returns.`} className="dashboard-panel--feature admin-dashboard__activity-panel">
               <ActivityChart days={activity} selectedDay={selectedBucket ?? activity[activity.length - 1]?.date ?? null} onSelectDay={setSelectedBucket} formatBucket={chartLabel} />
+              {activity.length > 0 && activity.every((bucket) => bucket.loansIssued === 0 && bucket.returns === 0) && (
+                <p className="reports-chart-empty">No circulation activity in this period. Buckets are shown as zero.</p>
+              )}
             </ChartPanel>
             <ChartPanel title="Loans by status" note="Current status of loans issued during this range." className="admin-dashboard__copies-panel">
               <DonutChart counts={null} items={statuses} caption="loans" />
